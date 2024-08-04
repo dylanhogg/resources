@@ -10,13 +10,13 @@ https://github.com/uncbiag/Awesome-Foundation-Models
 
 https://huggingface.co/collections/taufiqdp/llms-658d4b6c8ea59eaa35665e60
 
-## Leaderboards
+### Leaderboards
 
 https://chat.lmsys.org/?leaderboard
 
 https://arxiv.org/abs/2403.04132 - Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference
 
-## Serving Providers
+### Serving Providers
 
 https://cloud.google.com/model-garden
 
@@ -36,7 +36,7 @@ https://huggingface.co/facebook
 
 #### The Llama 3 Herd of Models
 
-https://arxiv.org/abs/2407.21783
+https://arxiv.org/abs/2407.21783 - The Llama 3 Herd of Models
 
 https://en.wikipedia.org/wiki/Llama_(language_model)
 
@@ -147,6 +147,8 @@ https://ai.google.dev/gemma/docs/codegemma
 
 https://www.kaggle.com/models/google/codegemma
 
+---
+
 ### Company: Microsoft
 
 https://huggingface.co/microsoft
@@ -200,9 +202,13 @@ https://mistral.ai/technology/#models
 https://arxiv.org/abs/2310.06825 - Mistral 7B
 https://huggingface.co/papers/2310.06825
 
+---
+
 ### Company: Anthropic
 
 https://www.anthropic.com/research
+
+---
 
 ### Company: Cohere
 
@@ -210,7 +216,11 @@ https://en.wikipedia.org/wiki/Cohere
 
 https://docs.cohere.com/docs/the-cohere-platform
 
+---
+
 ### Company: OpenAI
+
+---
 
 ### Company: TII
 
@@ -219,6 +229,24 @@ The Technology Innovation Institute (TII) is a leading global research center de
 https://huggingface.co/tiiuae
 
 https://www.tii.ae/
+
+---
+
+### Company: X
+
+https://x.ai/
+
+#### LLM: Grok-1.5
+
+Introducing Grok-1.5, our latest model capable of long context understanding and advanced reasoning.
+
+https://huggingface.co/xai-org/grok-1
+
+https://github.com/xai-org/grok-1
+
+https://x.ai/blog/grok-1.5
+
+---
 
 #### LLM: Falcon2
 
@@ -230,15 +258,23 @@ https://falconllm.tii.ae/
 
 https://huggingface.co/collections/tiiuae/falcon2-6641c2f0b98ddf3fe49b4012
 
+---
+
 ### Company: Mistral AI
 
 https://docs.mistral.ai/getting-started/open_weight_models/
 
+---
+
 ### Company: Stability AI
+
+---
 
 ### Company: AI21 Labs
 
 https://en.wikipedia.org/wiki/AI21_Labs
+
+---
 
 #### Jamba
 
@@ -247,14 +283,24 @@ Jamba is an open-weights large language model (LLM) developed by AI21 Labs using
 https://en.wikipedia.org/wiki/Jamba_(language_model)
 https://www.ai21.com/jamba
 
+---
+
 ### Company: Databricks
+
+---
 
 ### Company: Salesforce
 
+---
+
 ### Company: IBM
+
+---
 
 ### Company: Intel?
 
+---
+
 ### Company: NVIDIA?
 
-###
+---
