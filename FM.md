@@ -12,9 +12,11 @@ https://huggingface.co/collections/taufiqdp/llms-658d4b6c8ea59eaa35665e60
 
 ### Leaderboards
 
-https://chat.lmsys.org/?leaderboard
+[LMSYS Chatbot Arena Leaderboard](https://chat.lmsys.org/?leaderboard)
 
-https://arxiv.org/abs/2403.04132 - Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference
+[Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference](https://arxiv.org/abs/2403.04132)
+
+[Papers with Code: State-of-the-art (SOTA) results for all tasks](https://paperswithcode.com/sota)
 
 ### Serving Providers
 
@@ -174,6 +176,8 @@ A novel vision foundation model with a unified, prompt-based representation for 
 https://arxiv.org/abs/2311.06242 - Florence-2: Advancing a Unified Representation for a Variety of Vision Tasks
 
 https://huggingface.co/collections/microsoft/florence-6669f44df0d87d9c3bfb76de
+
+(Florence uses DaViT as the vision encoder) https://arxiv.org/abs/2204.03645 - DaViT: Dual Attention Vision Transformers
 
 ---
 
