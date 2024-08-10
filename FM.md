@@ -34,7 +34,7 @@ https://en.wikipedia.org/wiki/Large_language_model#List
 
 https://huggingface.co/facebook
 
-#### The Llama 3 Herd of Models
+#### The Llama 3 Herd of Models ![](https://img.shields.io/badge/LLM-blue)
 
 https://arxiv.org/abs/2407.21783 - The Llama 3 Herd of Models
 
@@ -50,7 +50,7 @@ https://ai.meta.com/blog/meta-llama-3/
 
 https://llama.meta.com/
 
-#### VLM: Chameleon
+#### Chameleon ![](https://img.shields.io/badge/VLM-blue)
 
 https://arxiv.org/abs/2405.09818 - Chameleon: Mixed-Modal Early-Fusion Foundation Models
 
@@ -68,7 +68,7 @@ https://huggingface.co/collections/apple
 
 https://huggingface.co/EPFL-VILAB
 
-#### Apple Intelligence Foundation Language Models
+#### Apple Intelligence Foundation Language Models ![](https://img.shields.io/badge/LLM-blue)
 
 https://arxiv.org/abs/2407.21075 - Apple Intelligence Foundation Language Models
 
@@ -76,7 +76,7 @@ https://machinelearning.apple.com/research/apple-intelligence-foundation-languag
 
 https://machinelearning.apple.com/research/introducing-apple-foundation-models
 
-#### 4M: Massively Multimodal Masked Modeling
+#### 4M Massively Multimodal Masked Modeling ![](https://img.shields.io/badge/MMM-blue)
 
 https://arxiv.org/abs/2406.09406 - 4M-21: An Any-to-Any Vision Model for Tens of Tasks and Modalities
 
@@ -95,7 +95,7 @@ https://huggingface.co/collections/EPFL-VILAB/4m-models-660193abe3faf4b4d98a2742
 https://huggingface.co/google
 https://huggingface.co/collections/google
 
-#### MMM: Gemini
+#### Gemini ![](https://img.shields.io/badge/MMM-blue)
 
 A Family of Highly Capable Multimodal Models
 
@@ -107,7 +107,7 @@ https://en.wikipedia.org/wiki/Gemini_(language_model)
 
 https://deepmind.google/technologies/gemini/
 
-#### LLM: Gemma
+#### Gemma ![](https://img.shields.io/badge/LLM-blue)
 
 A family of lightweight, open, text-to-text, decoder-only LLMs, built from the research and technology used to create Gemini models
 
@@ -119,7 +119,7 @@ https://ai.google.dev/gemma/docs/model_card_2
 
 https://huggingface.co/collections/google/gemma-2-release-667d6600fd5220e7b967f315
 
-#### VLM: PaliGemma
+#### PaliGemma ![](https://img.shields.io/badge/VLM-blue)
 
 PaliGemma is a powerful open VLM inspired by PaLI-3
 
@@ -133,7 +133,7 @@ https://www.kaggle.com/models/google/paligemma
 
 https://github.com/google-research/big_vision/blob/main/big_vision/configs/proj/paligemma/README.md
 
-#### CodeGemma
+#### CodeGemma ![](https://img.shields.io/badge/CLM-blue)
 
 CodeGemma is a collection of powerful, lightweight models that can perform a variety of coding tasks like fill-in-the-middle code completion, code generation, natural language understanding, mathematical reasoning, and instruction following.
 
@@ -153,7 +153,7 @@ https://www.kaggle.com/models/google/codegemma
 
 https://huggingface.co/microsoft
 
-#### LLM: Phi-3
+#### Phi-3 ![](https://img.shields.io/badge/LLM-blue)
 
 Phi-3 is a family of open AI models developed by Microsoft.
 
@@ -167,7 +167,7 @@ https://azure.microsoft.com/en-us/blog/introducing-phi-3-redefining-whats-possib
 
 https://onnxruntime.ai/blogs/accelerating-phi-3
 
-#### VLM: Florence-2
+#### Florence-2 ![](https://img.shields.io/badge/VLM-blue)
 
 A novel vision foundation model with a unified, prompt-based representation for a variety of computer vision and vision-language tasks.
 
@@ -177,9 +177,9 @@ https://huggingface.co/collections/microsoft/florence-6669f44df0d87d9c3bfb76de
 
 ---
 
-### Company Huggingface
+### Company: Huggingface
 
-#### Idefics2
+#### Idefics2 ![](https://img.shields.io/badge/VLM-blue)
 
 https://huggingface.co/blog/idefics2
 
@@ -189,6 +189,10 @@ https://huggingface.co/HuggingFaceM4/idefics2-8b
 
 ### Company: AWS
 
+TODO
+
+---
+
 ### Company: Mistral
 
 https://en.wikipedia.org/wiki/Mistral_AI
@@ -197,7 +201,7 @@ https://mistral.ai/technology/#models
 
 ---
 
-#### Mistral
+#### Mistral ![](https://img.shields.io/badge/LLM-blue)
 
 https://arxiv.org/abs/2310.06825 - Mistral 7B
 https://huggingface.co/papers/2310.06825
@@ -207,6 +211,8 @@ https://huggingface.co/papers/2310.06825
 ### Company: Anthropic
 
 https://www.anthropic.com/research
+
+TODO
 
 ---
 
@@ -220,15 +226,7 @@ https://docs.cohere.com/docs/the-cohere-platform
 
 ### Company: OpenAI
 
----
-
-### Company: TII
-
-The Technology Innovation Institute (TII) is a leading global research center dedicated to pushing the frontiers of knowledge.
-
-https://huggingface.co/tiiuae
-
-https://www.tii.ae/
+TODO
 
 ---
 
@@ -236,7 +234,7 @@ https://www.tii.ae/
 
 https://x.ai/
 
-#### LLM: Grok-1.5
+#### Grok-1.5 ![](https://img.shields.io/badge/LLM-blue)
 
 Introducing Grok-1.5, our latest model capable of long context understanding and advanced reasoning.
 
@@ -248,7 +246,15 @@ https://x.ai/blog/grok-1.5
 
 ---
 
-#### LLM: Falcon2
+### Company: TII
+
+The Technology Innovation Institute (TII) is a leading global research center dedicated to pushing the frontiers of knowledge.
+
+https://huggingface.co/tiiuae
+
+https://www.tii.ae/
+
+#### Falcon2 ![](https://img.shields.io/badge/LLM-blue)
 
 https://arxiv.org/abs/2311.16867 - The Falcon Series of Open Language Models
 
@@ -264,9 +270,13 @@ https://huggingface.co/collections/tiiuae/falcon2-6641c2f0b98ddf3fe49b4012
 
 https://docs.mistral.ai/getting-started/open_weight_models/
 
+TODO
+
 ---
 
 ### Company: Stability AI
+
+TODO
 
 ---
 
@@ -274,9 +284,7 @@ https://docs.mistral.ai/getting-started/open_weight_models/
 
 https://en.wikipedia.org/wiki/AI21_Labs
 
----
-
-#### Jamba
+#### Jamba ![](https://img.shields.io/badge/LLM-blue)
 
 Jamba is an open-weights large language model (LLM) developed by AI21 Labs using the [Mamba deep learning architecture](<https://en.wikipedia.org/wiki/Mamba_(deep_learning_architecture)#Jamba>)
 
@@ -287,20 +295,30 @@ https://www.ai21.com/jamba
 
 ### Company: Databricks
 
+TODO
+
 ---
 
 ### Company: Salesforce
+
+TODO
 
 ---
 
 ### Company: IBM
 
+TODO
+
 ---
 
 ### Company: Intel?
 
+TODO
+
 ---
 
 ### Company: NVIDIA?
+
+TODO
 
 ---
