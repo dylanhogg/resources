@@ -10,6 +10,8 @@ https://github.com/uncbiag/Awesome-Foundation-Models
 
 https://huggingface.co/collections/taufiqdp/llms-658d4b6c8ea59eaa35665e60
 
+https://github.com/Lightning-AI/litgpt#choose-from-20-llms
+
 ### Leaderboards
 
 [LMSYS Chatbot Arena Leaderboard](https://chat.lmsys.org/?leaderboard)
@@ -188,6 +190,16 @@ https://huggingface.co/collections/microsoft/florence-6669f44df0d87d9c3bfb76de
 https://huggingface.co/blog/idefics2
 
 https://huggingface.co/HuggingFaceM4/idefics2-8b
+
+---
+
+### Company: NousResearch
+
+TODO
+
+https://huggingface.co/NousResearch
+
+https://nousresearch.com/
 
 ---
 
