@@ -199,7 +199,7 @@ TODO
 
 https://huggingface.co/NousResearch
 
-https://nousresearch.com/
+https://nousresearch.com/releases/
 
 ---
 
