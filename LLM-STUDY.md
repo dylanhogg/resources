@@ -45,3 +45,6 @@ https://bbycroft.net/llm
 https://sebastianraschka.com/blog/2024/using-finetuning-transformers.html
 
 https://sebastianraschka.com/blog/2023/llm-reading-list.html
+
+https://github.com/naklecha/llama3-from-scratch
+
