@@ -97,6 +97,7 @@ https://huggingface.co/collections/EPFL-VILAB/4m-models-660193abe3faf4b4d98a2742
 ### Company: Google
 
 https://huggingface.co/google
+
 https://huggingface.co/collections/google
 
 #### Gemini ![](https://img.shields.io/badge/MMM-blue)
@@ -203,7 +204,47 @@ https://nousresearch.com/releases/
 
 ---
 
+### Company: lmsys.org
+
+TODO
+
+https://huggingface.co/lmsys
+
+https://lmsys.org/
+
+#### Vincuna ![](https://img.shields.io/badge/VLM-blue)
+
+https://lmsys.org/blog/2023-03-30-vicuna/
+
+https://huggingface.co/lmsys/vicuna-7b-v1.5
+
+https://en.wikipedia.org/wiki/Vicuna_LLM
+
+---
+
+### Company: Alibaba
+
+TODO
+
+#### Qwen
+
+https://huggingface.co/Qwen
+
+https://huggingface.co/collections/Qwen/qwen-65c0e50c3f1ab89cb8704144
+
+https://huggingface.co/collections/Qwen/qwen2-6659360b33528ced941e557f
+
+https://qwenlm.github.io/blog/qwen2/
+
+https://github.com/QwenLM/Qwen2
+
+https://arxiv.org/abs/2407.10671 (Qwen2 Technical Report)
+
+---
+
 ### Company: AWS
+
+https://huggingface.co/amazon
 
 TODO
 
@@ -214,6 +255,8 @@ TODO
 https://en.wikipedia.org/wiki/Mistral_AI
 
 https://mistral.ai/technology/#models
+
+https://docs.mistral.ai/getting-started/open_weight_models/
 
 ---
 
@@ -226,6 +269,8 @@ https://huggingface.co/papers/2310.06825
 
 ### Company: Anthropic
 
+https://huggingface.co/Anthropic
+
 https://www.anthropic.com/research
 
 TODO
@@ -234,13 +279,19 @@ TODO
 
 ### Company: Cohere
 
+https://huggingface.co/Cohere
+
 https://en.wikipedia.org/wiki/Cohere
 
 https://docs.cohere.com/docs/the-cohere-platform
 
+TODO
+
 ---
 
 ### Company: OpenAI
+
+https://huggingface.co/openai
 
 TODO
 
@@ -249,6 +300,8 @@ TODO
 ### Company: X
 
 https://x.ai/
+
+https://huggingface.co/Twitter
 
 #### Grok-1.5 ![](https://img.shields.io/badge/LLM-blue)
 
@@ -282,17 +335,29 @@ https://huggingface.co/collections/tiiuae/falcon2-6641c2f0b98ddf3fe49b4012
 
 ---
 
-### Company: Mistral AI
+### Company: NVIDIA?
 
-https://docs.mistral.ai/getting-started/open_weight_models/
+https://huggingface.co/nvidia
 
-TODO
+#### Nemotron-4 340B ![](https://img.shields.io/badge/LLM-blue)
 
----
+Nemotron-4: open models for Synthetic Data Generation (SDG). Includes Base, Instruct, and Reward models.
 
-### Company: Stability AI
+https://huggingface.co/collections/nvidia/nemotron-4-340b-666b7ebaf1b3867caf2f1911
 
-TODO
+#### Nemotron 3 8B ![](https://img.shields.io/badge/LLM-blue)
+
+The Nemotron 3 8B Family of models is optimized for building production-ready generative AI applications for the enterprise.
+
+https://huggingface.co/collections/nvidia/nemotron-3-8b-6553adeb226f6ab4ffc356f9
+
+#### Minitron ![](https://img.shields.io/badge/LLM-blue)
+
+A family of compressed models obtained via pruning and knowledge distillation
+
+https://arxiv.org/abs/2407.14679
+
+https://huggingface.co/collections/nvidia/minitron-669ac727dc9c86e6ab7f0f3e
 
 ---
 
@@ -300,12 +365,20 @@ TODO
 
 https://en.wikipedia.org/wiki/AI21_Labs
 
+---
+
 #### Jamba ![](https://img.shields.io/badge/LLM-blue)
 
 Jamba is an open-weights large language model (LLM) developed by AI21 Labs using the [Mamba deep learning architecture](<https://en.wikipedia.org/wiki/Mamba_(deep_learning_architecture)#Jamba>)
 
 https://en.wikipedia.org/wiki/Jamba_(language_model)
 https://www.ai21.com/jamba
+
+---
+
+### Company: Stability AI
+
+TODO
 
 ---
 
@@ -328,12 +401,6 @@ TODO
 ---
 
 ### Company: Intel?
-
-TODO
-
----
-
-### Company: NVIDIA?
 
 TODO
 

@@ -1,16 +1,20 @@
-# Study Resources
+# Resources
 
-Various study resources and topic overviews.
+Various topic overviews and study resources.
 
-## Topic Overviews
+Mainly focussed on technology, software engineering and ML.
 
-[Foundational Models](FM.md)
+## ML Topics
 
-[Representation Engineering / Control Vectors / Steering Vectors](REPENG.md)
+[Foundational Models](ml/Foundational%20Models.md)
+
+[Representation Engineering / Control Vectors / Steering Vectors](ml/Representation%20Engineering.md)
+
+[Data Attribution](ml/Data%20Attribution.md)
 
 ## Study Resources
 
-[LLM Study](LLM-STUDY.md)
+[LLM Study](/study/LLM%20Study.md)
 
 ## External Resources
 
