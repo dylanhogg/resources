@@ -226,11 +226,13 @@ https://en.wikipedia.org/wiki/Vicuna_LLM
 
 TODO
 
-#### Qwen
+#### Qwen ![](https://img.shields.io/badge/LLM-blue)
 
 https://huggingface.co/Qwen
 
 https://huggingface.co/collections/Qwen/qwen-65c0e50c3f1ab89cb8704144
+
+#### Qwen2 ![](https://img.shields.io/badge/LLM-blue)
 
 https://huggingface.co/collections/Qwen/qwen2-6659360b33528ced941e557f
 
@@ -239,6 +241,14 @@ https://qwenlm.github.io/blog/qwen2/
 https://github.com/QwenLM/Qwen2
 
 https://arxiv.org/abs/2407.10671 (Qwen2 Technical Report)
+
+#### Qwen2 VL ![](https://img.shields.io/badge/VLM-blue)
+
+https://huggingface.co/collections/Qwen/qwen2-vl-66cee7455501d7126940800d
+
+https://github.com/QwenLM/Qwen2-VL
+
+https://qwenlm.github.io/blog/qwen2-vl/
 
 ---
 
