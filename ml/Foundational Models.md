@@ -1,8 +1,10 @@
 # Foundational Models
 
-WIP as at Aug 2024
+WIP as at Sep 2024
 
 A collection of notable foundational models, including language models, multimodal models, and vision models.
+
+https://huggingface.co/collections/dylanhogg
 
 ## External links
 
@@ -115,6 +117,8 @@ https://deepmind.google/technologies/gemini/
 #### Gemma ![](https://img.shields.io/badge/LLM-blue)
 
 A family of lightweight, open, text-to-text, decoder-only LLMs, built from the research and technology used to create Gemini models
+
+https://ai.google.dev/gemma/
 
 https://arxiv.org/abs/2408.00118 - Gemma 2: Improving Open Language Models at a Practical Size
 
@@ -353,7 +357,13 @@ https://huggingface.co/nvidia
 
 Nemotron-4: open models for Synthetic Data Generation (SDG). Includes Base, Instruct, and Reward models.
 
+https://arxiv.org/abs/2406.11704 - Nemotron-4 340B Technical Report
+
 https://huggingface.co/collections/nvidia/nemotron-4-340b-666b7ebaf1b3867caf2f1911
+
+https://developer.nvidia.com/blog/leverage-our-latest-open-models-for-synthetic-data-generation-with-nvidia-nemotron-4-340b/
+
+https://research.nvidia.com/publication/2024-06_nemotron-4-340b
 
 #### Nemotron 3 8B ![](https://img.shields.io/badge/LLM-blue)
 
@@ -389,6 +399,22 @@ https://www.ai21.com/jamba
 ### Company: Stability AI
 
 TODO
+
+---
+
+### Company: Cartesia.AI
+
+Cartesia is building next-gen foundation models using new subquadratic architectures
+
+TODO
+
+https://huggingface.co/cartesia-ai
+
+https://cartesia.ai/
+
+#### Rene ![](https://img.shields.io/badge/LLM-blue)
+
+https://huggingface.co/cartesia-ai/Rene-v0.1-1.3b-pytorch
 
 ---
 
