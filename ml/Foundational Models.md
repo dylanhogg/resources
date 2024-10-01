@@ -198,6 +198,20 @@ https://huggingface.co/HuggingFaceM4/idefics2-8b
 
 ---
 
+### Company: AllenAI
+
+#### Molmo ![](https://img.shields.io/badge/VLM-blue)
+
+https://molmo.org/
+
+https://molmo.allenai.org/blog
+
+https://huggingface.co/collections/allenai/molmo-66f379e6fe3b8ef090a8ca19
+
+https://www.arxiv.org/abs/2409.17146
+
+---
+
 ### Company: NousResearch
 
 TODO
