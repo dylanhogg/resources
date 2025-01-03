@@ -2,7 +2,7 @@
 
 ## What is it?
 
-Representation Engineering refers to the practice of refining and optimizing the internal representations within an AI model, particularly in neural networks, to make the model's decision-making process more interpretable and transparent. By understanding and adjusting how features are represented within the model, engineers can better align the AI's outputs with human-understandable concepts, thus enhancing the model's transparency.
+Representation Engineering refers to the practice of refining and optimizing the internal representations within an AI model, particularly in neural networks, to make the model's decision-making process more interpretable and transparent. The goal is to ensure that the model learns meaningful, robust, and generalizable representations of the data, which can lead to improved performance, efficiency, or interpretability. By understanding and adjusting how features are represented within the model, engineers can better align the AI's outputs with human-understandable concepts, thus enhancing the model's transparency.
 
 Control Vectors are specific vectors within the latent space of a neural network that can be adjusted to influence the model’s output in a predictable manner. These vectors act as levers to control certain aspects of the model's behavior, making it possible to steer the model towards or away from certain outcomes while maintaining transparency in how those outcomes are reached.
 

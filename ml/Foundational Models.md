@@ -222,6 +222,28 @@ https://nousresearch.com/releases/
 
 ---
 
+### Company: Nomic AI
+
+Explainable & Accessible AI
+
+https://huggingface.co/nomic-ai
+
+https://github.com/nomic-ai
+
+https://www.nomic.ai/
+
+https://x.com/nomic_ai
+
+#### ModernBERT Embed
+
+https://huggingface.co/nomic-ai/modernbert-embed-base
+
+#### nomic-embed-text-v1.5: Resizable Production Embeddings with Matryoshka Representation Learning
+
+https://huggingface.co/nomic-ai/nomic-embed-text-v1.5
+
+---
+
 ### Company: lmsys.org
 
 TODO

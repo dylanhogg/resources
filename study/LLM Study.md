@@ -99,6 +99,12 @@ https://peterbloem.nl/blog/transformers
 
 [Transformers & Attention 1: Self Attention - Rasa](https://www.youtube.com/watch?v=yGTUuEx3GkA&list=PL75e0qA87dlG-za8eLI6t0_Pbxafk-cxb&index=9)
 
+[Illustrated Guide to Transformers Neural Network: A step by step explanation](https://www.youtube.com/watch?v=4Bdc55j80l8)
+
+[Hugging Face Course](https://www.youtube.com/playlist?list=PLo2EIpI_JMQvWfQndUesu0nPBAtZ9gP1o)
+
+[Backprop: The Most Important Algorithm in Machine Learning](https://www.youtube.com/watch?v=SmZmBKc7Lrs&list=PLgtmMKe4spCPsxyMpg-sxf3EcbsFYlzPK&index=1)
+
 ## Books
 
 [Attention Mechanisms and Transformers - Ch 11](https://d2l.ai/chapter_attention-mechanisms-and-transformers/index.html)
