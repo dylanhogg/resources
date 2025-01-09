@@ -83,17 +83,25 @@ https://web.stanford.edu/class/cs25/
 
 ## Blogs / Demos
 
-[The Annotated Transformer - Harvard](https://github.com/harvardnlp/annotated-transformer/)
+The Annotated Transformer - Harvard  
+https://github.com/harvardnlp/annotated-transformer/
 
+Transformer models: an introduction and catalog — 2023 Edition  
 https://amatria.in/blog/transformer-models-an-introduction-and-catalog-2d1e9039f376/
 
+Transformer Explainer App  
 https://poloclub.github.io/transformer-explainer/
 
 [LLM Visualization in 3d](https://bbycroft.net/llm)
 
+llama3 implemented from scratch - 2024  
 https://github.com/naklecha/llama3-from-scratch
 
+Transformers from Scratch - Aug 2019  
 https://peterbloem.nl/blog/transformers
+
+Transformers Laid Out - Jan 2025  
+https://goyalpramod.github.io/blogs/Transformers_laid_out/
 
 ## Youtube
 

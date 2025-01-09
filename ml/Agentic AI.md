@@ -25,7 +25,14 @@ https://www.reddit.com/r/AI_Agents/comments/1hq9il6/best_ai_agent_frameworks_in_
 
 ## Papers
 
-https://arxiv.org/abs/2411.04468 - Magentic-One: A Generalist Multi-Agent System for Solving Complex Tasks (Microsoft)
+A compilation of the best multi-agent papers  
+https://github.com/kyegomez/awesome-multi-agent-papers
+
+Magentic-One: A Generalist Multi-Agent System for Solving Complex Tasks (Microsoft)  
+https://arxiv.org/abs/2411.04468
+
+The AI Scientist: Towards Fully Automated Open-Ended Scientific Discovery  
+https://arxiv.org/abs/2408.06292
 
 TODO: more papers
 
