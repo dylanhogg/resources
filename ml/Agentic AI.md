@@ -27,8 +27,18 @@ https://www.reddit.com/r/AI_Agents/comments/1hq9il6/best_ai_agent_frameworks_in_
 
 https://arxiv.org/abs/2411.04468 - Magentic-One: A Generalist Multi-Agent System for Solving Complex Tasks (Microsoft)
 
-TODO: more
+TODO: more papers
 
 ## Courses
 
-TODO
+Self-paced GenAI learning guide by Google (incl link to Agents whitepaper above) - Nov 2024  
+https://www.kaggle.com/learn-guide/5-day-genai
+
+Building Agentic RAG with Llamaindex  
+https://learn.deeplearning.ai/courses/building-agentic-rag-with-llamaindex/
+
+AI Agentic Design Patterns with AutoGen  
+https://learn.deeplearning.ai/courses/ai-agentic-design-patterns-with-autogen/
+
+AI Agents in LangGraph  
+https://learn.deeplearning.ai/courses/ai-agents-in-langgraph/
