@@ -28,6 +28,9 @@ https://www.reddit.com/r/AI_Agents/comments/1hq9il6/best_ai_agent_frameworks_in_
 A compilation of the best multi-agent papers  
 https://github.com/kyegomez/awesome-multi-agent-papers
 
+Autonomous Agents-research papers, updated daily  
+https://github.com/tmgthb/Autonomous-Agents
+
 Magentic-One: A Generalist Multi-Agent System for Solving Complex Tasks (Microsoft)  
 https://arxiv.org/abs/2411.04468
 
