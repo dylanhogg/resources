@@ -17,6 +17,9 @@ https://www.anthropic.com/research/building-effective-agents
 Sample from Chip Huyen's book AI Engineering - Jan 2025  
 https://huyenchip.com//2025/01/07/agents.html
 
+Hugging Face blog on SmolAgents - Feb 2025  
+https://huggingface.co/blog/smolagents
+
 Google whitepaper on Agents - Sep 2024  
 https://www.kaggle.com/whitepaper-agents
 
