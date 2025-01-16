@@ -18,7 +18,8 @@ Sample from Chip Huyen's book AI Engineering - Jan 2025
 https://huyenchip.com//2025/01/07/agents.html
 
 Hugging Face blog on SmolAgents - Feb 2025  
-https://huggingface.co/blog/smolagents
+https://huggingface.co/blog/smolagents  
+https://huggingface.co/docs/smolagents
 
 Google whitepaper on Agents - Sep 2024  
 https://www.kaggle.com/whitepaper-agents
@@ -30,6 +31,9 @@ https://www.reddit.com/r/AI_Agents/comments/1hq9il6/best_ai_agent_frameworks_in_
 
 A compilation of the best multi-agent papers  
 https://github.com/kyegomez/awesome-multi-agent-papers
+
+Agent paper collection by m-ric  
+https://huggingface.co/collections/m-ric/agents-65ba776fbd9e29f771c07d4e
 
 Autonomous Agents-research papers, updated daily  
 https://github.com/tmgthb/Autonomous-Agents
