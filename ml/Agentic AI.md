@@ -38,6 +38,9 @@ https://huggingface.co/collections/m-ric/agents-65ba776fbd9e29f771c07d4e
 Autonomous Agents-research papers, updated daily  
 https://github.com/tmgthb/Autonomous-Agents
 
+Agentic Retrieval-Augmented Generation: A Survey on Agentic RAG  
+https://arxiv.org/abs/2501.09136
+
 Magentic-One: A Generalist Multi-Agent System for Solving Complex Tasks (Microsoft)  
 https://arxiv.org/abs/2411.04468
 

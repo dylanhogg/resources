@@ -188,6 +188,54 @@ https://huggingface.co/collections/microsoft/florence-6669f44df0d87d9c3bfb76de
 
 ---
 
+### Company: DeepSeek
+
+DeepSeek (深度求索), founded in 2023, is a Chinese company dedicated to making AGI a reality.
+
+Unravel the mystery of AGI with curiosity. Answer the essential question with long-termism.
+
+https://www.deepseek.com/
+
+https://github.com/deepseek-ai
+
+https://huggingface.co/deepseek-ai
+
+https://arxiv.org/search/cs?searchtype=author&query=DeepSeek-AI
+
+#### DeepSeek Articles
+
+https://github.com/huggingface/open-r1 (Fully open reproduction of DeepSeek-R1 by Huggingface)
+
+https://www.chinatalk.media/p/deepseek-ceo-interview-with-chinas
+
+https://composio.dev/blog/notes-on-the-new-deepseek-r1/
+
+#### DeepSeek-V3 ![](https://img.shields.io/badge/LLM-blue)
+
+DeepSeek-V3, a strong Mixture-of-Experts (MoE) language model with 671B total parameters with 37B activated for each token.
+
+https://github.com/deepseek-ai/DeepSeek-V3
+
+https://huggingface.co/deepseek-ai/DeepSeek-V3
+
+https://huggingface.co/collections/deepseek-ai/deepseek-v3-676bc4546fb4876383c4208b
+
+https://arxiv.org/abs/2412.19437 - DeepSeek-V3 Technical Report
+
+#### DeepSeek-R1 ![](https://img.shields.io/badge/LLM-blue)
+
+Our first-generation reasoning models, DeepSeek-R1-Zero and DeepSeek-R1.
+
+https://github.com/deepseek-ai/DeepSeek-R1
+
+https://huggingface.co/deepseek-ai/DeepSeek-R1
+
+https://huggingface.co/collections/deepseek-ai/deepseek-r1-678e1e131c0169c0bc89728d
+
+https://arxiv.org/abs/2501.12948 - DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning
+
+---
+
 ### Company: Huggingface
 
 #### Idefics2 ![](https://img.shields.io/badge/VLM-blue)
