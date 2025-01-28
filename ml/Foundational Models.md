@@ -210,6 +210,8 @@ https://www.chinatalk.media/p/deepseek-ceo-interview-with-chinas
 
 https://composio.dev/blog/notes-on-the-new-deepseek-r1/
 
+https://unsloth.ai/blog/deepseekr1-dynamic
+
 #### DeepSeek-V3 ![](https://img.shields.io/badge/LLM-blue)
 
 DeepSeek-V3, a strong Mixture-of-Experts (MoE) language model with 671B total parameters with 37B activated for each token.
