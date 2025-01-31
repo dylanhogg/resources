@@ -242,11 +242,21 @@ https://arxiv.org/abs/2501.12948 - DeepSeek-R1: Incentivizing Reasoning Capabili
 
 ### Company: Huggingface
 
+https://huggingface.co/HuggingFaceTB
+
 #### Idefics2 ![](https://img.shields.io/badge/VLM-blue)
+
+Idefics2 is an open multimodal model that accepts arbitrary sequences of image and text inputs and produces text outputs.
 
 https://huggingface.co/blog/idefics2
 
 https://huggingface.co/HuggingFaceM4/idefics2-8b
+
+#### SmolLM2 ![](https://img.shields.io/badge/LLM-blue)
+
+State-of-the-art compact LLMs for on-device applications: 1.7B, 360M, 135M
+
+https://huggingface.co/collections/HuggingFaceTB/smollm2-6723884218bcda64b34d7db9
 
 ---
 
