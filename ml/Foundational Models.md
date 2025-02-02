@@ -204,7 +204,13 @@ https://arxiv.org/search/cs?searchtype=author&query=DeepSeek-AI
 
 #### DeepSeek Articles
 
+DeepSeek r1 was such a sensation; collecting articles about it here.
+
 https://github.com/huggingface/open-r1 (Fully open reproduction of DeepSeek-R1 by Huggingface)
+
+https://huggingface.co/blog/open-r1/update-1
+
+https://newsletter.languagemodels.co/p/the-illustrated-deepseek-r1
 
 https://www.chinatalk.media/p/deepseek-ceo-interview-with-chinas
 
