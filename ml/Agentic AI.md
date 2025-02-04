@@ -62,3 +62,6 @@ https://learn.deeplearning.ai/courses/ai-agentic-design-patterns-with-autogen/
 
 AI Agents in LangGraph  
 https://learn.deeplearning.ai/courses/ai-agents-in-langgraph/
+
+Huggingface Agents Course  
+https://huggingface.co/agents-course
