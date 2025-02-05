@@ -6,8 +6,47 @@ Agentic AI refers to artificial intelligence systems that exhibit a sense of age
 
 ## Resources
 
-Great collection of GitHut AI agent frameworks  
+### Agentic Framework Lists
+
+Great collection of GitHub AI agent frameworks:  
 https://www.awesomepython.org/?q=agentic
+
+### Agentic GitHub Repos
+
+(Updated Feb 2025)
+
+Langflow is a low-code app builder for RAG and multi-agent AI applications  
+https://github.com/langflow-ai/langflow
+
+Pprogramming framework for agentic AI  
+https://github.com/microsoft/autogen
+
+Framework for building LLM-powered agents over your data  
+https://github.com/run-llama/llama_index
+
+Framework for orchestrating role-playing, autonomous AI agents  
+https://github.com/crewAIInc/crewAI
+
+Framework for creating LLM services with memory  
+https://github.com/letta-ai/letta
+
+LLM-powered knowledge curation system that researches a topic and generates a full-length report  
+https://github.com/stanford-oval/storm
+
+Lightweight framework for building multi-modal Agents  
+https://github.com/agno-agi/agno
+
+Agent Framework / shim to use Pydantic with LLMs  
+https://github.com/pydantic/pydantic-ai
+
+Barebones library for agents that write python code to call tools and orchestrate other agents  
+https://github.com/huggingface/smolagents
+
+Educational framework exploring ergonomic, lightweight multi-agent orchestration  
+https://github.com/openai/swarm
+
+Framework designed with the concept of atomicity to be an extremely lightweight, built on top of Instructor and Pydantic  
+https://github.com/brainblend-ai/atomic-agents
 
 ## Readings
 
@@ -26,6 +65,9 @@ https://www.kaggle.com/whitepaper-agents
 
 Best AI Agent Frameworks: A Comprehensive Guide (which will clearly date quickly!) - Jan 2025  
 https://www.reddit.com/r/AI_Agents/comments/1hq9il6/best_ai_agent_frameworks_in_2025_a_comprehensive/
+
+Framework for AI agents and workflows with chain-of-thought reasoning, tools, and memory  
+https://github.com/griptape-ai/griptape
 
 ## Papers
 
