@@ -93,6 +93,11 @@ TODO: more papers
 
 ## Courses
 
+Huggingface Agents Course (2025)  
+https://huggingface.co/agents-course  
+https://huggingface.co/learn/agents-course/unit0/introduction  
+https://github.com/huggingface/agents-course
+
 Self-paced GenAI learning guide by Google (incl link to Agents whitepaper above) - Nov 2024  
 https://www.kaggle.com/learn-guide/5-day-genai
 
@@ -104,6 +109,3 @@ https://learn.deeplearning.ai/courses/ai-agentic-design-patterns-with-autogen/
 
 AI Agents in LangGraph  
 https://learn.deeplearning.ai/courses/ai-agents-in-langgraph/
-
-Huggingface Agents Course  
-https://huggingface.co/agents-course
