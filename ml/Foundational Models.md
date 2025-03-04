@@ -212,6 +212,8 @@ https://huggingface.co/blog/open-r1/update-1
 
 https://newsletter.languagemodels.co/p/the-illustrated-deepseek-r1
 
+https://mlfrontiers.substack.com/p/understanding-deepseek-v3
+
 https://www.chinatalk.media/p/deepseek-ceo-interview-with-chinas
 
 https://composio.dev/blog/notes-on-the-new-deepseek-r1/

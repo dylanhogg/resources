@@ -15,6 +15,9 @@ We reproduce the GPT-2 (124M) from scratch. This video covers the whole process:
 [Deep Dive into LLMs like ChatGPT](https://www.youtube.com/watch?app=desktop&v=7xTGNNLPyMI) (3.5hrs)
 This is a general audience deep dive into the Large Language Model (LLM) AI technology that powers ChatGPT and related products. It is covers the full training stack of how the models are developed, along with mental models of how to think about their "psychology", and how to get the best use them in practical applications. I have one "Intro to LLMs" video already from ~year ago, but that is just a re-recording of a random talk, so I wanted to loop around and do a lot more comprehensive version.
 
+[How I use LLMs](https://www.youtube.com/watch?v=EWvNQjAaOHw) (2hrs)
+The example-driven, practical walkthrough of Large Language Models and their growing list of related features, as a new entry to my general audience series on LLMs. In this more practical followup, I take you through the many ways I use LLMs in my own life.
+
 [Playlist: Neural Networks: Zero to Hero](https://www.youtube.com/playlist?list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhRvKZ) (10 videos) [karpathy.ai/zero-to-hero.html](https://karpathy.ai/zero-to-hero.html)
 
 - [The spelled-out intro to neural networks and backpropagation: building micrograd](https://www.youtube.com/watch?v=VMj-3S1tku0&list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhRvKZ) [micrograd code](https://github.com/karpathy/micrograd) [micrograd notebooks](https://github.com/karpathy/nn-zero-to-hero/tree/master/lectures/micrograd)
