@@ -11,6 +11,9 @@ Agentic AI refers to artificial intelligence systems that exhibit a sense of age
 Great collection of GitHub AI agent frameworks:  
 https://www.awesomepython.org/?q=agentic
 
+Smolagents LLM Leaderboard  
+https://huggingface.co/spaces/smolagents/smolagents-leaderboard
+
 ### Agentic GitHub Repos
 
 (Updated Feb 2025)
@@ -60,14 +63,39 @@ Hugging Face blog on SmolAgents - Feb 2025
 https://huggingface.co/blog/smolagents  
 https://huggingface.co/docs/smolagents
 
+AI Agents: How to build Digital Workers - Nov 2024
+https://medium.com/@alfredosone/ai-agents-how-to-build-digital-workers-4fe68bb20348
+
 Google whitepaper on Agents - Sep 2024  
 https://www.kaggle.com/whitepaper-agents
+
+Weaviate Agentic Architectures for RAG - Mar 2025  
+https://8738733.fs1.hubspotusercontent-na1.net/hubfs/8738733/eBooks/Weaviate%20Agentic%20Architectures-ebook.pdf
 
 Best AI Agent Frameworks: A Comprehensive Guide (which will clearly date quickly!) - Jan 2025  
 https://www.reddit.com/r/AI_Agents/comments/1hq9il6/best_ai_agent_frameworks_in_2025_a_comprehensive/
 
 Framework for AI agents and workflows with chain-of-thought reasoning, tools, and memory  
 https://github.com/griptape-ai/griptape
+
+## Courses
+
+Huggingface Agents Course (2025)  
+https://huggingface.co/agents-course  
+https://huggingface.co/learn/agents-course/unit0/introduction  
+https://github.com/huggingface/agents-course
+
+Self-paced GenAI learning guide by Google (incl link to Agents whitepaper above) - Nov 2024  
+https://www.kaggle.com/learn-guide/5-day-genai
+
+Building Agentic RAG with Llamaindex  
+https://learn.deeplearning.ai/courses/building-agentic-rag-with-llamaindex/
+
+AI Agentic Design Patterns with AutoGen  
+https://learn.deeplearning.ai/courses/ai-agentic-design-patterns-with-autogen/
+
+AI Agents in LangGraph  
+https://learn.deeplearning.ai/courses/ai-agents-in-langgraph/
 
 ## Papers
 
@@ -90,22 +118,3 @@ The AI Scientist: Towards Fully Automated Open-Ended Scientific Discovery
 https://arxiv.org/abs/2408.06292
 
 TODO: more papers
-
-## Courses
-
-Huggingface Agents Course (2025)  
-https://huggingface.co/agents-course  
-https://huggingface.co/learn/agents-course/unit0/introduction  
-https://github.com/huggingface/agents-course
-
-Self-paced GenAI learning guide by Google (incl link to Agents whitepaper above) - Nov 2024  
-https://www.kaggle.com/learn-guide/5-day-genai
-
-Building Agentic RAG with Llamaindex  
-https://learn.deeplearning.ai/courses/building-agentic-rag-with-llamaindex/
-
-AI Agentic Design Patterns with AutoGen  
-https://learn.deeplearning.ai/courses/ai-agentic-design-patterns-with-autogen/
-
-AI Agents in LangGraph  
-https://learn.deeplearning.ai/courses/ai-agents-in-langgraph/
