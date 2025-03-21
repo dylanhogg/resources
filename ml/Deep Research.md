@@ -19,3 +19,10 @@ https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co
 ## Perplexity
 
 https://www.perplexity.ai/hub/blog/introducing-perplexity-deep-research
+
+## ag2
+
+https://docs.ag2.ai/docs/user-guide/reference-agents/deepresearchagent  
+https://docs.ag2.ai/docs/use-cases/notebooks/notebooks/agents_deep_researcher#deepresearchagent  
+https://docs.ag2.ai/docs/api-reference/autogen/agents/experimental/DeepResearchAgent
+https://docs.ag2.ai/docs/blog/2025-02-13-DeepResearchAgent/index#deepresearchagent-your-shortcut-for-faster-research
