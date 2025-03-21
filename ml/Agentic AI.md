@@ -9,7 +9,13 @@ Agentic AI refers to artificial intelligence systems that exhibit a sense of age
 ### Agentic Framework Lists
 
 Great collection of GitHub AI agent frameworks:  
-https://www.awesomepython.org/?q=agentic
+https://www.awesomepython.org/?c=agentic-ai
+
+Specific GitHub AI agent support tasks:  
+https://www.awesomepython.org/?q=llm-observability (LLM observability)  
+https://www.awesomepython.org/?q=llm-evaluation (LLM evaluation)  
+https://www.awesomepython.org/?q=llm-guardrails (LLM guardrails)  
+https://www.awesomepython.org/?q=llm-structured-output (LLM structured output)
 
 Smolagents LLM Leaderboard  
 https://huggingface.co/spaces/smolagents/smolagents-leaderboard
@@ -23,6 +29,9 @@ https://github.com/langflow-ai/langflow
 
 Pprogramming framework for agentic AI  
 https://github.com/microsoft/autogen
+
+AG2 (formerly AutoGen): The Open-Source AgentOS  
+https://github.com/ag2ai/ag2
 
 Framework for building LLM-powered agents over your data  
 https://github.com/run-llama/llama_index
@@ -78,12 +87,21 @@ https://www.reddit.com/r/AI_Agents/comments/1hq9il6/best_ai_agent_frameworks_in_
 Framework for AI agents and workflows with chain-of-thought reasoning, tools, and memory  
 https://github.com/griptape-ai/griptape
 
+OpenAI tools for building agents - Mer 2025  
+https://openai.com/index/new-tools-for-building-agents/
+
+Building an AI Agent with Memory and Adaptability - Mar 2025  
+https://diamantai.substack.com/p/building-an-ai-agent-with-memory
+
 ## Courses
 
 Huggingface Agents Course (2025)  
-https://huggingface.co/agents-course  
-https://huggingface.co/learn/agents-course/unit0/introduction  
 https://github.com/huggingface/agents-course
+https://huggingface.co/agents-course  
+https://huggingface.co/learn/agents-course/unit0/introduction
+https://huggingface.co/learn/agents-course/unit2/smolagents/introduction
+https://huggingface.co/learn/agents-course/unit2/llama-index/introduction
+https://huggingface.co/learn/agents-course/unit2/langgraph/introduction
 
 Self-paced GenAI learning guide by Google (incl link to Agents whitepaper above) - Nov 2024  
 https://www.kaggle.com/learn-guide/5-day-genai
@@ -96,6 +114,9 @@ https://learn.deeplearning.ai/courses/ai-agentic-design-patterns-with-autogen/
 
 AI Agents in LangGraph  
 https://learn.deeplearning.ai/courses/ai-agents-in-langgraph/
+
+AI Agents for beginners (Microsoft)  
+https://github.com/microsoft/generative-ai-for-beginners/tree/main/17-ai-agents
 
 ## Papers
 
@@ -116,5 +137,8 @@ https://arxiv.org/abs/2411.04468
 
 The AI Scientist: Towards Fully Automated Open-Ended Scientific Discovery  
 https://arxiv.org/abs/2408.06292
+
+The Rise and Potential of Large Language Model Based Agents: A Survey  
+https://arxiv.org/abs/2309.07864
 
 TODO: more papers
