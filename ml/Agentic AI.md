@@ -82,6 +82,9 @@ https://medium.com/@alfredosone/ai-agents-how-to-build-digital-workers-4fe68bb20
 Google whitepaper on Agents - Sep 2024  
 https://www.kaggle.com/whitepaper-agents
 
+Weaviate: What Are Agentic Workflows? Patterns, Use Cases, Examples, and More - Mar 2025  
+https://weaviate.io/blog/what-are-agentic-workflows
+
 Weaviate Agentic Architectures for RAG - Mar 2025  
 https://8738733.fs1.hubspotusercontent-na1.net/hubfs/8738733/eBooks/Weaviate%20Agentic%20Architectures-ebook.pdf
 
