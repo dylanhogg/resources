@@ -8,10 +8,14 @@ Agentic AI refers to artificial intelligence systems that exhibit a sense of age
 
 ### Agentic Framework Lists
 
-Great collection of GitHub AI agent frameworks:  
+Great collection of AI Agent related frameworks:  
 https://www.awesomepython.org/?c=agentic-ai
 
-Specific GitHub AI agent support tasks:  
+Specific AI Agent frameworks:  
+https://www.awesomepython.org/?q=agent-framework (Agent frameworks)
+
+Specific AI Agent support tasks:  
+https://www.awesomepython.org/?q=agent-framework (Agent frameworks)
 https://www.awesomepython.org/?q=llm-observability (LLM observability)  
 https://www.awesomepython.org/?q=llm-evaluation (LLM evaluation)  
 https://www.awesomepython.org/?q=llm-guardrails (LLM guardrails)  
