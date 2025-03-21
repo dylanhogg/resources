@@ -100,6 +100,9 @@ https://openai.com/index/new-tools-for-building-agents/
 Building an AI Agent with Memory and Adaptability - Mar 2025  
 https://diamantai.substack.com/p/building-an-ai-agent-with-memory
 
+A Visual Guide to LLM Agents  
+https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-llm-agents
+
 ## Courses
 
 Huggingface Agents Course (2025)  
