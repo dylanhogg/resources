@@ -103,6 +103,9 @@ https://diamantai.substack.com/p/building-an-ai-agent-with-memory
 A Visual Guide to LLM Agents  
 https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-llm-agents
 
+OpenAI - Common agentic patterns  
+https://github.com/openai/openai-agents-python/blob/main/examples/agent_patterns/README.md
+
 ## Courses
 
 Huggingface Agents Course (2025)  
