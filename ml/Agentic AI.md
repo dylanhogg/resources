@@ -55,6 +55,9 @@ https://github.com/agno-agi/agno
 Agent Framework / shim to use Pydantic with LLMs  
 https://github.com/pydantic/pydantic-ai
 
+Google Agent Development Kit (ADK)  
+https://github.com/google/adk-python
+
 Barebones library for agents that write python code to call tools and orchestrate other agents  
 https://github.com/huggingface/smolagents
 
@@ -65,6 +68,9 @@ Framework designed with the concept of atomicity to be an extremely lightweight,
 https://github.com/brainblend-ai/atomic-agents
 
 ## Readings
+
+OpenAI A Practical Guide to Building Agents - Apr 2025  
+https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf
 
 Building effective agents by Anthropic - Dec 2024  
 https://www.anthropic.com/research/building-effective-agents
