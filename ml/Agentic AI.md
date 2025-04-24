@@ -26,46 +26,93 @@ https://huggingface.co/spaces/smolagents/smolagents-leaderboard
 
 ### Agentic GitHub Repos
 
-(Updated Feb 2025)
+(Updated Apr 2025)
 
-Langflow is a low-code app builder for RAG and multi-agent AI applications  
-https://github.com/langflow-ai/langflow
+- Microsoft Autogen: A framework for building AI agents and applications
 
-Pprogramming framework for agentic AI  
-https://github.com/microsoft/autogen
+  - https://github.com/microsoft/autogen
+  - https://microsoft.github.io/autogen/stable/
 
-AG2 (formerly AutoGen): The Open-Source AgentOS  
-https://github.com/ag2ai/ag2
+- CrewAI: Fast and Flexible Multi-Agent Automation Framework
 
-Framework for building LLM-powered agents over your data  
-https://github.com/run-llama/llama_index
+  - https://github.com/crewaiinc/crewai
+  - https://www.crewai.com/
 
-Framework for orchestrating role-playing, autonomous AI agents  
-https://github.com/crewAIInc/crewAI
+- Agno: a lightweight library for building Agents with memory, knowledge, tools and reasoning.
 
-Framework for creating LLM services with memory  
-https://github.com/letta-ai/letta
+  - https://github.com/agno-agi/agno
+  - https://docs.agno.com/introduction
 
-LLM-powered knowledge curation system that researches a topic and generates a full-length report  
-https://github.com/stanford-oval/storm
+- Agent Development Kit (ADK): An open-source, code-first Python toolkit for building, evaluating, and deploying sophisticated AI agents
 
-Lightweight framework for building multi-modal Agents  
-https://github.com/agno-agi/agno
+  - https://github.com/google/adk-python
+  - https://google.github.io/adk-docs/
 
-Agent Framework / shim to use Pydantic with LLMs  
-https://github.com/pydantic/pydantic-ai
+- Pydantic AI: Agent Framework / shim to use Pydantic with LLMs
 
-Google Agent Development Kit (ADK)  
-https://github.com/google/adk-python
+  - https://github.com/pydantic/pydantic-ai
+  - https://ai.pydantic.dev/
 
-Barebones library for agents that write python code to call tools and orchestrate other agents  
-https://github.com/huggingface/smolagents
+- OpenAI Agents SDK: A lightweight, powerful framework for multi-agent workflows
 
-Educational framework exploring ergonomic, lightweight multi-agent orchestration  
-https://github.com/openai/swarm
+  - https://github.com/openai/openai-agents-python
+  - https://openai.github.io/openai-agents-python/
 
-Framework designed with the concept of atomicity to be an extremely lightweight, built on top of Instructor and Pydantic  
-https://github.com/brainblend-ai/atomic-agents
+- smolagents: a library that enables you to run powerful agents in a few lines of code.
+
+  - https://github.com/huggingface/smolagents
+  - https://huggingface.co/docs/smolagents/index
+
+- OWL: Optimized Workforce Learning for General Multi-Agent Assistance in Real-World Task Automation
+
+  - https://github.com/camel-ai/owl
+  - https://hypnotic-mind-6bd.notion.site/OWL-Optimized-Workforce-Learning-for-General-Multi-Agent-Assistance-in-Real-World-Task-Automation-1d4004aeb21380158749c7f84b20643f
+  - https://arxiv.org/abs/2303.17760
+
+- CAMEL: an open-source community dedicated to finding the scaling laws of agents
+
+  - https://github.com/camel-ai/camel
+  - https://arxiv.org/abs/2303.17760
+
+- LangGraph: Build resilient language agents as graphs.
+
+  - https://github.com/langchain-ai/langgraph
+  - https://langchain-ai.github.io/langgraph/
+
+- Upsonic: The most reliable AI agent framework that supports MCP.
+
+  - https://github.com/upsonic/upsonic
+  - https://docs.upsonic.ai/introduction
+
+- Atomic Agent: Building AI agents, atomically
+
+  - https://github.com/brainblend-ai/atomic-agents
+  - https://ai.gopubby.com/want-to-build-ai-agents-c83ab4535411
+
+- AG2 (formerly AutoGen): an open-source programming framework for building AI agents and facilitating cooperation among multiple agents to solve tasks
+
+  - https://github.com/ag2ai/ag2
+  - https://ag2.ai/
+
+- BeeAI Framework: Build production-ready AI agents in both Python and Typescript
+
+  - https://github.com/i-am-bee/beeai-framework
+  - https://i-am-bee.github.io/beeai-framework/#/
+
+- Langflow: a powerful tool for building and deploying AI-powered agents and workflows.
+
+  - https://github.com/langflow-ai/langflow
+  - https://docs.langflow.org/
+
+- The AI Scientist-v2: Workshop-Level Automated Scientific Discovery via Agentic Tree Search
+
+  - https://github.com/sakanaai/ai-scientist-v2
+  - https://sakana.ai/ai-scientist-first-publication/
+  - https://arxiv.org/abs/2504.08066
+
+- Storm: LLM-powered knowledge curation system that researches a topic and generates a full-length report
+  - https://github.com/stanford-oval/storm
+  - https://storm.genie.stanford.edu/
 
 ## Readings
 
@@ -161,3 +208,11 @@ The Rise and Potential of Large Language Model Based Agents: A Survey
 https://arxiv.org/abs/2309.07864
 
 TODO: more papers
+
+## LLM Rankings
+
+https://openrouter.ai/rankings
+
+https://huggingface.co/spaces/smolagents/smolagents-leaderboard
+
+https://lmarena.ai/?leaderboard
