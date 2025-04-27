@@ -141,13 +141,7 @@ https://weaviate.io/blog/what-are-agentic-workflows
 Weaviate Agentic Architectures for RAG - Mar 2025  
 https://8738733.fs1.hubspotusercontent-na1.net/hubfs/8738733/eBooks/Weaviate%20Agentic%20Architectures-ebook.pdf
 
-Best AI Agent Frameworks: A Comprehensive Guide (which will clearly date quickly!) - Jan 2025  
-https://www.reddit.com/r/AI_Agents/comments/1hq9il6/best_ai_agent_frameworks_in_2025_a_comprehensive/
-
-Framework for AI agents and workflows with chain-of-thought reasoning, tools, and memory  
-https://github.com/griptape-ai/griptape
-
-OpenAI tools for building agents - Mer 2025  
+OpenAI tools for building agents - Mar 2025  
 https://openai.com/index/new-tools-for-building-agents/
 
 Building an AI Agent with Memory and Adaptability - Mar 2025  
@@ -158,6 +152,15 @@ https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-llm-agents
 
 OpenAI - Common agentic patterns  
 https://github.com/openai/openai-agents-python/blob/main/examples/agent_patterns/README.md
+
+Cohere: AI agents, Everything you need to know - Mar 2025
+https://cohere.com/blog/ai-agents
+
+Cohere: Building AI agents, 5 common hurdles and fixes - Mar 2025
+https://cohere.com/blog/building-ai-agents
+
+OpenAI Cookbook - Agents  
+https://cookbook.openai.com/topic/agents
 
 ## Courses
 
@@ -183,6 +186,12 @@ https://learn.deeplearning.ai/courses/ai-agents-in-langgraph/
 
 AI Agents for beginners (Microsoft)  
 https://github.com/microsoft/generative-ai-for-beginners/tree/main/17-ai-agents
+
+Cohere LLM University  
+https://cohere.com/llmu
+
+Microsoft - AI Agents for Beginners - A Course  
+https://microsoft.github.io/ai-agents-for-beginners/
 
 ## Papers
 
