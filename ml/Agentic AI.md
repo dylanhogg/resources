@@ -132,8 +132,11 @@ https://huggingface.co/docs/smolagents
 AI Agents: How to build Digital Workers - Nov 2024
 https://medium.com/@alfredosone/ai-agents-how-to-build-digital-workers-4fe68bb20348
 
-Google whitepaper on Agents - Sep 2024  
+Google whitepaper on Agents (Overview and tool usage) - Feb 2025  
 https://www.kaggle.com/whitepaper-agents
+
+Google companion whitepaper on Agents (AgentOps and Eval focus) - Feb 2025  
+https://www.kaggle.com/whitepaper-agent-companion
 
 Weaviate: What Are Agentic Workflows? Patterns, Use Cases, Examples, and More - Mar 2025  
 https://weaviate.io/blog/what-are-agentic-workflows
