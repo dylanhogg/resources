@@ -16,6 +16,8 @@ Mainly focussed on technology, software engineering, ML and AI.
 
 [Representation Engineering / Control Vectors / Steering Vectors](ml/Representation%20Engineering.md)
 
+[Search and IR](ml/Search%20and%20IR.md)
+
 ## Study Resources
 
 [LLM Study](/study/LLM%20Study.md)
