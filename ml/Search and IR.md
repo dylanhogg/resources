@@ -38,9 +38,17 @@ https://github.com/xhluca/bm25s
 
 ## Concepts
 
+### NLP
+
+https://www.pinecone.io/learn/series/nlp/
+
 ### Similarity
 
 https://www.elastic.co/docs/reference/elasticsearch/index-settings/similarity
+
+### Embeddings
+
+https://www.pinecone.io/learn/series/image-search/
 
 ### Query Understanding
 

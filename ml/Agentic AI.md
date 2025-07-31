@@ -225,6 +225,8 @@ TODO: more papers
 
 https://openrouter.ai/rankings
 
+https://lmarena.ai/?leaderboard
+
 https://huggingface.co/spaces/smolagents/smolagents-leaderboard
 
-https://lmarena.ai/?leaderboard
+https://huggingface.co/spaces/gaia-benchmark/leaderboard
