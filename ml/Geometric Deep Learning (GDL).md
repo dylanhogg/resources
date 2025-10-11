@@ -67,6 +67,12 @@ Geometric Deep Learning (GDL) is a subfield of machine learning that combines de
 
 - First Edition of the course "Geometric Deep Learning" taught in the African Master in Machine Intelligence in July-August 2021: https://www.youtube.com/playlist?list=PLn2-dEmQeTfQ8YVuHBOvAhUlnIPYxkeu3
 
+## Erlangen Program
+
+- https://en.wikipedia.org/wiki/Erlangen_program
+- https://ncatlab.org/nlab/show/Erlangen+program
+- A comparative review of recent researches in geometry (1872) - https://arxiv.org/abs/0807.3161
+
 ## Graph Neural Networks
 
 - https://www.youtube.com/watch?v=A-yKQamf2Fc
