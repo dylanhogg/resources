@@ -26,6 +26,9 @@ Geometric Deep Learning (GDL) is a subfield of machine learning that combines de
 ## Podcasts / Videos
 
 - https://geometricdeeplearning.com/lectures/
+- Petar Veličković - https://www.youtube.com/@petarvelickovic6033
+  - Into the Realm Categorical - https://www.youtube.com/watch?v=yUxiDOTj_zc
+  - ^ Geometric Deep Learning: GNNs Beyond Permutation Equivariance - https://www.youtube.com/watch?v=aCUOAkOqNoU
 - AMMI 2022 Course "Geometric Deep Learning" Playlist: https://www.youtube.com/watch?v=5c_-KX1sRDQ&list=PLn2-dEmQeTfSLXW8yXP4q_Ii58wFdxb3C
 - GDL on MLST: https://www.youtube.com/watch?v=bIZB1hIJ4u8 / https://open.spotify.com/episode/6g58GSZ4cZuot8rEBr46XH
 - ICLR 2021 Keynote - "Geometric Deep Learning: The Erlangen Programme of ML" - M Bronstein - https://www.youtube.com/watch?v=w6Pw4MOzMuo
@@ -76,3 +79,12 @@ Geometric Deep Learning (GDL) is a subfield of machine learning that combines de
 ## Graph Neural Networks
 
 - https://www.youtube.com/watch?v=A-yKQamf2Fc
+
+## Categorical Deep Learning
+
+- https://categoricaldeeplearning.com/
+- https://cats.for.ai/
+- Position: Categorical Deep Learning is an Algebraic Theory of All Architectures - https://arxiv.org/abs/2402.15332
+- https://www.youtube.com/playlist?list=PLxbiIYgRO7kbH1IBrBl59GTDMaksb3mJ6
+- Categories for AI (cats.for.ai) - https://www.youtube.com/playlist?list=PLSdFiFTAI4sQ0Rg4BIZcNnU-45I9DI-VB
+- https://github.com/bgavran/Category_Theory_Machine_Learning
