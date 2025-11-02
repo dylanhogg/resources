@@ -1,11 +1,13 @@
 # LLM Evaluation
 
-WIP
+Resources for LLM evaluation.
+
+Currently WIP!
 
 ## General ML Evaluation
 
 - https://www.argmin.net/p/machine-learning-evaluation-631 (Lecture notes by Ben Recht / argmin.net)
-- https://github.com/huggingface/evaluation-guidebook (Practical insights and theoretical knowledge about LLM evaluation that we gathered while managing the Open LLM Leaderboard and designing lighteval!)
+- https://github.com/huggingface/evaluation-guidebook (Practical insights and theoretical knowledge about LLM evaluation gathered while managing the Open LLM Leaderboard and designing lighteval)
 
 ## Eval code and libraries
 

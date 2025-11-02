@@ -1,10 +1,10 @@
 # AI Training
 
-Resources for LLM training.
-
 ## Overview
 
-TODO
+Resources for LLM training.
+
+Currently WIP!
 
 ## Resources
 
@@ -14,6 +14,10 @@ TODO
 - Meta: [LLaMA Cookbook: Finetuning Llama](https://github.com/meta-llama/llama-cookbook/tree/main/getting-started/finetuning)
 
 ## Libraries
+
+- https://www.awesomepython.org/?q=fine-tuning
+- https://www.awesomepython.org/?q=quantization
+- https://www.awesomepython.org/?q=training
 
 - LLaMA-Factory:
 
