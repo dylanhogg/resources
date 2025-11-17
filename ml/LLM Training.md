@@ -32,4 +32,8 @@ Currently WIP!
   - https://github.com/unslothai/unsloth
   - https://www.datacamp.com/tutorial/unsloth-web-ui-guide-fine-tuning-llms
 
+- Pytorch
+
+  - https://mlechner.substack.com/p/why-we-started-with-jax-but-moved
+
 - TODO: more

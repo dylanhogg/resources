@@ -69,6 +69,8 @@ https://sebastianraschka.com/blog/2023/llm-reading-list.html
 
 ## Stanford CS25: Transformers United V4
 
+CS25 has become one of Stanford's hottest and most seminar courses, featuring top researchers at the forefront of Transformers research such as Geoffrey Hinton, Ashish Vaswani, and Andrej Karpathy.
+
 https://web.stanford.edu/class/cs25/
 
 [Playlist: Stanford CS25 - Transformers United](https://www.youtube.com/playlist?list=PLoROMvodv4rNiJRchCzutFw5ItR_Z27CM) (33 videos)
@@ -76,6 +78,14 @@ https://web.stanford.edu/class/cs25/
 [Playlist: Stanford CS25 - Transformers United V3](https://www.youtube.com/playlist?list=PLNQo_x2EPWCkrhwatKK8t0q1HKad9o1Ye) (7 videos)
 
 [Playlist: CS25 Transformers United 23](https://www.youtube.com/playlist?list=PLVVTN-yNn8rvEwlY8ClxDUWeVPVfdifYj)
+
+## CME 295 - Transformers & Large Language Models
+
+This course explores the world of Transformers and Large Language Models (LLMs). You'll learn the evolution of NLP methods, the core components of the Transformer architecture, along with how they relate to LLMs as well as techniques to enhance model performance for real-world applications.
+
+https://cme295.stanford.edu/
+
+https://www.youtube.com/playlist?list=PLoROMvodv4rOY23Y0BoGoBGgQ1zmU_MT_
 
 ## Jalmar
 
