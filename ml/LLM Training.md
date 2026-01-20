@@ -37,3 +37,50 @@ Currently WIP!
   - https://mlechner.substack.com/p/why-we-started-with-jax-but-moved
 
 - TODO: more
+
+## Theory
+
+## Physics of Language Models
+
+Physics of Language Models is a research framework and emerging field of study, pioneered by Zeyuan Allen-Zhu and collaborators, that seeks a scientific, principled understanding of how and why large language models (LLMs) behave the way they do — analogous to how physics explains the natural world with universal laws rather than surface-level observations.
+
+https://physics.allen-zhu.com/home
+
+https://www.youtube.com/playlist?list=PLIZhMKKbVX6JmdngPRKvAS4u4L97odbGp
+
+https://arxiv.org/search/?searchtype=all&query=Allen-Zhu+Physics+of+Language+Models&abstracts=show&size=50&order=-submitted_date
+
+- Physics of Language Models: Part 1, Learning Hierarchical Language Structures
+
+Summary: Shows that transformer-based models can learn hierarchical context-free grammars and that their hidden states and attention patterns reflect dynamic programming-like structure understanding.
+[https://arxiv.org/abs/2305.13673](https://arxiv.org/abs/2305.13673)
+
+- Physics of Language Models: Part 2.1, Grade-School Math and the Hidden Reasoning Process
+
+Summary: Investigates how language models solve grade-school math, identifying hidden model processes and distinguishing genuine reasoning from memorization.
+[https://arxiv.org/abs/2407.20311](https://arxiv.org/abs/2407.20311)
+
+- Physics of Language Models: Part 2.2, How to Learn From Mistakes on Grade-School Math Problems
+
+Summary: Studies how incorporating _error-correction data_ into pretraining helps language models improve reasoning accuracy directly, without multi-round prompting.
+[https://arxiv.org/abs/2408.16293](https://arxiv.org/abs/2408.16293)
+
+- Physics of Language Models: Part 3.1, Knowledge Storage and Extraction
+
+Summary: Shows that reliable knowledge extraction by LLMs depends on diversity in pretraining data and that knowledge must be sufficiently augmented during training to be practically retrievable.
+[https://arxiv.org/abs/2309.14316](https://arxiv.org/abs/2309.14316)
+
+- Physics of Language Models: Part 3.2, Knowledge Manipulation
+
+Summary: Demonstrates that while LLMs can retrieve stored knowledge well, they struggle with basic manipulation tasks like classification or comparison unless augmented with chain-of-thought mechanisms.
+[https://arxiv.org/abs/2309.14402](https://arxiv.org/abs/2309.14402)
+
+- Physics of Language Models: Part 3.3, Knowledge Capacity Scaling Laws
+
+Summary: Establishes _scaling laws_ for LLM knowledge storage, finding a ~2 bits of factual knowledge capacity per parameter and how architecture, data, and training affect it.
+[https://arxiv.org/abs/2404.05405](https://arxiv.org/abs/2404.05405)
+
+- Physics of Language Models: Part 4.1, Architecture Design and the Magic of Canon Layers
+
+Summary: Introduces _Canon layers_ — lightweight components that improve information flow in sequence models — and shows how they enhance reasoning, knowledge manipulation, and architectures through controlled synthetic pretraining tasks.
+[https://arxiv.org/abs/2512.17351](https://arxiv.org/abs/2512.17351)

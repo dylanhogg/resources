@@ -48,6 +48,17 @@ https://www.awesomepython.org/?q=auto-prompting
 - **Does it need gradients?** No—improvements come from iterative generation/reflection and metric-based selection. ([GitHub][5])
 - **What metrics can it use?** Anything you can score automatically (task success, F1, rubric scores, custom validators). ([GitHub][5])
 
+**Resources**
+
+- https://dspy.ai/tutorials/entity_extraction/
+- https://dspy.ai/tutorials/gepa_ai_program/
+- https://dspy.ai/tutorials/gepa_facilitysupportanalyzer/ - structured information extraction and classification
+- https://github.com/gepa-ai/gepa/tree/main/src/gepa/adapters/dspy_full_program_adapter - GEPA evolve entire DSPy programs—including signatures, modules, and control flow
+
+**Videos**
+
+- https://www.youtube.com/watch?v=rrtxyZ4Vnv8 - Matei Zaharia - Reflective Optimization of Agents with GEPA and DSPy
+
 ---
 
 ## promptfoo
