@@ -10,6 +10,10 @@ https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview
 
 https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/prompt-improver
 
+## OSS
+
+https://docs.ollama.com/integrations/claude-code
+
 ## Repos
 
 https://github.com/anthropics/claude-code
