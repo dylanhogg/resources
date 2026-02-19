@@ -11,9 +11,9 @@ Write the plan to plans/<PLAN_FILENAME>.md
 
 2. Implement plan
 ```
-Implement implement <PLAN_DESC> plan at plans/<PLAN_FILENAME>.md. Ensure code is clean, minimal, and modular.
-Once feature complete, test the plan and ensure it works as expected.
-Review the implementation and identify places that can be refactored for clean code, readability, and modularity. Then implement those identified refactorings to improve the quality of the codebase, while keeping it simple.
+Implement <PLAN_DESC> plan at plans/<PLAN_FILENAME>.md. Ensure code is clean, minimal, and modular.
+Once feature complete, test to ensure it works as expected according to the plan.
+After testing, review the implementation and identify places that can be refactored for clean code, readability, and modularity. Then implement those identified refactorings to improve the quality of the codebase, while keeping it simple.
 ```
 
 3. Refactor implementation
