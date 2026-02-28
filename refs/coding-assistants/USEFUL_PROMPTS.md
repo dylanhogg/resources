@@ -18,7 +18,7 @@ After testing, review the implementation and identify places that can be refacto
 
 3. Refactor implementation
 ```
-Review the implementation again, and identify places that can be refactored for clean code, readability, and modularity. Then implement those identified refactorings to improve the quality of the codebase, while keeping it simple.
+Review the implementation, and identify places that can be refactored for clean code, readability, reducing duplication, and modularity. Then implement those identified refactorings to improve the quality of the codebase, while keeping it simple.
 ```
 
 ## Refactoring Prompts
