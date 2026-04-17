@@ -4,14 +4,16 @@
 
 Resources for LLM training.
 
-Currently WIP!
-
 ## Resources
 
-- Deepmind: [How to Scale Your Model A Systems View of LLMs on TPUs](https://jax-ml.github.io/scaling-book/index)
-- HuggingFace: [The Smol Training Playbook: The Secrets to Building World-Class LLMs](https://huggingface.co/spaces/HuggingFaceTB/smol-training-playbook)
-- Google: [A playbook for systematically maximizing the performance of deep learning models.](https://github.com/dylanhogg/google_tuning_playbook)
-- Meta: [LLaMA Cookbook: Finetuning Llama](https://github.com/meta-llama/llama-cookbook/tree/main/getting-started/finetuning)
+- 2026 Sebastian Raschka: [LLM Architecture Gallery](https://sebastianraschka.com/llm-architecture-gallery/)
+- 2026 Alex Wa: [Frontier model training methodologies](https://djdumpling.github.io/2026/01/31/frontier_training.html)
+- 2026 Tom Aarsen: [Training and Finetuning Multimodal Embedding & Reranker Models with Sentence Transformers](https://huggingface.co/blog/train-multimodal-sentence-transformers)
+- 2025 Deepmind: [How to Scale Your Model A Systems View of LLMs on TPUs](https://jax-ml.github.io/scaling-book/index)
+- 2025 HuggingFace: [The Smol Training Playbook: The Secrets to Building World-Class LLMs](https://huggingface.co/spaces/HuggingFaceTB/smol-training-playbook)
+- 2025 HuggingFace: [Tricks from OpenAI gpt-oss YOU 🫵 can use with transformers](https://huggingface.co/blog/faster-transformers)
+- 2025 Meta: [LLaMA Cookbook: Finetuning Llama](https://github.com/meta-llama/llama-cookbook/tree/main/getting-started/finetuning)
+- 2024 Google: [A playbook for systematically maximizing the performance of deep learning models.](https://github.com/dylanhogg/google_tuning_playbook)
 
 ## Libraries
 
@@ -20,23 +22,24 @@ Currently WIP!
 - https://www.awesomepython.org/?q=training
 
 - LLaMA-Factory:
-
   - https://www.awesomepython.org/?q=llama-factory
   - https://github.com/hiyouga/LLaMA-Factory
   - https://www.datacamp.com/tutorial/llama-factory-web-ui-guide-fine-tuning-llms
   - https://arxiv.org/abs/2403.13372
 
 - Unsloth:
-
   - https://www.awesomepython.org/?q=unsloth
   - https://github.com/unslothai/unsloth
   - https://www.datacamp.com/tutorial/unsloth-web-ui-guide-fine-tuning-llms
 
 - Pytorch
-
   - https://mlechner.substack.com/p/why-we-started-with-jax-but-moved
 
 - TODO: more
+
+## Code / Notebooks
+
+- https://colab.research.google.com/github/arman-bd/guppylm/blob/main/train_guppylm.ipynb
 
 ## Theory
 
