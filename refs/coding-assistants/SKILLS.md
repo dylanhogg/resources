@@ -28,3 +28,4 @@ Claude Code Skills and 380+ agent skills from official dev teams and the communi
 
 Hugging Face Skills are definitions for AI/ML tasks like dataset creation, model training, and evaluation. They are interoperable with all major coding agent tools like OpenAI Codex, Anthropic's Claude Code, Google DeepMind's Gemini CLI, and Cursor.
 - https://github.com/huggingface/skills
+- https://huggingface.co/blog/hf-skills-training
