@@ -6,21 +6,29 @@ Mainly focussed on technology, software engineering, ML and AI.
 
 ## ML Topics
 
-[Agentic AI](ml/Agentic%20AI.md)
+[Agentic AI](ml/Agentic%20AI)
 
-[Data Attribution](ml/Data%20Attribution.md)
+[Data Attribution](ml/Data%20Attribution)
 
-[Foundational Models](ml/Foundational%20Models.md)
+[Deep Research / AI Co-scientists](ml/Deep%20Research)
 
-[Free Energy Principle](ml/Free%20Energy%20Principle.md)
+[Foundational Models](ml/Foundational%20Models)
 
-[Representation Engineering / Control Vectors / Steering Vectors](ml/Representation%20Engineering.md)
+[Free Energy Principle](ml/Free%20Energy%20Principle)
 
-[Search and IR](ml/Search%20and%20IR.md)
+[Geometric Deep Learning (GDL)](ml/Geometric%20Deep%20Learning%20%28GDL%29)
+
+[LLM Training](ml/LLM%20Training)
+
+[Prompt Optimization](ml/Prompt%20Optimization)
+
+[Representation Engineering / Control Vectors / Steering Vectors](ml/Representation%20Engineering)
+
+[Search and IR](ml/Search%20and%20IR)
 
 ## Study Resources
 
-[LLM Study](/study/LLM%20Study.md)
+[LLM Study](/study/LLM%20Study)
 
 ## External Resources
 
