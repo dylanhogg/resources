@@ -1,7 +1,5 @@
 # Prompt Optimisation & Supporting Tools
 
-WIP
-
 ## Automated Prompt Optimisation
 
 Automated prompt optimisation uses algorithms (evolutionary, feedback-driven, gradient-based, or evaluation-loops) to systematically refine prompts for LLMs, reducing manual engineering and improving task accuracy/performance.
