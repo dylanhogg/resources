@@ -33,13 +33,15 @@ https://docs.ag2.ai/docs/blog/2025-02-13-DeepResearchAgent/index#deepresearchage
 
 https://github.com/karpathy/autoresearch | AI agents running research on single-GPU nanochat training automatically
 
-https://github.com/miolini/autoresearch-macos | Apple Silicon (MLX) port of the above
+https://github.com/miolini/autoresearch-macos | Apple Silicon (MLX) port
 
-https://github.com/trevin-creator/autoresearch-mlx | Apple Silicon (MLX) port of the above
+https://github.com/trevin-creator/autoresearch-mlx | Apple Silicon (MLX) port
 
-https://github.com/parthwhy/autoresearch-lite | A lightweight version of the above (Colab T4 GPU compatible)
+https://github.com/parthwhy/autoresearch-lite | A lightweight version (Colab T4 GPU compatible)
 
 https://github.com/menonpg/autoloop | a Python library version
+
+https://github.com/lucasgelfond/autoresearch-webgpu | WebGPU port
 
 https://x.com/hooeem/status/2030720614752039185 | How to deploy autoresearch
 
