@@ -1,0 +1,56 @@
+# Red teaming
+
+## References
+
+This collection is for engineers who need practical ways to defend LLM systems against adversarial inputs, jailbreaks, prompt injection, tool misuse, and unsafe model behaviour. It focuses on resources that move beyond abstract safety discussion into concrete methods: red-team test design, adversarial evaluation datasets, system-level mitigations, permission boundaries, monitoring, and repeatable CI-style safety checks.
+
+| Resource                                                                               | Date published | Summary                                                                                                                                                                                                  |
+| -------------------------------------------------------------------------------------- | -------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Google — Evaluate model and system for safety                                          |        Unknown | Practical Google checklist for building safety evals, adversarial datasets, red-team exercises, and held-out assurance testing across the model lifecycle. ([Google AI for Developers][1])               |
+| Google — Google’s Approach for Secure AI Agents                                        |           2025 | Best high-level Google framing of agent security: permissions, containment, trusted/untrusted input separation, monitoring, and non-prompt controls. ([Google Cloud Storage][3])                         |
+| Google DeepMind — Advancing Gemini’s security safeguards                               |           2025 | Short, accessible overview of how Google uses automated red teaming to harden Gemini against indirect prompt injection during tool use. ([Google DeepMind][2])                                           |
+| Google DeepMind — Lessons from Defending Gemini Against Indirect Prompt Injections     |           2025 | Most directly relevant Gemini technical report for understanding indirect prompt injection threat modelling, adaptive attacks, automated red-teaming, and defensive evaluation. ([arXiv][4])             |
+| Google DeepMind — Gemini 1 Technical Report                                            |           2023 | Useful broader context on Gemini’s multimodal model design, safety evaluation, red-teaming, dogfooding, and external evaluation process. ([arXiv][5])                                                    |
+| OpenAI — Advancing red teaming with people and AI                                      |           2024 | Read this for OpenAI’s process view on combining human red-teamers, AI-assisted attack generation, and reusable safety benchmarks. ([OpenAI][6])                                                         |
+| OpenAI — External Red Teaming for AI Models and Systems                                |           2025 | Best OpenAI resource on how to structure external red teaming so findings turn into repeatable evals, risk assessment, and mitigation work. ([arXiv][7])                                                 |
+| OpenAI — Preparedness Framework v2                                                     |           2025 | Read this for OpenAI’s frontier-risk governance model, including capability thresholds, adversarial testing, red-teaming, and deployment gating. ([OpenAI][8])                                           |
+| OpenAI — GPT-4o System Card                                                            |           2024 | Good concrete example of how OpenAI reports model-level safety evaluations, red-team findings, and residual risks for a deployed model.                                                                  |
+| OpenAI — GPT-5 System Card                                                             |           2025 | Useful example of system-level prompt-injection evaluation across connectors, tools, and in-product safeguards rather than model-only testing. ([OpenAI][9])                                             |
+| Anthropic — Responsible Scaling Policy                                                 |           2026 | Read this for Anthropic’s formal safety-governance approach: risk tiers, safety cases, deployment constraints, and assurance expectations. ([Anthropic][10])                                             |
+| Anthropic — RSP v3 announcement                                                        |           2026 | Shorter companion to the full policy, useful for understanding how Anthropic’s frontier-safety posture has evolved. ([Anthropic][11])                                                                    |
+| Anthropic — Constitutional Classifiers / jailbreak defenses                            |           2025 | Read this for Anthropic’s approach to defending against jailbreaks using model-based classifiers rather than relying only on prompts or refusal text. ([Anthropic][12])                                  |
+| Microsoft — AI Red Team guidance                                                       |        Unknown | Strong practical enterprise guide for organising AI red teams, testing AI products, and translating findings into security controls. ([Microsoft Learn][13])                                             |
+| Microsoft — Lessons from Red Teaming 100 Generative AI Products                        |           2025 | Excellent applied paper for real-world failure modes, including prompt injection, cross-prompt injection, multimodal attacks, and the limits of automated testing. ([arXiv][14])                         |
+| NIST — AI RMF Generative AI Profile                                                    |           2024 | Read this for a standards-based taxonomy of GenAI risks, including internal/external evals, red-teaming, impact assessment, and governance. ([NIST][15])                                                 |
+| NIST — Adversarial Machine Learning Taxonomy and Terminology                           |           2025 | Useful for precise terminology across adversarial ML: attacker goals, knowledge, capabilities, lifecycle stage, and attack classes. ([NIST][16])                                                         |
+| OWASP — Top 10 for LLM Applications                                                    |        Unknown | Essential practitioner taxonomy for LLM app security risks: prompt injection, data leakage, tool misuse, supply chain, insecure output handling, and overreliance. ([OWASP Gen AI Security Project][17]) |
+| OWASP — LLM01 Prompt Injection                                                         |        Unknown | Best single reference for distinguishing prompt injection, jailbreaks, direct attacks, indirect attacks, and mitigation patterns. ([OWASP Gen AI Security Project][18])                                  |
+| Meta — Purple Llama / CyberSecEval                                                     |           2023 | Read this for open tooling and benchmarks around cybersecurity evals, prompt injection defenses, Llama Guard, and Prompt Guard. ([AI Meta][19])                                                          |
+| NVIDIA — garak LLM vulnerability scanner                                               |           2024 | Practical open-source tool for automated LLM red-teaming across jailbreaks, prompt injection, data leakage, hallucination, toxicity, and other failure modes. ([arXiv][20])                              |
+| promptfoo — LLM red teaming guide                                                      |        Unknown | Useful hands-on guide for turning adversarial test cases into repeatable CI-style red-team evaluations for LLM apps. ([Promptfoo][21])                                                                   |
+| Rauh et al. — Gaps in the Safety Evaluation of Generative AI                           |           2024 | Read this for a critical view of why model-only benchmarks are insufficient and why safety evals need real-world, sociotechnical context. ([AAAI Publications][22])                                      |
+| Ofcom — Red Teaming for GenAI Harms                                                    |           2024 | Good non-lab guide for planning red-team exercises, assembling teams, defining harms, and reporting results in a policy/regulatory context. ([ofcom.org.uk][23])                                         |
+  
+[1]: https://ai.google.dev/responsible/docs/evaluation "Evaluate model and system for safety - Google AI for Developers"
+[2]: https://storage.googleapis.com/gweb-research2023-media/pubtools/1018686.pdf "Google's Approach for Secure AI Agents: An Introduction"
+[3]: https://deepmind.google/blog/advancing-geminis-security-safeguards/ "Advancing Gemini's security safeguards"
+[4]: https://arxiv.org/abs/2505.14534 "Lessons from Defending Gemini Against Indirect Prompt Injections"
+[5]: https://arxiv.org/abs/2312.11805 "Gemini: A Family of Highly Capable Multimodal Models"
+[6]: https://openai.com/index/advancing-red-teaming-with-people-and-ai/ "Advancing red teaming with people and AI"
+[7]: https://arxiv.org/abs/2503.16431 "OpenAI's Approach to External Red Teaming for AI Models and Systems"
+[8]: https://cdn.openai.com/pdf/18a02b5d-6b67-4cec-ab64-68cdfbddebcd/preparedness-framework-v2.pdf "Preparedness Framework"
+[9]: https://cdn.openai.com/gpt-5-system-card.pdf "GPT-5 System Card"
+[10]: https://www-cdn.anthropic.com/files/4zrzovbb/website/bf04581e4f329735fd90634f6a1962c13c0bd351.pdf "Anthropic's Responsible Scaling Policy (version 3.1)"
+[11]: https://www.anthropic.com/news/responsible-scaling-policy-v3 "Anthropic's Responsible Scaling Policy: Version 3.0"
+[12]: https://www.anthropic.com/research/constitutional-classifiers "Constitutional Classifiers: Defending against universal ..."
+[13]: https://learn.microsoft.com/en-us/security/ai-red-team/ "Microsoft AI Red Team"
+[14]: https://arxiv.org/abs/2501.07238 "Lessons From Red Teaming 100 Generative AI Products"
+[15]: https://www.nist.gov/itl/ai-risk-management-framework "AI Risk Management Framework | NIST"
+[16]: https://www.nist.gov/news-events/news/2025/03/nist-trustworthy-and-responsible-ai-report-adversarial-machine-learning "NIST Trustworthy and Responsible AI Report Adversarial ..."
+[17]: https://genai.owasp.org/llm-top-10/ "LLMRisks Archive - OWASP Gen AI Security Project"
+[18]: https://genai.owasp.org/llmrisk/llm01-prompt-injection/ "LLM01:2025 Prompt Injection - OWASP Gen AI Security Project"
+[19]: https://ai.meta.com/research/publications/purple-llama-cyberseceval-a-benchmark-for-evaluating-the-cybersecurity-risks-of-large-language-models/ "Purple Llama CyberSecEval: A benchmark for evaluating the ..."
+[20]: https://arxiv.org/html/2406.11036v1 "A Framework for Security Probing Large Language Models"
+[21]: https://www.promptfoo.dev/docs/red-team/ "LLM red teaming guide (open source)"
+[22]: https://ojs.aaai.org/index.php/AIES/article/view/31717 "Gaps in the Safety Evaluation of Generative AI"
+[23]: https://www.ofcom.org.uk/online-safety/illegal-and-harmful-content/red-teaming-for-genai-harms "Red Teaming for GenAI Harms - Revealing the Risks and ..."
