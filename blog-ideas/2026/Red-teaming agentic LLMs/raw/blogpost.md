@@ -1,6 +1,6 @@
-# A Pragmatic Engineer's Guide to Defending Agentic LLM Systems
+# An Engineer's Guide to Defending LLM Systems
 
-## When Prompts Aren't Enough: Building Safer LLM Agents with Defence in Depth
+## When Prompts Aren't Enough: Building Safer LLM Systems with Defence in Depth
 
 Agentic LLM systems are useful because they can interpret messy inputs, reason over context, retrieve data, call tools, and trigger actions. Those same capabilities create failure modes that traditional ML systems do not fully cover.
 
@@ -151,6 +151,8 @@ Confidence in tone is not confidence in correctness.
 ## 3. Layered defences
 
 Defence in depth means every layer has a narrow job. A secure agentic system does not rely on one perfect prompt, one perfect classifier, or one perfect model. It combines controls across prompts, context, model outputs, tools, and operations.
+
+People often call these controls "guardrails", but that term is too broad to be useful unless you specify where the guardrail sits and what it enforces. A refusal prompt, a schema validator, a retrieval permission check, a tool approval gate, and a monitoring alert are all different controls with different failure modes. For agentic systems, the important question is not "do we have guardrails?" but "which layer enforces this constraint if the model gets it wrong?"
 
 ### 3.1 Prompt and instruction layer
 
@@ -414,3 +416,53 @@ For ML engineers, the important shift is to think beyond model behaviour. The mo
 Agentic systems can be useful in production, but only when their capabilities are matched by controls. Start narrow. Measure failure modes. Treat hostile input as normal input. Keep authority outside the model. Convert incidents into tests. Expand capability only when the system can prove it behaves safely.
 
 Prompts guide behaviour. Architecture enforces safety.
+
+## 7. Further reading
+
+Google AI for Developers. ["Evaluate Model and System for Safety."](https://ai.google.dev/responsible/docs/evaluation) _Google AI for Developers_, n.d. Accessed 24 May 2026.
+
+Google. ["Google's Approach for Secure AI Agents: An Introduction."](https://storage.googleapis.com/gweb-research2023-media/pubtools/1018686.pdf) _Google_, 2025. Accessed 24 May 2026.
+
+Google DeepMind. ["Advancing Gemini's Security Safeguards."](https://deepmind.google/blog/advancing-geminis-security-safeguards/) _Google DeepMind_, 2025. Accessed 24 May 2026.
+
+Google DeepMind. ["Lessons from Defending Gemini Against Indirect Prompt Injections."](https://arxiv.org/abs/2505.14534) _arXiv_, 2025. Accessed 24 May 2026.
+
+Google DeepMind. ["Gemini: A Family of Highly Capable Multimodal Models."](https://arxiv.org/abs/2312.11805) _arXiv_, 2023. Accessed 24 May 2026.
+
+OpenAI. ["Advancing Red Teaming with People and AI."](https://openai.com/index/advancing-red-teaming-with-people-and-ai/) _OpenAI_, 2024. Accessed 24 May 2026.
+
+OpenAI. ["OpenAI's Approach to External Red Teaming for AI Models and Systems."](https://arxiv.org/abs/2503.16431) _arXiv_, 2025. Accessed 24 May 2026.
+
+OpenAI. ["Preparedness Framework."](https://cdn.openai.com/pdf/18a02b5d-6b67-4cec-ab64-68cdfbddebcd/preparedness-framework-v2.pdf) _OpenAI_, 2025. Accessed 24 May 2026.
+
+OpenAI. ["GPT-4o System Card."](https://openai.com/index/gpt-4o-system-card/) _OpenAI_, 8 Aug. 2024. Accessed 24 May 2026.
+
+OpenAI. ["GPT-5 System Card."](https://cdn.openai.com/gpt-5-system-card.pdf) _OpenAI_, 2025. Accessed 24 May 2026.
+
+Anthropic. ["Anthropic's Responsible Scaling Policy (Version 3.1)."](https://www-cdn.anthropic.com/files/4zrzovbb/website/bf04581e4f329735fd90634f6a1962c13c0bd351.pdf) _Anthropic_, 2026. Accessed 24 May 2026.
+
+Anthropic. ["Anthropic's Responsible Scaling Policy: Version 3.0."](https://www.anthropic.com/news/responsible-scaling-policy-v3) _Anthropic_, 2026. Accessed 24 May 2026.
+
+Anthropic. ["Constitutional Classifiers: Defending against Universal Jailbreaks."](https://www.anthropic.com/research/constitutional-classifiers) _Anthropic_, 2025. Accessed 24 May 2026.
+
+Microsoft. ["Microsoft AI Red Team."](https://learn.microsoft.com/en-us/security/ai-red-team/) _Microsoft Learn_, n.d. Accessed 24 May 2026.
+
+Microsoft. ["Lessons from Red Teaming 100 Generative AI Products."](https://arxiv.org/abs/2501.07238) _arXiv_, 2025. Accessed 24 May 2026.
+
+National Institute of Standards and Technology. ["AI Risk Management Framework: Generative AI Profile."](https://www.nist.gov/itl/ai-risk-management-framework) _NIST_, 2024. Accessed 24 May 2026.
+
+National Institute of Standards and Technology. ["Adversarial Machine Learning: A Taxonomy and Terminology of Attacks and Mitigations."](https://www.nist.gov/news-events/news/2025/03/nist-trustworthy-and-responsible-ai-report-adversarial-machine-learning) _NIST_, 2025. Accessed 24 May 2026.
+
+OWASP Gen AI Security Project. ["OWASP Top 10 for LLM Applications."](https://genai.owasp.org/llm-top-10/) _OWASP_, n.d. Accessed 24 May 2026.
+
+OWASP Gen AI Security Project. ["LLM01:2025 Prompt Injection."](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) _OWASP_, n.d. Accessed 24 May 2026.
+
+Meta AI. ["Purple Llama CyberSecEval: A Benchmark for Evaluating the Cybersecurity Risks of Large Language Models."](https://ai.meta.com/research/publications/purple-llama-cyberseceval-a-benchmark-for-evaluating-the-cybersecurity-risks-of-large-language-models/) _Meta AI_, 2023. Accessed 24 May 2026.
+
+NVIDIA. ["Garak: A Framework for Security Probing Large Language Models."](https://arxiv.org/html/2406.11036v1) _arXiv_, 2024. Accessed 24 May 2026.
+
+Promptfoo. ["LLM Red Teaming Guide."](https://www.promptfoo.dev/docs/red-team/) _Promptfoo_, n.d. Accessed 24 May 2026.
+
+Rauh, et al. ["Gaps in the Safety Evaluation of Generative AI."](https://ojs.aaai.org/index.php/AIES/article/view/31717) _AAAI Publications_, 2024. Accessed 24 May 2026.
+
+Ofcom. ["Red Teaming for GenAI Harms: Revealing the Risks and Harms of Generative AI."](https://www.ofcom.org.uk/online-safety/illegal-and-harmful-content/red-teaming-for-genai-harms) _Ofcom_, 2024. Accessed 24 May 2026.
