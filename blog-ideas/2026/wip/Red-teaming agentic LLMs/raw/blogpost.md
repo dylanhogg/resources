@@ -16,37 +16,47 @@ The core thesis is simple:
 
 ## 1. Classify the system before choosing defences
 
-Not every LLM system needs the same security posture. The first mistake teams make is treating "LLM app" as a single category. A structured extractor, a RAG assistant, and an autonomous tool-using agent have different risk profiles.
+Not every LLM system needs the same security posture. The first mistake teams make is treating "LLM app" as a single category. A useful way to classify systems is by how far model output travels: from structured data, to generated reasoning, to conversation, to external action.
 
 Before choosing mitigations, classify what the model is allowed to do and where its output flows.
 
-**Structured extraction**
+### 1.1 Structured extraction
+
+A structured extraction system uses the model to transform unstructured input into validated fields.
 
 Main risk: the model returns incorrect, unsupported, or adversarially influenced fields.
 
 Defences to prioritise: treat the model like a parser. Use strict schemas, enum validation, normalisation, abstention, deterministic post-processing, and adversarial extraction evals.
 
-**RAG and LLM workflows**
+### 1.2 RAG and LLM workflows
+
+A RAG or LLM workflow uses the model to combine user intent with retrieved or intermediate context.
 
 Main risk: untrusted content contaminates downstream prompts or decisions.
 
 Defences to prioritise: separate instructions from retrieved data, label retrieved text as untrusted, filter sources, check provenance, and validate intermediate outputs.
 
-**Conversational agents**
+### 1.3 Conversational agents
+
+A conversational agent uses the model to sustain a multi-turn interaction within a product scope.
 
 Main risk: open-ended user behaviour pushes the model outside product scope, policy, or factual grounding.
 
 Defences to prioritise: define supported intents, ground responses in approved sources, handle refusals and escalation, and constrain memory and personalisation.
 
-**Tool-using agents**
+### 1.4 Tool-using agents
+
+A tool-using agent uses the model to request or parameterise actions in external systems.
 
 Main risk: model output crosses into real-world execution.
 
 Defences to prioritise: use least-privilege tools, action schemas, allowlists, scoped credentials, confirmation gates, sandboxing, and audit trails.
 
-This classification matters because the cost of a model mistake changes as the system becomes more capable.
+These categories are not mutually exclusive, but they are useful because each step gives model output more influence over users, data, or external systems.
 
-In a structured extraction system, the model might incorrectly extract a field. That is bad, but the output can often be constrained, validated, and rejected before it affects downstream logic. In a RAG workflow, a retrieved document can inject malicious instructions into the generation step. In a conversational agent, an attacker can probe policy boundaries over many turns. In a tool-using agent, a bad model output may become an email, database update, shell command, calendar change, permission modification, or financial transaction.
+### 1.5 Defences should scale with capability
+
+This classification matters because the cost of a model mistake changes as the system becomes more capable. At the low end, a bad field can often be constrained, validated, and rejected before it affects downstream logic. In the middle, a retrieved document or conversation can steer the model away from the intended task. At the high end, a tool-using agent can turn a bad output into an email, database update, shell command, calendar change, permission modification, or financial transaction.
 
 As systems move from extraction to action, prompts become less important as a defence boundary and external controls become more important.
 
@@ -277,7 +287,7 @@ Rollback paths and kill switches are not optional for high-impact agents. If a t
 
 ## 4. Evaluation and red teaming
 
-Evaluation is where security work becomes engineering work.
+Evaluation is where security work becomes engineering work. Red teaming is where adversarial attacks become engineering test cases.
 
 Manual red teaming is useful for finding failures, but it is not enough. A finding should become a durable test. Otherwise the same class of issue will reappear after the next prompt change, model upgrade, retrieval tuning pass, or tool expansion.
 
@@ -344,7 +354,7 @@ A red-team finding should flow into the engineering system the same way a produc
 The workflow is:
 
 1. Capture the failure.
-2. Minimize the repro case.
+2. Minimise the repro case.
 3. Define the expected safe behaviour.
 4. Add it to the eval set.
 5. Fix the relevant layer of the system.
@@ -417,52 +427,66 @@ Agentic systems can be useful in production, but only when their capabilities ar
 
 Prompts guide behaviour. Architecture enforces safety.
 
-## 7. Further reading
+## 7. LLM security / red-teaming repos
 
-Google AI for Developers. ["Evaluate Model and System for Safety."](https://ai.google.dev/responsible/docs/evaluation) _Google AI for Developers_, n.d. Accessed 24 May 2026.
+These open-source LLM security tools turn red-teaming from ad hoc prompt hacking into repeatable engineering workflows: scanning systems, generating attacks, evaluating failures, enforcing guardrails, and preventing regressions in CI.
 
-Google. ["Google's Approach for Secure AI Agents: An Introduction."](https://storage.googleapis.com/gweb-research2023-media/pubtools/1018686.pdf) _Google_, 2025. Accessed 24 May 2026.
+1. [promptfoo/promptfoo](https://github.com/promptfoo/promptfoo) — **21.5k stars** — LLM evals, red teaming, vulnerability scanning, model comparison, CI/CD checks, and CI support for LLM apps.
+1. [NVIDIA/garak](https://github.com/NVIDIA/garak) — **7.9k stars** — Generative AI red-teaming and assessment kit for probing hallucination, leakage, prompt injection, toxicity, jailbreaks, and other failures.
+1. [Giskard-AI/giskard-oss](https://github.com/Giskard-AI/giskard-oss) — **5.4k stars** — Open-source evaluation and testing library for LLM agents, RAG systems, black-box agents, and multi-step pipelines.
+1. [meta-llama/PurpleLlama](https://github.com/meta-llama/purplellama) — **4.2k stars** — Meta’s collection of tools and evals for assessing and improving LLM security and responsible generative AI usage.
+1. [microsoft/PyRIT](https://github.com/microsoft/PyRIT) — **3.9k stars** — Microsoft’s Python Risk Identification Tool for proactively identifying risks in generative AI systems.
+1. [Tencent/AI-Infra-Guard](https://github.com/Tencent/AI-Infra-Guard) — **3.8k stars** — Full-stack AI red-teaming platform covering AI infra scanning, agent scanning, MCP scanning, skill scanning, prompt security, and jailbreak evaluation.
+1. [protectai/llm-guard](https://github.com/protectai/llm-guard) — **3.0k stars** — Security toolkit for LLM interactions, including sanitization, harmful-content detection, data-leakage prevention, and prompt-injection resistance.
+1. [msoedov/agentic_security](https://github.com/msoedov/agentic_security) — **1.9k stars** — Open-source vulnerability scanner and red-teaming kit for agent workflows and LLMs, including jailbreak, fuzzing, and multimodal attack testing.
+1. [confident-ai/deepteam](https://github.com/confident-ai/deepteam) — **1.8k stars** — Open-source red-teaming framework for LLM systems, simulating attacks such as jailbreaks, prompt injection, and multi-turn exploitation.
+1. [utkusen/promptmap](https://github.com/utkusen/promptmap) — **1.2k stars** — Security scanner for custom LLM applications, focused on prompt-injection and system-prompt exposure testing.
+1. [SponsioLabs/Sponsio](https://github.com/SponsioLabs/Sponsio) — **0.4k stars** — Deterministic safety and policy-engine tooling for probabilistic AI agents, including guardrails, runtime safety, intent verification, and agent security.
 
-Google DeepMind. ["Advancing Gemini's Security Safeguards."](https://deepmind.google/blog/advancing-geminis-security-safeguards/) _Google DeepMind_, 2025. Accessed 24 May 2026.
+## 8. Further reading
 
-Google DeepMind. ["Lessons from Defending Gemini Against Indirect Prompt Injections."](https://arxiv.org/abs/2505.14534) _arXiv_, 2025. Accessed 24 May 2026.
+Google. ["Evaluate Model and System for Safety."](https://ai.google.dev/responsible/docs/evaluation) _Google AI for Developers_, n.d.
 
-Google DeepMind. ["Gemini: A Family of Highly Capable Multimodal Models."](https://arxiv.org/abs/2312.11805) _arXiv_, 2023. Accessed 24 May 2026.
+Google. ["Google's Approach for Secure AI Agents: An Introduction."](https://storage.googleapis.com/gweb-research2023-media/pubtools/1018686.pdf) _Google_, 2025.
 
-OpenAI. ["Advancing Red Teaming with People and AI."](https://openai.com/index/advancing-red-teaming-with-people-and-ai/) _OpenAI_, 2024. Accessed 24 May 2026.
+Google DeepMind. ["Advancing Gemini's Security Safeguards."](https://deepmind.google/blog/advancing-geminis-security-safeguards/) _Google DeepMind_, 2025.
 
-OpenAI. ["OpenAI's Approach to External Red Teaming for AI Models and Systems."](https://arxiv.org/abs/2503.16431) _arXiv_, 2025. Accessed 24 May 2026.
+Google DeepMind. ["Lessons from Defending Gemini Against Indirect Prompt Injections."](https://arxiv.org/abs/2505.14534) _arXiv_, 2025.
 
-OpenAI. ["Preparedness Framework."](https://cdn.openai.com/pdf/18a02b5d-6b67-4cec-ab64-68cdfbddebcd/preparedness-framework-v2.pdf) _OpenAI_, 2025. Accessed 24 May 2026.
+Google DeepMind. ["Gemini: A Family of Highly Capable Multimodal Models."](https://arxiv.org/abs/2312.11805) _arXiv_, 2023.
 
-OpenAI. ["GPT-4o System Card."](https://openai.com/index/gpt-4o-system-card/) _OpenAI_, 8 Aug. 2024. Accessed 24 May 2026.
+OpenAI. ["Advancing Red Teaming with People and AI."](https://openai.com/index/advancing-red-teaming-with-people-and-ai/) _OpenAI_, 2024.
 
-OpenAI. ["GPT-5 System Card."](https://cdn.openai.com/gpt-5-system-card.pdf) _OpenAI_, 2025. Accessed 24 May 2026.
+OpenAI. ["OpenAI's Approach to External Red Teaming for AI Models and Systems."](https://arxiv.org/abs/2503.16431) _arXiv_, 2025.
 
-Anthropic. ["Anthropic's Responsible Scaling Policy (Version 3.1)."](https://www-cdn.anthropic.com/files/4zrzovbb/website/bf04581e4f329735fd90634f6a1962c13c0bd351.pdf) _Anthropic_, 2026. Accessed 24 May 2026.
+OpenAI. ["Preparedness Framework."](https://cdn.openai.com/pdf/18a02b5d-6b67-4cec-ab64-68cdfbddebcd/preparedness-framework-v2.pdf) _OpenAI_, 2025.
 
-Anthropic. ["Anthropic's Responsible Scaling Policy: Version 3.0."](https://www.anthropic.com/news/responsible-scaling-policy-v3) _Anthropic_, 2026. Accessed 24 May 2026.
+OpenAI. ["GPT-5 System Card."](https://cdn.openai.com/gpt-5-system-card.pdf) _OpenAI_, 2025.
 
-Anthropic. ["Constitutional Classifiers: Defending against Universal Jailbreaks."](https://www.anthropic.com/research/constitutional-classifiers) _Anthropic_, 2025. Accessed 24 May 2026.
+Anthropic. ["Anthropic's Responsible Scaling Policy (Version 3.1)."](https://www-cdn.anthropic.com/files/4zrzovbb/website/bf04581e4f329735fd90634f6a1962c13c0bd351.pdf) _Anthropic_, 2026.
 
-Microsoft. ["Microsoft AI Red Team."](https://learn.microsoft.com/en-us/security/ai-red-team/) _Microsoft Learn_, n.d. Accessed 24 May 2026.
+Anthropic. ["Anthropic's Responsible Scaling Policy: Version 3.0."](https://www.anthropic.com/news/responsible-scaling-policy-v3) _Anthropic_, 2026.
 
-Microsoft. ["Lessons from Red Teaming 100 Generative AI Products."](https://arxiv.org/abs/2501.07238) _arXiv_, 2025. Accessed 24 May 2026.
+Anthropic. ["Constitutional Classifiers: Defending against Universal Jailbreaks."](https://www.anthropic.com/research/constitutional-classifiers) _Anthropic_, 2025.
 
-National Institute of Standards and Technology. ["AI Risk Management Framework: Generative AI Profile."](https://www.nist.gov/itl/ai-risk-management-framework) _NIST_, 2024. Accessed 24 May 2026.
+Microsoft. ["Microsoft AI Red Team."](https://learn.microsoft.com/en-us/security/ai-red-team/) _Microsoft Learn_, n.d.
 
-National Institute of Standards and Technology. ["Adversarial Machine Learning: A Taxonomy and Terminology of Attacks and Mitigations."](https://www.nist.gov/news-events/news/2025/03/nist-trustworthy-and-responsible-ai-report-adversarial-machine-learning) _NIST_, 2025. Accessed 24 May 2026.
+Microsoft. ["Lessons from Red Teaming 100 Generative AI Products."](https://arxiv.org/abs/2501.07238) _arXiv_, 2025.
 
-OWASP Gen AI Security Project. ["OWASP Top 10 for LLM Applications."](https://genai.owasp.org/llm-top-10/) _OWASP_, n.d. Accessed 24 May 2026.
+National Institute of Standards and Technology. ["AI Risk Management Framework: Generative AI Profile."](https://www.nist.gov/itl/ai-risk-management-framework) _NIST_, 2024.
 
-OWASP Gen AI Security Project. ["LLM01:2025 Prompt Injection."](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) _OWASP_, n.d. Accessed 24 May 2026.
+National Institute of Standards and Technology. ["Adversarial Machine Learning: A Taxonomy and Terminology of Attacks and Mitigations."](https://www.nist.gov/news-events/news/2025/03/nist-trustworthy-and-responsible-ai-report-adversarial-machine-learning) _NIST_, 2025.
 
-Meta AI. ["Purple Llama CyberSecEval: A Benchmark for Evaluating the Cybersecurity Risks of Large Language Models."](https://ai.meta.com/research/publications/purple-llama-cyberseceval-a-benchmark-for-evaluating-the-cybersecurity-risks-of-large-language-models/) _Meta AI_, 2023. Accessed 24 May 2026.
+OWASP Gen AI Security Project. ["OWASP Top 10 for LLM Applications."](https://genai.owasp.org/llm-top-10/) _OWASP_, n.d.
 
-NVIDIA. ["Garak: A Framework for Security Probing Large Language Models."](https://arxiv.org/html/2406.11036v1) _arXiv_, 2024. Accessed 24 May 2026.
+OWASP Gen AI Security Project. ["LLM01:2025 Prompt Injection."](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) _OWASP_, n.d.
 
-Promptfoo. ["LLM Red Teaming Guide."](https://www.promptfoo.dev/docs/red-team/) _Promptfoo_, n.d. Accessed 24 May 2026.
+Meta AI. ["Purple Llama CyberSecEval: A Benchmark for Evaluating the Cybersecurity Risks of Large Language Models."](https://ai.meta.com/research/publications/purple-llama-cyberseceval-a-benchmark-for-evaluating-the-cybersecurity-risks-of-large-language-models/) _Meta AI_, 2023.
 
-Rauh, et al. ["Gaps in the Safety Evaluation of Generative AI."](https://ojs.aaai.org/index.php/AIES/article/view/31717) _AAAI Publications_, 2024. Accessed 24 May 2026.
+NVIDIA. ["Garak: A Framework for Security Probing Large Language Models."](https://arxiv.org/html/2406.11036v1) _arXiv_, 2024.
 
-Ofcom. ["Red Teaming for GenAI Harms: Revealing the Risks and Harms of Generative AI."](https://www.ofcom.org.uk/online-safety/illegal-and-harmful-content/red-teaming-for-genai-harms) _Ofcom_, 2024. Accessed 24 May 2026.
+Promptfoo. ["LLM Red Teaming Guide."](https://www.promptfoo.dev/docs/red-team/) _Promptfoo_, n.d.
+
+Rauh, et al. ["Gaps in the Safety Evaluation of Generative AI."](https://ojs.aaai.org/index.php/AIES/article/view/31717) _AAAI Publications_, 2024.
+
+Ofcom. ["Red Teaming for GenAI Harms: Revealing the Risks and Harms of Generative AI."](https://www.ofcom.org.uk/online-safety/illegal-and-harmful-content/red-teaming-for-genai-harms) _Ofcom_, 2024.
