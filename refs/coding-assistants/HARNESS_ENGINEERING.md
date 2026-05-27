@@ -37,6 +37,14 @@ https://github.com/disler/pi-vs-claude-code/blob/main/PI_VS_OPEN_CODE.md
 
 https://www.youtube.com/@indydevdan
 
+### oh-my-pi
+
+A coding agent with the IDE wired in. Originally built on Mario Zechner's wonderful Pi, omp adds everything you're missing.
+
+https://omp.sh/
+
+https://github.com/can1357/oh-my-pi
+
 ### Opencode
 
 The open source AI coding agent
@@ -65,6 +73,14 @@ All from WhatsApp, Telegram, or any chat app you already use.
 https://openclaw.ai/
 
 https://github.com/openclaw/openclaw
+
+## Deepagents
+
+Deep Agents is an open source agent harness — an opinionated agent that runs out of the box. Extend, override, or replace any piece.
+
+https://docs.langchain.com/oss/python/deepagents/overview
+
+https://github.com/langchain-ai/deepagents
 
 ## Resources
 

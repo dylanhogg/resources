@@ -41,6 +41,9 @@ Software development
 
 - https://github.com/JuliusBrussee/caveman - Cuts 65% of tokens by talking like caveman
 - https://github.com/obra/superpowers - Agentic skills framework & software development methodology
+- https://github.com/mattpocock/skills - Skills for Real Engineers
+- https://github.com/ciembor/agent-rules-books - Skills for AI coding agents inspired by Clean Code, Refactoring, DDD, Clean Architecture
+-
 
 Business
 
@@ -50,7 +53,21 @@ Business
 Matt Pocock - Skills for Real Engineers
 
 - https://github.com/mattpocock/skills - Skills for Real Engineers
-- https://www.youtube.com/watch?v=v4F1gFy-hqg - "Software Fundamentals Matter More Than Ever" — Matt Pocock
+- ✅ https://www.youtube.com/watch?v=6BB6exR8Zd8 - I stopped using /grill-me now use /grill-with-docs - Matt Pocock
+- ✅ https://www.youtube.com/watch?v=v4F1gFy-hqg - "Software Fundamentals Matter More Than Ever" — Matt Pocock
 - https://www.youtube.com/watch?v=hYZdIwFIy-c - Red Green Refactor is OP With Claude Code
+- https://x.com/mattpocockuk/status/2058900756640453072
 - https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd | https://www.aihero.dev/skill-test-driven-development-claude-code
-- https://github.com/mattpocock/skills/blob/main/skills/productivity/grill-me/
+
+- https://github.com/mattpocock/skills/blob/main/skills/productivity/grill-me/SKILL.md
+- https://github.com/mattpocock/skills/blob/main/skills/engineering/grill-with-docs/SKILL.md (new)
+- https://github.com/mattpocock/skills/blob/main/skills/engineering/tdd/SKILL.md
+- https://github.com/mattpocock/skills/blob/main/skills/engineering/improve-codebase-architecture/SKILL.md
+
+Agent Rule Books
+
+- https://ciembor.github.io/agent-rules-books/
+- https://github.com/ciembor/agent-rules-books/blob/main/docs/USAGE.md
+- https://github.com/ciembor/agent-rules-books/blob/main/domain-driven-design/domain-driven-design.nano.md
+- https://github.com/ciembor/agent-rules-books/blob/main/clean-code/clean-code.nano.md
+- https://github.com/ciembor/agent-rules-books/blob/main/designing-data-intensive-applications/designing-data-intensive-applications.nano.md
