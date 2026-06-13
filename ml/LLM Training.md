@@ -35,6 +35,9 @@ Resources for LLM training.
 - Pytorch
   - https://mlechner.substack.com/p/why-we-started-with-jax-but-moved
 
+- Nanochat (simplest experimental harness for training LLMs.)
+  - https://github.com/karpathy/nanochat
+
 - TODO: more
 
 ## Code / Notebooks

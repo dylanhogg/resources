@@ -14,6 +14,12 @@ Use agent skills to extend Codex with task-specific capabilities. A skill packag
 
 - https://developers.openai.com/codex/skills/
 
+Huggingface Course: https://huggingface.co/learn/context-course/en/unit1/introduction
+
+## Skills security
+
+https://github.com/NVIDIA/SkillSpector - Security scanner for AI agent skills. Detect vulnerabilities, malicious patterns, and security risks.
+
 ## Skill libraries
 
 This repository contains Anthropic's implementation of skills for Claude.
@@ -39,10 +45,13 @@ Hugging Face Skills are definitions for AI/ML tasks like dataset creation, model
 
 Software development
 
+- https://github.com/google/skills - Agent Skills for Google products and technologies, by Google
 - https://github.com/JuliusBrussee/caveman - Cuts 65% of tokens by talking like caveman
+- https://github.com/DietrichGebert/ponytail - Forces the laziest solution that actually works
 - https://github.com/obra/superpowers - Agentic skills framework & software development methodology
 - https://github.com/mattpocock/skills - Skills for Real Engineers
 - https://github.com/ciembor/agent-rules-books - Skills for AI coding agents inspired by Clean Code, Refactoring, DDD, Clean Architecture
+- https://github.com/tiangolo/library-skills - Let your AI agents use libraries as intended, always up to date.
 -
 
 Business

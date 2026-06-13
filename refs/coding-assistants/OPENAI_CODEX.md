@@ -2,6 +2,12 @@
 
 Lightweight coding agent that runs in your terminal
 
+## Cheatsheets
+
+https://blog.infocruncher.com/html/coding_agent_cheatshets/by_cc/codex_cheatsheet.html
+
+https://blog.infocruncher.com/html/coding_agent_cheatshets/by_codex/codex_cheatsheet.html
+
 ## Docs
 
 https://github.com/openai/codex
