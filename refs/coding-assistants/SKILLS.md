@@ -52,7 +52,7 @@ Software development
 - https://github.com/mattpocock/skills - Skills for Real Engineers
 - https://github.com/ciembor/agent-rules-books - Skills for AI coding agents inspired by Clean Code, Refactoring, DDD, Clean Architecture
 - https://github.com/tiangolo/library-skills - Let your AI agents use libraries as intended, always up to date.
--
+- https://github.com/upstash/context7 - Up-to-date code documentation for LLMs and AI code editors.
 
 Business
 
