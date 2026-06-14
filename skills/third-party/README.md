@@ -4,6 +4,16 @@
 
 Local copies of third-party skills are stored here for easy reference and to preserve them if the original is deleted or changed. Links to the original source are included for attribution and to check for updates.
 
+Example to install skills into Claude/Codex/OpenCode:
+
+```
+Install skill from https://github.com/dylanhogg/resources/blob/main/skills/third-party/context7/find-docs/ to local repo project skills location.
+```
+
+```
+Install skill from https://github.com/dylanhogg/resources/blob/main/skills/third-party/context7/find-docs/ to global/shared skills location.
+```
+
 ### karpathy guidelines
 
 Source: https://github.com/multica-ai/andrej-karpathy-skills/blob/main/skills/karpathy-guidelines
