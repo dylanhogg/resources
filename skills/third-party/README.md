@@ -41,6 +41,24 @@ Local: skills/third-party/context7/find-docs
 Source: https://github.com/ciembor/agent-rules-books/tree/main/designing-data-intensive-applications (prefer nano version)
 Local: skills/third-party/ciembor/designing-data-intensive-applications
 
+## superpowers
+
+Source: https://github.com/obra/superpowers/blob/main/skills/systematic-debugging
+Local: skills/third-party/superpowers/systematic-debugging
+
+## huggingface
+
+Source: https://github.com/huggingface/skills/blob/main/skills/huggingface-best
+Local: skills/third-party/huggingface/huggingface-best
+
+Source: https://github.com/huggingface/skills/tree/main/skills/huggingface-llm-trainer
+Local: skills/third-party/huggingface/huggingface-llm-trainer
+
+## google
+
+Source: https://github.com/google/skills/blob/main/skills/cloud/gcloud
+Local: skills/third-party/google/gcloud
+
 ### OpenAI skills
 
 Source: https://github.com/openai/skills/tree/main/skills/.curated/security-best-practices
@@ -65,3 +83,5 @@ https://github.com/anthropics/skills
 https://github.com/openai/skills
 
 https://github.com/google/skills
+
+https://github.com/huggingface/skills

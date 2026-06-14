@@ -16,6 +16,12 @@ Use agent skills to extend Codex with task-specific capabilities. A skill packag
 
 Huggingface Course: https://huggingface.co/learn/context-course/en/unit1/introduction
 
+## Skill marketplaces
+
+https://github.com/wshobson/agents - Multi-harness agentic plugin marketplace
+
+https://github.com/wshobson/commands -
+
 ## Skills security
 
 https://github.com/NVIDIA/SkillSpector - Security scanner for AI agent skills. Detect vulnerabilities, malicious patterns, and security risks.
@@ -33,6 +39,10 @@ Official, Anthropic-managed directory of high quality Claude Code Plugins.
 Codex uses skills to help package capabilities that teams and individuals can use to complete specific tasks in a repeatable way. This repository catalogs skills for use and distribution with Codex.
 
 - https://github.com/openai/skills
+- https://github.com/openai/skills/blob/main/skills/.curated/define-goal/SKILL.md
+- https://github.com/openai/skills/blob/main/skills/.curated/security-best-practices/SKILL.md
+- https://github.com/openai/skills/blob/main/skills/.curated/gh-fix-ci/SKILL.md
+- https://github.com/openai/skills/blob/main/skills/.curated/jupyter-notebook/SKILL.md
 
 Claude Code Skills and 380+ agent skills from official dev teams and the community, compatible with Codex, Antigravity, Gemini CLI, Cursor and others.
 
@@ -48,6 +58,7 @@ Software development
 - https://github.com/google/skills - Agent Skills for Google products and technologies, by Google
 - https://github.com/JuliusBrussee/caveman - Cuts 65% of tokens by talking like caveman
 - https://github.com/DietrichGebert/ponytail - Forces the laziest solution that actually works
+- https://github.com/multica-ai/andrej-karpathy-skills - Derived from Andrej Karpathy's observations on LLM coding pitfalls.
 - https://github.com/obra/superpowers - Agentic skills framework & software development methodology
 - https://github.com/mattpocock/skills - Skills for Real Engineers
 - https://github.com/ciembor/agent-rules-books - Skills for AI coding agents inspired by Clean Code, Refactoring, DDD, Clean Architecture

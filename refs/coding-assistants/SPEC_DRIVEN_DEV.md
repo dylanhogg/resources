@@ -1,5 +1,9 @@
 # Spec-Driven Development
 
+## General resources
+
+https://github.com/Engineering4AI/awesome-spec-driven-development
+
 ## OpenSpec
 
 Spec-driven development (SDD) for AI coding assistants.
