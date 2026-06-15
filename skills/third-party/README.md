@@ -64,10 +64,15 @@ Local: skills/third-party/huggingface/huggingface-best
 Source: https://github.com/huggingface/skills/tree/main/skills/huggingface-llm-trainer
 Local: skills/third-party/huggingface/huggingface-llm-trainer
 
-## google
+## google (Agent platform, BQ, CloudRun, GKE, WAF)
 
-Source: https://github.com/google/skills/blob/main/skills/cloud/gcloud
-Local: skills/third-party/google/gcloud
+Source: https://github.com/google/skills/blob/main/skills
+Local: skills/third-party/google
+
+## GoogleCloudPlatform (VertexAI and GenAI)
+
+Source: https://github.com/GoogleCloudPlatform/vertex-ai-samples/tree/main/skills
+Local: skills/third-party/GoogleCloudPlatform/vertex-ai-samples
 
 ### OpenAI skills
 
