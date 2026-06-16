@@ -41,6 +41,9 @@ Local: skills/third-party/mattpocock/tdd
 Source: https://github.com/mattpocock/skills/blob/main/skills/engineering/improve-codebase-architecture
 Local: skills/third-party/mattpocock/improve-codebase-architecture
 
+Source: https://github.com/mattpocock/skills/blob/main/skills/productivity/handoff
+Local: skills/third-party/mattpocock/handoff
+
 ### context7
 
 Source: https://github.com/upstash/context7/blob/master/skills/find-docs
