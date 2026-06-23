@@ -70,7 +70,7 @@ Local: skills/third-party/huggingface/huggingface-llm-trainer
 ## google (Agent platform, BQ, CloudRun, GKE, WAF)
 
 Source: https://github.com/google/skills/blob/main/skills
-Local: skills/third-party/google
+Local: skills/third-party/google/\*
 
 ## GoogleCloudPlatform (VertexAI and GenAI)
 
@@ -94,6 +94,11 @@ Local: skills/third-party/openai/gh-fix-ci
 Source: https://github.com/openai/skills/tree/main/skills/.curated/jupyter-notebook
 Local: skills/third-party/openai/jupyter-notebook
 
+### Trailofbits skills
+
+Source: https://github.com/trailofbits/skills
+Local: skills/third-party/trailofbits/\*
+
 ## External links
 
 https://github.com/anthropics/skills
@@ -103,3 +108,5 @@ https://github.com/openai/skills
 https://github.com/google/skills
 
 https://github.com/huggingface/skills
+
+https://github.com/trailofbits/skills
