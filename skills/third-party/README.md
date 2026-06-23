@@ -99,6 +99,11 @@ Local: skills/third-party/openai/jupyter-notebook
 Source: https://github.com/trailofbits/skills
 Local: skills/third-party/trailofbits/\*
 
+### Manim skills
+
+Source: https://github.com/adithya-s-k/manim_skill
+Local: skills/third-party/manim_skill
+
 ## External links
 
 https://github.com/anthropics/skills
