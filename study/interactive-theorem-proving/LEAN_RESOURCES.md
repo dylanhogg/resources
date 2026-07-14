@@ -8,6 +8,7 @@ Lean is a proof assistant and a functional programming language. It is based on 
 - https://github.com/leanprover/cslib/
 - https://github.com/leanprover-community/mathlib4
 - https://github.com/avigad
+- https://github.com/lecopivo/SciLean
 
 ## Websites
 
@@ -37,7 +38,16 @@ Lean is a proof assistant and a functional programming language. It is based on 
 
 ## Videos
 
-https://lean-forward.github.io/logical-verification/2022/index.html
+- https://lean-forward.github.io/logical-verification/2022/index.html
+- Big Conjectures | Thomas Hales - https://www.youtube.com/playlist?list=PLgBHexwnIcdtfrvQB1xhCV2MgsmquyD-S
+- Buzzard
+  - https://www.youtube.com/@PietroMonticone/videos
+  - Can AI Do Mathematics? | Kevin Buzzard https://www.youtube.com/watch?v=O0F6EFyDA58
+
+## Tutorials
+
+- https://github.com/pitmonticone/LeanInVienna2024
+-
 
 ## Awesome lists
 
