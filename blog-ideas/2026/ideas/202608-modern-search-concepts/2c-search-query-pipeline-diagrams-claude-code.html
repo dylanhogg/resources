@@ -1891,11 +1891,11 @@ function nodeEl(id, newIds){
   if(!isOn(id)) el.classList.add("off");
   if(newIds.has(id)) el.classList.add("isnew");
   if(state.sel===id) el.classList.add("selected");
-  const meta =
+  const meta =                                       // tier, then conditional, then latency
     '<span class="tierchip '+s.tier+'" title="First appears in template '+s.intro+' — '+TPL[s.intro].name+'">'+
       TIER_LABEL[s.intro]+'</span>' +
-    (s.lat && s.lat[1] ? '<span class="ms">'+s.lat[0]+"–"+s.lat[1]+" ms</span>" : "") +
-    (s.conditional ? '<span class="condchip">conditional</span>' : "");
+    (s.conditional ? '<span class="condchip">conditional</span>' : "") +
+    (s.lat && s.lat[1] ? '<span class="ms">'+s.lat[0]+"–"+s.lat[1]+" ms</span>" : "");
   el.innerHTML =
     '<div class="nm">'+s.name+'</div>' +
     (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
@@ -2020,6 +2020,13 @@ function drawWires(){
     if(!a||!b) return;
     let d, stroke="var(--wire)", dash="", marker="flow", lx, ly;
 
+    // An explicit kind routes itself. The geometric "runs upward" test is only a
+    // fallback for spine edges, which carry no routing of their own — and it needs a
+    // tolerance, because two cards centred in the same row differ by a few pixels
+    // without the edge going anywhere.
+    const spine  = e.kind==="flow" || e.kind==="branch";
+    const runsUp = b.y < a.y - 24;
+
     if(e.kind==="ctrl" || e.kind==="train"){
       const train = e.kind==="train";
       stroke = train ? "var(--wire-train)" : "var(--wire-ctrl)";
@@ -2030,16 +2037,19 @@ function drawWires(){
       const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
       const k = Math.max(30, Math.abs(tx-sx)*0.45) * (fromLeft?-1:1);
       d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
-    } else if(e.kind==="loop" || b.y < a.y){
+    } else if(e.kind==="feedback"){
+      stroke="var(--wire-ctrl)"; dash='stroke-dasharray="1 5" stroke-linecap="round"'; marker="ctrl";
+      const fromLeft = a.cx > b.cx;
+      const sx = fromLeft ? a.x : a.x+a.w, sy = a.cy;
+      const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
+      const k = Math.max(30, Math.abs(tx-sx)*0.4) * (fromLeft?-1:1);
+      d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
+    } else if(e.kind==="loop" || (spine && runsUp)){
       stroke="var(--wire-loop)"; marker="loop";
       const gx = 62;
       const sx=a.x, sy=a.cy, tx=b.x, ty=b.cy;
       d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+ty+" "+tx+","+ty;
       lx = gx+9; ly = (sy+ty)/2;
-    } else if(e.kind==="feedback"){
-      stroke="var(--wire-ctrl)"; dash='stroke-dasharray="1 5" stroke-linecap="round"'; marker="ctrl";
-      const sx=a.x+a.w, sy=a.cy, tx=b.x, ty=b.cy;
-      d = "M"+sx+","+sy+" C"+(sx+40)+","+sy+" "+(tx-40)+","+ty+" "+tx+","+ty;
     } else {
       const sx=a.cx, sy=a.y+a.h, tx=b.cx, ty=b.y;
       const dy = Math.max(12,(ty-sy)*0.55);
