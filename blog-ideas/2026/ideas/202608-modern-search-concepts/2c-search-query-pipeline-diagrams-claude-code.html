@@ -1,0 +1,1845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Query Search Pipeline Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens ---------- */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f0f2f5; --surface-3:#e7eaef;
+  --border:#d8dde5; --border-strong:#b9c1cd;
+  --text:#101725; --text-2:#465063; --text-3:#6d7789;
+  --accent:#2563eb; --accent-soft:#e8effd;
+  --core-bg:#dbeafe; --core-line:#1d4ed8; --core-text:#12275e;
+  --rec-bg:#dcfce7; --rec-line:#15803d; --rec-text:#12351f;
+  --opt-bg:#ede9fe; --opt-line:#6d28d9; --opt-text:#2b1a52;
+  --ctrl-bg:#e8ecf2; --ctrl-line:#64748b; --ctrl-text:#27303f;
+  --wire:#94a1b3; --wire-loop:#c2704a; --wire-ctrl:#8b93a5;
+  --warn:#b45309; --warn-bg:#fef3c7;
+  --ok:#15803d;
+  --shadow:0 1px 2px rgba(16,23,37,.06),0 4px 12px rgba(16,23,37,.06);
+  --shadow-lg:0 12px 40px rgba(16,23,37,.18);
+  --radius:10px;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+      --bg:#0d1117; --surface:#151b24; --surface-2:#1b2230; --surface-3:#232c3b;
+      --border:#2a3444; --border-strong:#3a4658;
+      --text:#e7ecf3; --text-2:#a9b4c4; --text-3:#7d8798;
+      --accent:#6ea0ff; --accent-soft:#17233c;
+      --core-bg:#16294d; --core-line:#5b8def; --core-text:#cfe0ff;
+      --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
+      --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
+      --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
+      --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a;
+      --warn:#e0a94a; --warn-bg:#332a17;
+      --ok:#4ea96e;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
+      --shadow-lg:0 12px 40px rgba(0,0,0,.55);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1117; --surface:#151b24; --surface-2:#1b2230; --surface-3:#232c3b;
+  --border:#2a3444; --border-strong:#3a4658;
+  --text:#e7ecf3; --text-2:#a9b4c4; --text-3:#7d8798;
+  --accent:#6ea0ff; --accent-soft:#17233c;
+  --core-bg:#16294d; --core-line:#5b8def; --core-text:#cfe0ff;
+  --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
+  --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
+  --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
+  --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a;
+  --warn:#e0a94a; --warn-bg:#332a17;
+  --ok:#4ea96e;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.55);
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em}
+a{color:var(--accent)}
+
+/* ---------- header ---------- */
+.hdr{
+  position:sticky; top:0; z-index:40; background:var(--surface);
+  border-bottom:1px solid var(--border); padding:10px 20px;
+  display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+}
+.hdr .brand{display:flex;flex-direction:column;gap:1px;margin-right:auto}
+.hdr h1{font-size:15px}
+.hdr .sub{font-size:11.5px;color:var(--text-3)}
+.tabs{display:flex;gap:2px;background:var(--surface-2);padding:3px;border-radius:8px}
+.tabs button{
+  border:0;background:transparent;padding:6px 14px;border-radius:6px;
+  font-size:13px;font-weight:500;color:var(--text-2)
+}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.icon-btn{
+  border:1px solid var(--border);background:var(--surface);width:32px;height:32px;
+  border-radius:8px;display:grid;place-items:center;font-size:14px
+}
+.icon-btn:hover{background:var(--surface-2)}
+
+/* ---------- context bar ---------- */
+.ctxbar{
+  position:sticky; top:53px; z-index:35; background:var(--bg);
+  border-bottom:1px solid var(--border); padding:12px 20px 12px;
+}
+.seg{display:inline-flex;background:var(--surface-2);padding:3px;border-radius:9px;border:1px solid var(--border)}
+.seg button{
+  border:0;background:transparent;padding:7px 16px;border-radius:7px;font-size:13px;
+  font-weight:500;color:var(--text-2);display:flex;align-items:center;gap:8px;white-space:nowrap
+}
+.seg button .n{
+  display:grid;place-items:center;width:18px;height:18px;border-radius:5px;
+  background:var(--surface-3);font-size:11px;font-weight:700;color:var(--text-2)
+}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.seg button[aria-pressed="true"] .n{background:var(--accent);color:#fff}
+.ctx-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.ctx-desc{font-size:12.5px;color:var(--text-2);max-width:56ch}
+.ctx-desc b{color:var(--text);font-weight:600}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;
+  padding:4px 9px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-2)
+}
+.pill.new{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+
+/* example trace */
+.trace{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:11px}
+.trace .q{
+  font-family:var(--mono);font-size:11.5px;color:var(--text-2);background:var(--surface);
+  border:1px solid var(--border);border-radius:7px;padding:5px 9px
+}
+.trace .lbl{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.facet{
+  border:1px solid var(--border);background:var(--surface);border-radius:20px;
+  padding:4px 10px;font-size:11.5px;color:var(--text-2)
+}
+.facet:hover{border-color:var(--border-strong);color:var(--text)}
+.facet[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:288px minmax(0,1fr);gap:0;align-items:start}
+.side{
+  position:sticky;top:53px;max-height:calc(100vh - 53px);overflow-y:auto;
+  border-right:1px solid var(--border);background:var(--surface);padding:16px 14px 60px
+}
+.stage-area{padding:26px 20px 120px;min-width:0}
+
+/* ---------- sidebar panels ---------- */
+.panel{margin-bottom:18px}
+.panel > h3{
+  font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);
+  margin-bottom:9px;display:flex;align-items:center;justify-content:space-between
+}
+.metric{margin-bottom:13px}
+.metric .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:5px}
+.metric .name{font-size:12px;color:var(--text-2);font-weight:500}
+.metric .val{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums}
+.bar{height:7px;border-radius:4px;background:var(--surface-3);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar i.lo{background:var(--accent)}
+.bar i.hi{background:var(--accent);opacity:.35}
+.bar i.cx{background:linear-gradient(90deg,var(--rec-line),var(--warn))}
+.metric .note{font-size:11px;color:var(--text-3);margin-top:4px}
+.stack{display:flex;gap:2px;height:9px;border-radius:4px;overflow:hidden;background:var(--surface-3)}
+.stack i{height:100%}
+.legendrow{display:flex;flex-wrap:wrap;gap:5px 10px;margin-top:6px}
+.legendrow span{font-size:10.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:4px}
+.legendrow i{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+.caps{display:flex;flex-wrap:wrap;gap:5px}
+.cap{
+  font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface-2);color:var(--text-3);opacity:.55
+}
+.cap.on{opacity:1;background:var(--rec-bg);border-color:var(--rec-line);color:var(--rec-text)}
+
+.complist details{border-top:1px solid var(--border)}
+.complist details:last-of-type{border-bottom:1px solid var(--border)}
+.complist summary{
+  list-style:none;cursor:pointer;padding:8px 2px;font-size:11.5px;font-weight:600;
+  color:var(--text-2);display:flex;align-items:center;gap:7px
+}
+.complist summary::-webkit-details-marker{display:none}
+.complist summary::before{content:"▸";font-size:9px;color:var(--text-3);transition:transform .15s}
+.complist details[open] summary::before{transform:rotate(90deg)}
+.complist summary .count{margin-left:auto;font-size:10.5px;color:var(--text-3);font-weight:500}
+.tog{
+  display:flex;align-items:center;gap:8px;padding:5px 2px 5px 18px;font-size:12px;color:var(--text-2);
+  width:100%;border:0;background:none;text-align:left;border-radius:6px
+}
+.tog:hover{background:var(--surface-2);color:var(--text)}
+.tog .sw{
+  width:26px;height:15px;border-radius:20px;background:var(--surface-3);position:relative;flex:none;
+  transition:background .15s
+}
+.tog .sw::after{
+  content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;
+  background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .15s
+}
+.tog[data-on="1"] .sw{background:var(--ok)}
+.tog[data-on="1"] .sw::after{transform:translateX(11px)}
+.tog[data-locked="1"]{opacity:.55;cursor:not-allowed}
+.tog[data-locked="1"]:hover{background:none}
+.tog .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tog .tier{width:6px;height:6px;border-radius:50%;flex:none}
+.btn-ghost{
+  border:1px solid var(--border);background:var(--surface);border-radius:8px;
+  padding:7px 10px;font-size:12px;font-weight:500;width:100%;color:var(--text-2)
+}
+.btn-ghost:hover{background:var(--surface-2);color:var(--text)}
+
+/* ---------- canvas ---------- */
+.canvas{position:relative;padding-left:118px}
+.wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0}
+.row{
+  position:relative;display:grid;
+  grid-template-columns:minmax(0,128px) minmax(0,1fr) minmax(0,176px);
+  gap:12px;align-items:center;margin-bottom:34px;z-index:1
+}
+.row .cell{display:flex;gap:11px;flex-wrap:wrap;min-width:0}
+.row .cell.center{justify-content:center}
+.row .cell.center > .node{flex:1 1 154px}
+.row .cell.left{justify-content:flex-end}
+.row .cell.right{justify-content:flex-start}
+.lane{
+  position:absolute;left:-114px;top:-9px;font-size:9.5px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-3);writing-mode:vertical-rl;transform:rotate(180deg);
+  max-height:120px
+}
+
+/* ---------- node ---------- */
+.node{
+  display:flex;flex-direction:column;align-items:stretch;
+  position:relative;border-radius:var(--radius);border:1px solid var(--border);
+  background:var(--surface);padding:9px 12px;min-width:154px;max-width:250px;text-align:left;
+  box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s,opacity .18s,filter .18s
+}
+.node:hover{transform:translateY(-1px);box-shadow:0 3px 6px rgba(16,23,37,.10),0 10px 22px rgba(16,23,37,.10)}
+.node:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.node .nm{font-size:12.5px;font-weight:600;line-height:1.3}
+.node .sb{font-size:10.5px;color:var(--text-3);margin-top:3px;line-height:1.35}
+.node .meta{display:flex;gap:6px;align-items:center;margin-top:7px}
+.node .ms{font-size:10px;font-family:var(--mono);color:var(--text-3)}
+.node .condchip{
+  font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  border:1px solid var(--warn);color:var(--warn);border-radius:20px;padding:1px 6px
+}
+.node.core{background:var(--core-bg);border-color:var(--core-line);color:var(--core-text)}
+.node.core .sb,.node.core .ms{color:var(--core-text);opacity:.72}
+.node.recommended{background:var(--rec-bg);border-color:var(--rec-line);color:var(--rec-text)}
+.node.recommended .sb,.node.recommended .ms{color:var(--rec-text);opacity:.72}
+.node.optional{background:var(--opt-bg);border-color:var(--opt-line);color:var(--opt-text)}
+.node.optional .sb,.node.optional .ms{color:var(--opt-text);opacity:.72}
+.node.control{background:var(--ctrl-bg);border-color:var(--ctrl-line);border-style:dashed;color:var(--ctrl-text);min-width:150px;max-width:200px}
+.node.control .sb,.node.control .ms{color:var(--ctrl-text);opacity:.72}
+.node.decision{border-radius:22px}
+.node.io{min-width:132px;text-align:center}
+.node.io .nm{font-size:12px}
+.node.selected{outline:2px solid var(--accent);outline-offset:2px}
+.node.off{opacity:.32;filter:grayscale(.85)}
+.node.dimmed{opacity:.22}
+.node.hl{outline:2px solid var(--warn);outline-offset:2px}
+.badge{
+  position:absolute;top:-8px;right:-6px;font-size:9px;font-weight:700;letter-spacing:.03em;
+  background:var(--accent);color:#fff;border-radius:20px;padding:2px 7px;box-shadow:var(--shadow)
+}
+.badge.cond{background:var(--warn);color:#fff;top:auto;bottom:-8px;left:-6px;right:auto}
+@keyframes pop{0%{transform:scale(.9);opacity:0}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+.node.isnew{animation:pop .38s ease-out both}
+.node .offmark{position:absolute;inset:0;pointer-events:none;border-radius:var(--radius)}
+.node[data-on="0"] .offmark{
+  background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(125,135,152,.16) 6px 12px)
+}
+.elabel{
+  position:absolute;z-index:2;transform:translate(-50%,-50%);
+  font-size:10px;font-weight:600;color:var(--text-3);background:var(--bg);
+  padding:1px 6px;border-radius:5px;white-space:nowrap;pointer-events:none
+}
+.elabel.loop{color:var(--wire-loop);transform:translate(0,-50%)}
+
+/* ---------- drawer ---------- */
+.scrim{position:fixed;inset:0;background:rgba(8,12,20,.35);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.open{opacity:1;pointer-events:auto}
+.drawer{
+  position:fixed;top:0;right:0;height:100dvh;width:min(440px,100vw);background:var(--surface);
+  border-left:1px solid var(--border);box-shadow:var(--shadow-lg);z-index:70;
+  transform:translateX(100%);transition:transform .24s cubic-bezier(.32,.72,0,1);
+  display:flex;flex-direction:column
+}
+.drawer.open{transform:none}
+.drawer .dh{padding:16px 18px 13px;border-bottom:1px solid var(--border)}
+.drawer .db{padding:16px 18px 60px;overflow-y:auto;flex:1}
+.drawer .close{position:absolute;top:12px;right:14px;border:0;background:none;font-size:19px;color:var(--text-3);line-height:1;padding:4px}
+.drawer .close:hover{color:var(--text)}
+.dh .tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.tag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:5px}
+.tag.core{background:var(--core-bg);color:var(--core-text);border:1px solid var(--core-line)}
+.tag.recommended{background:var(--rec-bg);color:var(--rec-text);border:1px solid var(--rec-line)}
+.tag.optional{background:var(--opt-bg);color:var(--opt-text);border:1px solid var(--opt-line)}
+.tag.ctl{background:var(--ctrl-bg);color:var(--ctrl-text);border:1px dashed var(--ctrl-line)}
+.tag.grp{background:var(--surface-2);color:var(--text-3);border:1px solid var(--border)}
+.dh h2{font-size:17px;margin-bottom:5px;padding-right:26px}
+.dh .purpose{font-size:12.5px;color:var(--text-2)}
+.dh .chips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.chip{
+  font-size:11px;border:1px solid var(--border);border-radius:7px;padding:4px 8px;
+  color:var(--text-2);background:var(--surface-2);display:inline-flex;gap:5px;align-items:center
+}
+.chip b{font-variant-numeric:tabular-nums;color:var(--text)}
+.enable-btn{
+  margin-left:auto;border:1px solid var(--border);background:var(--surface);border-radius:7px;
+  padding:5px 10px;font-size:11.5px;font-weight:600;color:var(--text-2)
+}
+.enable-btn[data-on="1"]{border-color:var(--ok);color:var(--ok)}
+.sect{margin-top:20px}
+.sect > h4{
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);
+  margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--border)
+}
+.dec{border:1px solid var(--border);border-radius:9px;padding:11px 12px;margin-bottom:9px;background:var(--surface-2)}
+.dec .q{font-size:12.5px;font-weight:600;margin-bottom:7px}
+.dec ul{margin:0 0 8px;padding-left:16px}
+.dec li{font-size:12px;color:var(--text-2);margin-bottom:3px}
+.dec .def{font-size:12px;color:var(--text);background:var(--surface);border-left:2px solid var(--accent);padding:6px 9px;border-radius:0 6px 6px 0}
+.dec .def b{color:var(--accent)}
+.iobox{font-family:var(--mono);font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 11px;white-space:pre-wrap;color:var(--text-2);overflow-x:auto}
+.iobox .k{color:var(--text-3)}
+table.mini{width:100%;border-collapse:collapse;font-size:11.5px}
+table.mini th{
+  text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);
+  font-weight:600;padding:0 8px 6px 0;border-bottom:1px solid var(--border)
+}
+table.mini td{padding:7px 8px 7px 0;border-bottom:1px solid var(--border);color:var(--text-2);vertical-align:top}
+table.mini td:first-child{color:var(--text);font-weight:500;width:34%}
+table.mini .met{color:var(--accent)}
+.dial{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.dial .dn{color:var(--text);font-weight:500}
+.dial .dv{font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap}
+.dial .dnote{font-size:11px;color:var(--text-3);flex-basis:100%;margin-top:2px}
+.callout{
+  font-size:12px;color:var(--text-2);background:var(--warn-bg);border:1px solid transparent;
+  border-left:3px solid var(--warn);border-radius:0 8px 8px 0;padding:9px 11px;margin-top:10px
+}
+.callout b{color:var(--text)}
+.exline{font-size:12px;color:var(--text-2);margin-top:8px}
+.exline code{font-family:var(--mono);font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text)}
+.reflist{display:flex;flex-wrap:wrap;gap:6px}
+.ref{font-size:11px;border:1px solid var(--border);background:var(--surface-2);border-radius:6px;padding:4px 8px;color:var(--text-2)}
+.ref:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- build order ---------- */
+.build{max-width:1000px;margin:0 auto;padding:28px 20px 120px}
+.build-intro{font-size:13px;color:var(--text-2);max-width:70ch;margin-bottom:22px}
+.step{
+  display:grid;grid-template-columns:44px minmax(0,1fr);gap:16px;
+  padding:16px 0;border-top:1px solid var(--border)
+}
+.step .num{
+  width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:700;font-size:13px;
+  background:var(--surface-2);color:var(--text-2);border:1px solid var(--border)
+}
+.step[data-t="1"] .num{background:var(--core-bg);border-color:var(--core-line);color:var(--core-text)}
+.step[data-t="2"] .num{background:var(--rec-bg);border-color:var(--rec-line);color:var(--rec-text)}
+.step[data-t="3"] .num{background:var(--opt-bg);border-color:var(--opt-line);color:var(--opt-text)}
+.step h4{font-size:14px;margin-bottom:6px}
+.step .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+.step .grid > div{font-size:12px;color:var(--text-2)}
+.step .grid .lb{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);font-weight:700;margin-bottom:3px}
+.step .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.divider{
+  margin:22px 0;padding:11px 14px;border-radius:9px;background:var(--accent-soft);
+  color:var(--accent);font-size:12.5px;font-weight:600
+}
+.view{display:none}
+.view.on{display:block}
+
+@media (max-width:1180px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--border)}
+  .row{grid-template-columns:minmax(0,120px) minmax(0,1fr) minmax(0,170px)}
+}
+@media (max-width:900px){
+  .ctxbar{position:static}
+  .side{top:0}
+}
+@media (max-width:700px){
+  .hdr{position:static;padding:10px 14px;gap:10px}
+  .hdr .sub{display:none}
+  .ctxbar{padding:12px 14px}
+  .seg{display:flex;flex-wrap:wrap;width:100%}
+  .seg button{flex:1 1 100%;justify-content:flex-start}
+  .ctx-desc{max-width:none}
+  .app{grid-template-columns:1fr}
+  .stage-area{order:1;padding:18px 14px 40px}
+  .side{order:2;border-bottom:0;border-top:1px solid var(--border)}
+  .canvas{padding-left:0}
+  .lane{display:none}
+  .row{grid-template-columns:1fr;gap:10px;margin-bottom:26px;position:relative}
+  .row .cell{justify-content:center!important}
+  .row .cell:empty{display:none}
+  .row .cell.center > .node{flex:1 1 100%}
+  .node{max-width:none;width:100%}
+  .wires{display:none}
+  .row:not(:last-child)::after{
+    content:"";position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);
+    width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;
+    border-top:7px solid var(--wire)
+  }
+  .drawer{width:100vw}
+  .step{grid-template-columns:1fr;gap:8px}
+  .step .grid{grid-template-columns:1fr}
+  .build{padding:20px 14px 60px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="brand">
+    <h1>Query Search Pipeline Explorer</h1>
+    <span class="sub">Progressive reference templates &middot; hybrid multimodal retrieval &middot; logical architecture, not frameworks</span>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Views">
+    <button role="tab" id="tab-pipe" aria-selected="true" data-view="pipe">Pipelines</button>
+    <button role="tab" id="tab-build" aria-selected="false" data-view="build">Build order</button>
+  </div>
+  <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle colour theme">◐</button>
+</header>
+
+<!-- ================= PIPELINE VIEW ================= -->
+<section class="view on" id="view-pipe">
+
+  <div class="ctxbar">
+    <div class="ctx-row">
+      <div class="seg" role="group" aria-label="Template">
+        <button data-tpl="1" aria-pressed="true"><span class="n">1</span>Core</button>
+        <button data-tpl="2" aria-pressed="false"><span class="n">2</span>Core + recommended</button>
+        <button data-tpl="3" aria-pressed="false"><span class="n">3</span>Full surface</button>
+      </div>
+      <p class="ctx-desc" id="tplDesc"></p>
+      <span class="pill new" id="diffPill" hidden></span>
+    </div>
+    <div class="trace">
+      <span class="lbl">Worked example</span>
+      <span class="q" id="exQuery"></span>
+      <span class="lbl" style="margin-left:4px">Trace a facet</span>
+      <span id="facets"></span>
+    </div>
+  </div>
+
+  <div class="app">
+    <aside class="side">
+      <div class="panel">
+        <h3>Estimated budget <span class="pill" id="stageCount"></span></h3>
+        <div class="metric">
+          <div class="top"><span class="name">Latency, p95</span><span class="val" id="latVal"></span></div>
+          <div class="bar"><i class="lo" id="latLo"></i><i class="hi" id="latHi"></i></div>
+          <div class="note" id="latNote"></div>
+        </div>
+        <div class="metric">
+          <div class="top"><span class="name">Where it goes</span></div>
+          <div class="stack" id="latStack"></div>
+          <div class="legendrow" id="latLegend"></div>
+        </div>
+        <div class="metric">
+          <div class="top"><span class="name">Build &amp; run complexity</span><span class="val" id="cxVal"></span></div>
+          <div class="bar"><i class="cx" id="cxBar"></i></div>
+          <div class="note" id="cxNote"></div>
+        </div>
+        <div class="metric">
+          <div class="top"><span class="name">Models in the request path</span><span class="val" id="mdlVal"></span></div>
+          <div class="note" id="mdlNote"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Capability coverage</h3>
+        <div class="caps" id="caps"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Legend</h3>
+        <div class="legendrow" style="gap:7px 12px">
+          <span><i style="background:var(--core-bg);border:1px solid var(--core-line)"></i>core</span>
+          <span><i style="background:var(--rec-bg);border:1px solid var(--rec-line)"></i>recommended</span>
+          <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>optional</span>
+          <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
+        </div>
+        <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
+          Control-plane components steer a stage rather than transforming candidates.
+          Dashed wires show what they steer.
+        </p>
+      </div>
+
+      <div class="panel complist">
+        <h3>Components <span class="pill" id="offCount" hidden></span></h3>
+        <div id="compList"></div>
+        <button class="btn-ghost" id="resetBtn" style="margin-top:12px">Reset to template defaults</button>
+        <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
+          Switch components off to compose a variant and watch the budget move. Core components are locked.
+        </p>
+      </div>
+    </aside>
+
+    <main class="stage-area">
+      <div class="canvas" id="canvas">
+        <svg class="wires" id="wires" aria-hidden="true"></svg>
+        <div id="rows"></div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ================= BUILD ORDER VIEW ================= -->
+<section class="view" id="view-build">
+  <div class="build">
+    <h2 style="font-size:20px;margin-bottom:8px">Build order</h2>
+    <p class="build-intro">
+      Ordered by value delivered per unit of cost, with the trigger condition that says <em>now</em> —
+      not a schedule. Steps 1&ndash;7 are Template&nbsp;2. Most systems should stop there and spend the
+      remaining effort on data quality, the evaluation set, and the index, which is where the returns
+      usually are. Click any component to open its detail.
+    </p>
+    <div id="steps"></div>
+  </div>
+</section>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="false" aria-labelledby="dTitle" tabindex="-1">
+  <div class="dh">
+    <button class="close" id="dClose" aria-label="Close details">&times;</button>
+    <div class="tags" id="dTags"></div>
+    <h2 id="dTitle"></h2>
+    <p class="purpose" id="dPurpose"></p>
+    <div class="chips" id="dChips"></div>
+  </div>
+  <div class="db" id="dBody"></div>
+</aside>
+
+<script>
+"use strict";
+
+/* =======================================================================
+   DATA — logical components of a query-time hybrid multimodal pipeline.
+   lat: [lo,hi] p95 ms. cx: build+run complexity, 1 (trivial) .. 5 (heavy).
+   ======================================================================= */
+
+const FACETS = [
+  {id:"sleeps6",   label:"sleeps 6",            kind:"hard numeric constraint"},
+  {id:"price",     label:"under $300 a night",  kind:"hard numeric range"},
+  {id:"geo",       label:"within 2 hours",      kind:"soft, ambiguous geo constraint"},
+  {id:"waterfront",label:"waterfront",          kind:"metadata tag or visual attribute"},
+  {id:"fireplace", label:"wood fireplace",      kind:"visual attribute, often absent from text"},
+  {id:"quiet",     label:"quiet",               kind:"subjective, evidence lives in reviews"}
+];
+
+const CAPS = [
+  {id:"exact",      label:"Exact & rare terms"},
+  {id:"paraphrase", label:"Paraphrase"},
+  {id:"vocab",      label:"Vocabulary mismatch"},
+  {id:"crossmodal", label:"Cross-modal"},
+  {id:"visual",     label:"Fine visual detail"},
+  {id:"multifacet", label:"Multi-facet queries"},
+  {id:"longdoc",    label:"Long documents"},
+  {id:"constraints",label:"Hard constraints"},
+  {id:"recovery",   label:"Zero-result recovery"},
+  {id:"precision",  label:"Top-10 precision"},
+  {id:"fresh",      label:"Freshness"},
+  {id:"diversity",  label:"Diversity"},
+  {id:"personal",   label:"Personalisation"},
+  {id:"adaptive",   label:"Per-query adaptivity"},
+  {id:"learning",   label:"Learning loop"}
+];
+
+const S = {};
+function def(o){ S[o.id] = o; }
+
+/* ---------- inputs ---------- */
+def({
+  id:"q-text", name:"Text query", group:"Query inputs", tier:"core", io:true, intro:1,
+  sub:"the raw string", lat:[0,0], cx:0,
+  purpose:"The raw user string, before any processing. Everything downstream is a transformation of this, and every transformation is a place relevance can be lost.",
+  decisions:[{
+    q:"What arrives with the query?",
+    opts:["String only","String + explicit UI filters","String + filters + session id"],
+    def:"String + explicit UI filters, kept separate",
+    why:"Filters the user set in the UI are certain; constraints your parser extracted from text are not. Merging them early throws away the confidence distinction that constraint relaxation later depends on."
+  }],
+  contract:{in:"user input", out:"{ raw_query, ui_filters, locale, session_id? }"},
+  failures:[{f:"UI filters merged into extracted constraints",s:"Relaxation loosens something the user explicitly ticked",m:"relaxation events by constraint source"}],
+  example:"The full six-facet example arrives here as one undifferentiated string."
+});
+
+def({
+  id:"q-image", name:"Image query", group:"Query inputs", tier:"optional", io:true, intro:3,
+  sub:"uploaded or reference image", lat:[0,0], cx:2, caps:["crossmodal"],
+  purpose:"An uploaded or reference image, encoded with the image tower and used for image-to-image retrieval. Also a strong routing signal: its presence tells the pipeline this query is visual.",
+  decisions:[{
+    q:"How does an image query combine with the text query?",
+    opts:["Image replaces the text query","Image as an extra retrieval leg","Image as a rerank signal only"],
+    def:"Extra retrieval leg, text still drives constraints",
+    why:"Users who upload an image nearly always still mean the typed constraints. Dropping the text loses the filters entirely."
+  }],
+  contract:{in:"uploaded bytes or a reference doc_id", out:"image embedding + routing hint visual=true"},
+  callout:"An image query is a routing signal <b>and</b> a retrieval input. Wiring it only to the image leg wastes the strongest hint you will ever get about query intent.",
+  failures:[{f:"Image dominates and constraints are dropped",s:"Visually similar results that violate stated filters",m:"filter-violation rate on image-bearing queries"}]
+});
+
+/* ---------- query processing ---------- */
+def({
+  id:"normalise", name:"Query normalisation", group:"Query processing", tier:"core", intro:1,
+  sub:"NFKC, case, punctuation, tokenisation", lat:[1,5], cx:1,
+  purpose:"Deterministic clean-up: unicode normalisation, case folding, punctuation and whitespace handling, tokenisation that matches the index. Cheap, boring, and the foundation everything else caches on.",
+  decisions:[{
+    q:"Normalise before or after understanding?",
+    opts:["Normalise first","Understand first"],
+    def:"Normalise first",
+    why:"It is deterministic and cheap, it makes understanding stable and cacheable, and understanding is the stage most likely to be replaced by a model later. Normalising a model's output instead means your cache key changes every time the model does."
+  },{
+    q:"How aggressive should normalisation be?",
+    opts:["Minimal (unicode + whitespace)","Moderate (+ case, punctuation)","Aggressive (+ stemming, stopwords)"],
+    def:"Moderate, with stemming left to the lexical index",
+    why:"Aggressive normalisation applied before the index sees the query is how exact-match queries quietly break. Let the analyser do analyser work."
+  }],
+  contract:{in:"raw_query", out:"normalised_query + tokens (must match index-time analysis)"},
+  dials:[{n:"Unicode form",v:"NFKC"},{n:"Cache TTL",v:"hours to days",note:"Deterministic given the input string."}],
+  failures:[{f:"Query-time tokenisation differs from index-time",s:"Exact-title searches fail to return rank 1",m:"exact-match probe suite (hard CI gate)"}]
+});
+
+def({
+  id:"understand", name:"Query understanding", group:"Query processing", tier:"core", intro:1,
+  sub:"intent, entities, constraint extraction", lat:[4,15], cx:3, caps:["constraints"],
+  handles:["sleeps6","price","geo"],
+  purpose:"Turn a string into structure: an intent class, entities, and the constraints that will become filter predicates. Everything the constraint-handling group does depends on the quality of this stage.",
+  decisions:[{
+    q:"What mechanism extracts structure?",
+    opts:["Rules and grammars","Small classifier + NER","LLM extraction"],
+    def:"Start with rules plus a small classifier",
+    why:"An LLM in the hot path costs 100–400 ms and makes every downstream stage non-deterministic, which breaks replayable evaluation. Move to an LLM only once you can cache it and have an eval set proving it helps."
+  },{
+    q:"Is a constraint hard or soft?",
+    opts:["Everything is a hard filter","Split by extraction confidence","Everything is a ranking boost"],
+    def:"Split by confidence once you can estimate it",
+    why:"Treating every extraction as a hard filter is the single largest cause of unnecessary zero-result queries. Treating none as filters makes stated requirements unenforceable."
+  }],
+  contract:{in:"normalised_query", out:"{ intent, entities[], constraints[{field, op, value, confidence}], residual_text }"},
+  dials:[{n:"Latency (rules)",v:"4–15 ms"},{n:"Latency (LLM)",v:"100–400 ms",note:"Cache-or-don't-ship territory."}],
+  failures:[
+    {f:"Extracts a constraint that was not one",s:"Good documents filtered out silently",m:"constraint-extraction precision on a labelled query set"},
+    {f:"Misses a stated constraint",s:"Results violate an explicit requirement",m:"constraint-extraction recall; filter-violation rate"}],
+  example:"Must recognise <code>sleeps 6</code> and <code>under $300</code> as numeric predicates, and <code>within 2 hours</code> as a geo constraint whose unit (time, not distance) is genuinely ambiguous."
+});
+
+def({
+  id:"rewrite", name:"Query rewriting", group:"Query processing", tier:"recommended", intro:2,
+  sub:"spelling, synonyms, constraint-stripped query", lat:[5,25], cx:2, model:true,
+  purpose:"Produce the query text each retrieval leg should actually see: spelling corrected, synonyms canonicalised, and — critically — a constraint-stripped variant for the dense legs.",
+  decisions:[{
+    q:"Do all legs get the same query text?",
+    opts:["Same text everywhere","Full text to lexical, constraint-stripped to dense"],
+    def:"Asymmetric: full text lexically, constraint-stripped to the dense and image legs",
+    why:"Numbers are real lexical signal but pollute an embedding — “sleeps 6” drags the vector toward documents that talk about numbers. This asymmetry is easy to miss and usually worth points of nDCG."
+  },{
+    q:"What generates the rewrite?",
+    opts:["Dictionary / synonym map","Seq2seq model","LLM"],
+    def:"Dictionary first",
+    why:"Cheap, inspectable, and trivially cacheable. LLM rewriting is where a cache pays for itself, because head queries repeat heavily."
+  }],
+  contract:{in:"normalised_query + constraints", out:"{ lexical_query, dense_query (constraints stripped), corrections[] }"},
+  dials:[{n:"Cache TTL",v:"hours"},{n:"Rewrite aggressiveness",v:"conservative",note:"A rewrite that changes intent is worse than no rewrite."}],
+  failures:[{f:"Rewrite changes intent",s:"Head-query regressions after a model change",m:"before/after nDCG on a frozen head-query set"}],
+  example:"Strips <code>sleeps 6</code> and <code>under $300</code> from the dense query, leaving “quiet waterfront cabin with a wood fireplace”, which is what you actually want embedded."
+});
+
+def({
+  id:"expand", name:"Query expansion", group:"Query processing", tier:"optional", intro:3,
+  sub:"synonyms, PRF, HyDE, LLM variants", lat:[20,120], cx:3, model:true, caps:["vocab"],
+  purpose:"Generate additional query forms to reach documents that use different vocabulary — pseudo-relevance feedback, a hypothetical answer document (HyDE), or LLM-generated paraphrases.",
+  decisions:[{
+    q:"Which expansion family?",
+    opts:["Thesaurus / synonym expansion","Pseudo-relevance feedback (PRF)","HyDE or LLM paraphrase"],
+    def:"None by default; PRF first if the tail is genuinely lexical",
+    why:"Expansion reliably helps recall and frequently hurts precision. It earns its place only when you can show a large vocabulary-mismatch tail, and only when measured on both metrics."
+  },{
+    q:"Expand into which legs?",
+    opts:["All legs","Lexical only","Dense only"],
+    def:"Lexical and learned-sparse legs",
+    why:"Dense retrieval already generalises over vocabulary. Expanding into it mostly adds drift."
+  }],
+  contract:{in:"rewritten query", out:"{ variants[], weights[] }"},
+  dials:[{n:"Variants",v:"2–4",note:"More variants multiply retrieval cost linearly."},{n:"PRF depth",v:"top 10 docs"}],
+  callout:"Expansion is the classic <b>query drift</b> risk. Measure precision@10 and recall@100 together — a recall-only view will always tell you expansion is working.",
+  failures:[{f:"Query drift",s:"Results relate to the expansion, not the query",m:"precision@10 vs recall@100, both, on the same set"}]
+});
+
+def({
+  id:"session", name:"Session & context", group:"Query processing", tier:"optional", control:true, intro:3,
+  sub:"prior turns, clicks, anaphora", lat:[2,10], cx:4, caps:["adaptive"],
+  purpose:"Carry prior turns, clicks and filters into the current query: resolve anaphora (“ones with a jetty”), inherit constraints, and inform routing.",
+  decisions:[{
+    q:"How is context inherited?",
+    opts:["Always inherit prior constraints","Inherit only on detected refinement","Never inherit; each query is fresh"],
+    def:"Inherit only when the query is classified as a refinement",
+    why:"Stale context sticking to an unrelated new query is far more damaging than losing context on a refinement, because it is invisible to the user and unattributable."
+  }],
+  contract:{in:"session history", out:"{ inherited_constraints[], resolved_query, route_hints }"},
+  steers:["understand","rewrite","routing","personalisation"],
+  callout:"Needs an explicit <b>reset heuristic</b>. Without one, a session accumulates constraints until nothing matches and the user cannot see why.",
+  failures:[{f:"Context sticks to an unrelated query",s:"Inexplicable empty or narrow results mid-session",m:"zero-result rate by turn index"}]
+});
+
+/* ---------- constraint handling ---------- */
+def({
+  id:"confidence", name:"Constraint confidence", group:"Constraint handling", tier:"optional", control:true, intro:3,
+  sub:"per-constraint extraction confidence", lat:[0,3], cx:3,
+  purpose:"Score how sure you are of each extracted constraint, so the pre-filter can split them into hard predicates and soft ranking boosts — and so relaxation knows what to give up first.",
+  decisions:[{
+    q:"What produces the confidence?",
+    opts:["Extractor's own score","Calibrated model","Heuristic by constraint type"],
+    def:"Heuristic by type, then calibrate",
+    why:"An uncalibrated confidence is worse than a fixed threshold, because it looks principled while behaving arbitrarily. Type-based heuristics (UI filter = certain, parsed number = high, parsed geo = low) are honest and effective."
+  }],
+  contract:{in:"constraints[]", out:"constraints[] with {confidence, treatment: hard|soft}"},
+  steers:["prefilter","relax"],
+  callout:"This is what makes low-confidence constraint removal cheap: the relaxation ladder just <b>promotes soft constraints out of the filter</b> rather than re-parsing the query.",
+  failures:[{f:"Uncalibrated confidence",s:"Relaxation drops the wrong constraint first",m:"post-relaxation click-through vs unrelaxed baseline"}],
+  example:"<code>sleeps 6</code> parses with high confidence; <code>within 2 hours of the city</code> should score low — it has no precise referent."
+});
+
+def({
+  id:"prefilter", name:"Metadata pre-filter", group:"Constraint handling", tier:"core", intro:1,
+  sub:"compile constraints into one predicate", lat:[1,5], cx:2, caps:["constraints"],
+  handles:["sleeps6","price","geo"],
+  purpose:"Compile extracted constraints into a filter predicate that is pushed down into every retriever, so each leg searches only the eligible subset of the corpus.",
+  decisions:[{
+    q:"Pre-filter or post-filter?",
+    opts:["Pre-filter, pushed into the index","Post-filter the top-k"],
+    def:"Pre-filter, always",
+    why:"Post-filtering a top-100 ANN result with a 2%-selective predicate leaves you roughly two results. This is the most common silent recall bug in hybrid search, and it hides completely on broad queries."
+  },{
+    q:"How does the vector index apply the filter?",
+    opts:["Native filtered ANN","Pre-computed allow-list","Partitioned index per common filter"],
+    def:"Native filtered ANN, verified by benchmark",
+    why:"Many vector stores advertise filtering but implement filter-then-truncate. Benchmark recall at your real selectivity, not at 50%."
+  }],
+  contract:{in:"constraints[] (+ confidence)", out:"{ hard_predicate, soft_boosts[] } pushed into every leg"},
+  dials:[{n:"Selectivity to benchmark at",v:"your p90 real selectivity",note:"Not 50%. Get it from query logs."}],
+  failures:[
+    {f:"Post-filtering in disguise",s:"Selective queries return near-empty, broad queries look fine",m:"recall@k bucketed by filter selectivity"},
+    {f:"Over-constrained predicate",s:"Zero results with no recovery",m:"zero-result rate by constraint count"}]
+});
+
+def({
+  id:"sufficiency", name:"Result sufficiency check", group:"Constraint handling", tier:"recommended", decision:true, intro:2,
+  sub:"enough candidates above the quality floor?", lat:[1,3], cx:2, caps:["recovery"],
+  purpose:"The gate that decides whether retrieval succeeded. Not a count check — a check that enough candidates cleared a quality floor.",
+  decisions:[{
+    q:"Where does the check sit?",
+    opts:["After each retrieval leg","After union, before pruning","After union and pruning"],
+    def:"After union, before pruning",
+    why:"You need deduplicated counts, so it cannot precede union. But score-floor pruning can drop candidates below the threshold, so running it after pruning masks a shortfall as sufficiency."
+  },{
+    q:"What counts as sufficient?",
+    opts:["n candidates","n candidates above a score floor"],
+    def:"n above a score floor",
+    why:"Twenty terrible matches are not sufficiency. They are a worse failure than zero results, because the user cannot tell that the system failed."
+  }],
+  contract:{in:"unioned candidates + current predicate", out:"one of: sufficient | too_few | zero"},
+  dials:[{n:"n_min",v:"≈ 3 × page size"},{n:"Score floor",v:"from the score distribution of judged-relevant docs"}],
+  failures:[{f:"Count-only sufficiency",s:"Pages of weak results instead of an honest recovery",m:"precision@10 on queries that passed the check marginally"}]
+});
+
+def({
+  id:"relax", name:"Constraint relaxation", group:"Constraint handling", tier:"recommended", intro:2,
+  sub:"ordered ladder, bounded passes", lat:[5,20], conditional:true, cx:3, caps:["recovery"],
+  handles:["geo","price"],
+  purpose:"A bounded, ordered ladder that gives up one constraint category per pass and re-runs retrieval, rather than failing an over-constrained query.",
+  decisions:[{
+    q:"What order does the ladder use?",
+    opts:["Low confidence → numeric tolerance → geography → drop weakest hard constraint","Cheapest-first","Domain-specific ordering"],
+    def:"Domain-specific — and it is a product decision, not a technical one",
+    why:"The default ordering assumes loosening a price ceiling annoys users less than moving them to another city. That assumption is wrong in plenty of domains. Get the order agreed and written down before it becomes an incident."
+  },{
+    q:"How many passes?",
+    opts:["1","2","Until something is found"],
+    def:"2, hard-capped",
+    why:"Each pass is a full retrieval round trip. Three passes plus a cross-encoder is how you ship a 700 ms p99."
+  }],
+  contract:{in:"predicate + sufficiency verdict", out:"recompiled predicate + relaxed_constraints[] recorded on the response"},
+  dials:[{n:"max_passes",v:"2"},{n:"Numeric tolerance step",v:"10–25%"},{n:"Geo band step",v:"one band"}],
+  callout:"<b>Always tag the response.</b> The UI must be able to say “no exact matches — showing places within 3 hours”. Silent relaxation destroys trust and makes offline evaluation unreproducible.",
+  failures:[
+    {f:"Fires too eagerly",s:"Results look broad and vague; users reformulate",m:"relaxation rate by query class; reformulation rate"},
+    {f:"Relaxes silently",s:"Complaints that the filters do not work",m:"no metric saves you — enforce the tag in the response schema"}],
+  example:"<code>within 2 hours</code> is the natural first rung: it was never precise. <code>sleeps 6</code> should be last — relaxing it produces results the user physically cannot use."
+});
+
+def({
+  id:"zerofallback", name:"Zero-result fallback", group:"Constraint handling", tier:"recommended", intro:2,
+  sub:"drop hard filters, semantic-only, suggestions", lat:[10,40], conditional:true, cx:2, caps:["recovery"],
+  purpose:"A distinct retrieval mode for when the ladder is exhausted: drop the hard predicate entirely, retrieve semantically, and offer spelling and relaxation suggestions.",
+  decisions:[{
+    q:"Where does the fallback re-enter the pipeline?",
+    opts:["Forward into candidate union","Back into retrieval"],
+    def:"Back into retrieval",
+    why:"Fallback is a retrieval mode, not a merge step. Routing it forward into union means it never actually retrieves anything — a mistake that is easy to draw and impossible to notice in a diagram review."
+  }],
+  contract:{in:"exhausted ladder", out:"recovery result set + suggestions[], flagged as recovered"},
+  failures:[{f:"Fallback returns the corpus",s:"Irrelevant but non-empty results, worse than an honest empty state",m:"CTR on recovered result sets vs normal"}]
+});
+
+/* ---------- retrieval control ---------- */
+def({
+  id:"routing", name:"Retrieval routing", group:"Candidate retrieval", tier:"optional", control:true, intro:3,
+  sub:"which legs fire, for this query", lat:[0,3], cx:4, caps:["adaptive"],
+  purpose:"The control plane's core decision: which retrieval legs to activate for this specific query, based on intent, constraint shape, and whether an image was supplied.",
+  decisions:[{
+    q:"What drives the routing decision?",
+    opts:["Static rules on intent class","Learned classifier","LLM planner"],
+    def:"Static rules on intent class",
+    why:"Routing failures are invisible — a rule that never fires the image leg looks exactly like a corpus problem. Start with rules you can read, and log every decision."
+  }],
+  contract:{in:"intent, constraints, has_image", out:"legs_to_fire[] + route_id (logged)"},
+  steers:["budget"],
+  callout:"A control-plane bug fails <b>silently, as a quality regression</b>, not as an error. Log the route on every query or you will never find it.",
+  failures:[{f:"A leg is never routed to",s:"Looks like a corpus or index problem",m:"route distribution; per-leg fire rate"}]
+});
+
+def({
+  id:"budget", name:"Candidate budget allocation", group:"Candidate retrieval", tier:"optional", control:true, intro:3,
+  sub:"per-leg k under a latency budget", lat:[0,2], cx:3, caps:["adaptive"],
+  purpose:"Distribute a fixed latency and candidate budget across the active legs, spending depth where it will change the result.",
+  decisions:[{
+    q:"How is k allocated?",
+    opts:["Equal k per leg","Weighted by historical leg contribution","Predicted per query"],
+    def:"Equal to start, then weight by measured contribution",
+    why:"Budget allocation and routing interact strongly. Tune them together or not at all — independently tuned, each will appear to make things worse."
+  }],
+  contract:{in:"active legs + latency budget", out:"{ leg: k } allocation"},
+  dials:[{n:"Total candidate budget",v:"300–600"},{n:"Latency budget",v:"the number the whole design hangs on"}],
+  steers:["lexical","textvec","imagevec","sparse","multivec","late"]
+});
+
+/* ---------- retrieval legs ---------- */
+def({
+  id:"lexical", name:"Lexical & metadata retrieval", group:"Candidate retrieval", tier:"core", intro:1,
+  sub:"BM25 over text fields + filters", lat:[10,40], cx:2, parallel:"retrieval",
+  caps:["exact"], handles:["waterfront","sleeps6","price"],
+  purpose:"BM25 or equivalent over the text fields, with the filter predicate pushed down. The leg that handles exact strings, rare terms, model numbers and anything the user quoted.",
+  decisions:[{
+    q:"Which fields, and how weighted?",
+    opts:["Single concatenated field","Per-field weighting (title > body)","Per-field with query-dependent weights"],
+    def:"Per-field weighting, title-heavy",
+    why:"Concatenating fields discards the strongest precision signal you have. A title match and a body match are not the same evidence."
+  }],
+  contract:{in:"lexical_query + hard_predicate + k", out:"ranked [doc_id, bm25_score, matched_fields]"},
+  dials:[{n:"k_lex",v:"100–200"},{n:"Title boost",v:"2–4×"}],
+  failures:[{f:"Analyser mismatch with index",s:"Exact-title search fails",m:"exact-match probe suite"}],
+  example:"The only leg that reliably nails <code>waterfront</code> when it is a literal metadata tag."
+});
+
+def({
+  id:"sparse", name:"Learned sparse retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
+  sub:"SPLADE-style term expansion", lat:[20,60], cx:4, model:true, parallel:"retrieval",
+  caps:["vocab","exact"],
+  purpose:"Dense-like recall in a sparse, inspectable space: the model expands query and document into weighted terms, so you keep lexical-style debuggability while covering vocabulary mismatch.",
+  decisions:[{
+    q:"Sparse instead of, or alongside, dense?",
+    opts:["Replace the dense leg","Run alongside dense","Skip it"],
+    def:"Alongside, only if the vocabulary-mismatch tail is large",
+    why:"It occupies the same conceptual slot as the dense leg for most queries. The reason to pay for both is debuggability plus a genuinely different failure profile — not additive recall you have not measured."
+  }],
+  contract:{in:"query + predicate + k", out:"ranked [doc_id, sparse_score, expanded_terms]"},
+  dials:[{n:"Expansion cap",v:"tune for latency",note:"Query-side expansion drives cost superlinearly on a big index."}],
+  failures:[{f:"Expansion too aggressive",s:"Latency worse than BM25 with no precision gain",m:"per-leg latency and per-leg contribution to top-10"}]
+});
+
+def({
+  id:"textvec", name:"Text vector retrieval", group:"Candidate retrieval", tier:"core", intro:1,
+  sub:"ANN over text embeddings", lat:[10,40], cx:2, model:true, parallel:"retrieval",
+  caps:["paraphrase"], handles:["quiet","waterfront"],
+  purpose:"Approximate nearest neighbour search over document-level text embeddings. Handles paraphrase and intent that never matches lexically.",
+  decisions:[{
+    q:"What granularity is embedded?",
+    opts:["Whole document","Passages/chunks","Both"],
+    def:"Whole document to start",
+    why:"One vector per document is cheap and works for short, homogeneous documents. It fails on long ones and on multi-facet queries, which is exactly what passage-level and late-interaction legs exist to fix."
+  },{
+    q:"ANN recall target?",
+    opts:["Fast, approximate","recall@100 ≥ 0.95 vs exact"],
+    def:"recall@100 ≥ 0.95 vs exact search",
+    why:"ANN recall loss compounds with filter selectivity. Tune it once, measure it against brute force, and re-check after any index change."
+  }],
+  contract:{in:"dense_query embedding + predicate + k", out:"ranked [doc_id, cosine]"},
+  dials:[{n:"k_vec",v:"100–200"},{n:"ef_search / nprobe",v:"tuned to recall@100 ≥ 0.95"}],
+  callout:"A single document vector <b>averages every facet together</b>. The six-facet example query is precisely the case it handles worst.",
+  failures:[{f:"ANN parameters tuned at the wrong selectivity",s:"Recall collapses on filtered queries only",m:"recall@k bucketed by selectivity"}]
+});
+
+def({
+  id:"imagevec", name:"Image vector retrieval", group:"Candidate retrieval", tier:"recommended", intro:2,
+  sub:"text-to-image and image-to-image ANN", lat:[10,40], cx:3, model:true, parallel:"retrieval",
+  caps:["crossmodal"], handles:["fireplace","waterfront"],
+  purpose:"Search the document image embeddings. Driven by the text query through the image model's text tower, so it is useful even with no image input — this is where attributes that never appear in the text get found.",
+  decisions:[{
+    q:"How do per-image scores roll up to a document?",
+    opts:["Max over images","Mean over images","Mean of top-2"],
+    def:"Max",
+    why:"One strongly matching image is the signal. Averaging over thirty photos of the same room buries it, and rewards documents that simply have more images — a popularity proxy, not relevance."
+  },{
+    q:"How is the image leg weighted against text legs?",
+    opts:["Equal weight","Down-weighted","Query-dependent"],
+    def:"Down-weighted to start",
+    why:"Cross-modal similarity is noisier than text-to-text, and image legs return confident-looking garbage for abstract queries that have no visual referent."
+  }],
+  contract:{in:"query embedding (text tower) + predicate + k", out:"ranked [doc_id, score, matched_image_ids]"},
+  dials:[{n:"k_img",v:"100–200"},{n:"Rollup",v:"max"},{n:"Leg weight",v:"0.5–0.8 of a text leg"}],
+  callout:"Load-bearing assumption: your image vectors must be in a space <b>reachable from a text query</b>. If they are not, this drops from recommended to optional and only fires on image uploads. Verify before designing around it.",
+  failures:[{f:"Fires on abstract queries",s:"Visually similar, semantically wrong results",m:"per-leg precision@10, abstract vs concrete queries"}],
+  example:"<code>wood fireplace</code> is visible in photos and frequently absent from the description. This leg is the only one that can find it."
+});
+
+def({
+  id:"multivec", name:"Multi-vector / passage retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
+  sub:"chunk hits rolled up to documents", lat:[15,50], cx:4, model:true, parallel:"retrieval",
+  caps:["longdoc","multifacet"], handles:["quiet"],
+  purpose:"Embed passages rather than documents, retrieve at passage level, and roll hits up to the parent document. Localises evidence inside long, heterogeneous documents.",
+  decisions:[{
+    q:"How are documents chunked?",
+    opts:["Fixed size","Semantic / structural boundaries","Overlapping windows"],
+    def:"Structural boundaries with overlap",
+    why:"Chunk size becomes a hyperparameter you will tune forever, and boundary effects split the evidence a query needs. Structure gives you a defensible default."
+  },{
+    q:"How do passage hits roll up?",
+    opts:["Max passage score","Sum of top-n passages","Count of distinct facets matched"],
+    def:"Max, with a small bonus for multiple distinct passage hits",
+    why:"Pure max ignores that a document matching four facets in four places is better than one matching a single facet perfectly."
+  }],
+  contract:{in:"dense_query + predicate + k", out:"ranked [doc_id, best_passage_score, passage_ids[]]"},
+  callout:"Passage retrieval and late interaction attack the <b>same problem</b> — one vector cannot represent six facets — from opposite ends. One splits the document, the other splits the representation. Running both is usually redundant spend.",
+  failures:[
+    {f:"Document-wide evidence lost",s:"Documents whose facets are spread across sections rank below narrow ones",m:"nDCG on multi-facet queries specifically"},
+    {f:"Chunk boundary splits the answer",s:"Erratic results that move when chunking changes",m:"stability across chunking configurations"}]
+});
+
+def({
+  id:"late", name:"Late-interaction retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
+  sub:"ColBERT-style token-level MaxSim", lat:[30,90], cx:5, model:true, parallel:"retrieval",
+  caps:["multifacet","paraphrase"], handles:["quiet","waterfront","fireplace"],
+  purpose:"Keep one embedding per token and score with MaxSim, so each query facet can find its own evidence anywhere in the document instead of competing inside a single averaged vector.",
+  decisions:[{
+    q:"Retriever or reranker?",
+    opts:["First-stage retriever over a full index","Reranker over a fused shortlist"],
+    def:"Reranker over the shortlist",
+    why:"You get most of the quality without the 10–100× index blow-up. Promote it to first-stage retrieval only when you have measured recall you cannot get any other way and accepted the storage cost."
+  }],
+  contract:{in:"query token embeddings + candidate set", out:"ranked [doc_id, maxsim_score, per-token evidence]"},
+  dials:[{n:"Index size multiplier",v:"10–100×",note:"The reason most teams deploy it as a reranker."},{n:"Shortlist depth",v:"100–500 if used as a reranker"}],
+  callout:"This is the leg that directly answers the six-facet problem. It is also the most expensive commitment on the menu — decide deliberately, not by accretion.",
+  failures:[{f:"Index cost underestimated",s:"Storage and memory blow the infrastructure budget",m:"index size and query cost per corpus doubling"}]
+});
+
+/* ---------- candidate generation ---------- */
+def({
+  id:"union", name:"Candidate union", group:"Candidate generation", tier:"core", intro:1,
+  sub:"merge by doc_id, keep per-leg ranks", lat:[2,8], cx:1,
+  purpose:"Merge the per-leg result sets into one candidate set keyed by document, preserving where each candidate came from.",
+  decisions:[{
+    q:"How are scores handled at merge time?",
+    opts:["Rank only","Min-max normalise per leg","z-score per leg"],
+    def:"Keep ranks; normalise only if there is no fusion stage",
+    why:"BM25 scores are unbounded and corpus-dependent, cosine is bounded — they are not comparable. Without a fusion stage you must normalise here, and that hand-tuned blend is the weakest link in the core pipeline."
+  },{
+    q:"Where does exact deduplication happen?",
+    opts:["Here, by content hash","At final ranking","Both"],
+    def:"Exact-hash collapse here; near-duplicate collapse at the end",
+    why:"Exact collapse is cheap and shrinks everything downstream, including the expensive rerank. Near-duplicate detection is expensive and only needs to be right for the page you show."
+  }],
+  contract:{in:"per-leg ranked lists", out:"Candidate{ doc_id, per_leg{rank, raw, normalised}, evidence, filter_state }"},
+  callout:"<b>Never discard per-leg provenance.</b> “Which leg contributed the top-10” is the single most useful diagnostic in the system, and it cannot be reconstructed after the fact.",
+  failures:[{f:"One leg dominates regardless of query",s:"The other legs are decorative",m:"per-leg contribution to top-10 by intent class"}]
+});
+
+def({
+  id:"prune", name:"Candidate pruning", group:"Candidate generation", tier:"recommended", intro:2,
+  sub:"cap per leg, score floor, cut to rerank depth", lat:[1,5], cx:1,
+  purpose:"Cut the candidate set to what the rerank budget can actually afford, before spending money on it.",
+  decisions:[{
+    q:"Prune by rank or by score?",
+    opts:["Top-N per leg","Global score floor","Both"],
+    def:"Top-N per leg plus a conservative floor",
+    why:"A global floor alone lets one leg's score distribution starve the others. Per-leg caps preserve the diversity that fusion depends on."
+  }],
+  contract:{in:"unioned candidates", out:"candidates capped to rerank depth"},
+  dials:[{n:"Union cap",v:"200–400"},{n:"Per-leg cap",v:"k of that leg"}],
+  failures:[{f:"Pruning before the sufficiency check",s:"A shortfall is masked as sufficiency",m:"candidate count in/out of every stage"}]
+});
+
+/* ---------- fusion ---------- */
+def({
+  id:"fusion", name:"Fusion", group:"Fusion", tier:"recommended", intro:2,
+  sub:"Reciprocal Rank Fusion by default", lat:[1,5], cx:2, caps:["precision"],
+  purpose:"Combine the per-leg ranked lists into one ordering. One stage with a strategy slot — not a chain of stages.",
+  decisions:[{
+    q:"Which fusion strategy?",
+    opts:["Reciprocal Rank Fusion (rank-based)","Weighted score fusion (needs calibration)","Modality-weighted (text vs image)","Learned fusion (needs training data)"],
+    def:"RRF with k ≈ 60",
+    why:"RRF needs no cross-leg score calibration, which is precisely the problem you have. Weighted score fusion is better only once you have per-corpus calibration and an eval set to tune against."
+  },{
+    q:"Is RRF's k worth tuning?",
+    opts:["Tune it carefully","Set 60 and move on"],
+    def:"Set 60 and move on",
+    why:"Results are insensitive between roughly 20 and 100. Time spent here is time not spent on the rerank depth, which actually moves nDCG."
+  }],
+  contract:{in:"per-leg ranked lists", out:"single fused ranking + fused_score, per-leg ranks retained"},
+  dials:[{n:"RRF k",v:"60"},{n:"Leg weights",v:"equal, unless measured otherwise"}],
+  callout:"Both source drafts draw <code>Fusion → RRF</code> as sequential boxes. It is <b>one stage with a strategy slot</b>; the chained reading invites building two stages that do one job.",
+  failures:[{f:"RRF flattens a strong single-leg signal",s:"Exact-match queries no longer rank 1",m:"exact-match probe suite as a hard gate"}]
+});
+
+def({
+  id:"fusionpolicy", name:"Fusion policy", group:"Fusion", tier:"optional", control:true, intro:3,
+  sub:"strategy and weights per query class", lat:[0,2], cx:4, caps:["adaptive"],
+  purpose:"Select the fusion strategy and leg weights per query rather than fixing them globally. Query-dependent fusion is the selector; learned fusion replaces the hand-written rules in the same slot.",
+  decisions:[{
+    q:"What selects the strategy?",
+    opts:["Hand-written rules on intent class","Learned model over query features"],
+    def:"Rules first, learned once you have judgements",
+    why:"Query-dependent fusion is not a sibling of RRF, it is the policy layer above it. Building it as a parallel strategy produces a system where nobody can say which fusion actually ran."
+  }],
+  contract:{in:"query class + leg statistics", out:"{ strategy, weights[] } (logged per query)"},
+  steers:["fusion"],
+  example:"For <code>wood fireplace</code> the image leg should dominate. For <code>quiet</code> it should be nearly muted. One global weighting cannot serve both."
+});
+
+/* ---------- reranking ---------- */
+def({
+  id:"semrerank", name:"Semantic rerank", group:"Reranking", tier:"recommended", intro:2,
+  sub:"bi-encoder score refresh, cheap tier", lat:[5,20], cx:2, model:true,
+  purpose:"The cheap first tier of the rerank funnel: refresh scores with a bi-encoder over the fused shortlist, narrowing the set the expensive tier has to see.",
+  decisions:[{
+    q:"Is this tier needed at all?",
+    opts:["Always run it","Skip when fusion output is already calibrated"],
+    def:"Skip it if the cross-encoder can afford the full fused depth",
+    why:"It exists to protect the cross-encoder's budget. If the budget is not tight, it is a stage that reorders almost nothing — and a stage that reorders nothing is a stage to delete."
+  }],
+  contract:{in:"fused top ~200–400", out:"re-scored top ~100–200"},
+  dials:[{n:"Input depth",v:"200–400"},{n:"Output depth",v:"100–200"}],
+  failures:[{f:"Reorders almost nothing",s:"Pure added latency",m:"rank churn between stages"}]
+});
+
+def({
+  id:"crossenc", name:"Cross-encoder rerank", group:"Reranking", tier:"recommended", intro:2,
+  sub:"joint query-document scoring", lat:[50,150], cx:3, model:true, caps:["precision"],
+  handles:["quiet","waterfront"],
+  purpose:"Score query and document jointly rather than independently. Usually the single largest relevance jump available, and the main latency dial in the whole pipeline.",
+  decisions:[{
+    q:"What rerank depth?",
+    opts:["25","50","100","200"],
+    def:"100, after measuring 25/50/100/200",
+    why:"Cost is linear in depth; quality gain is roughly logarithmic. The right depth is an empirical answer about your corpus, not a default worth inheriting."
+  },{
+    q:"What text does it see?",
+    opts:["Title only","Title + description","All fields concatenated"],
+    def:"Title + the most informative field, truncated deliberately",
+    why:"Long inputs drive the p99 far above the p95, and most of the discriminating signal is in the first few hundred tokens."
+  }],
+  contract:{in:"top-K fused candidates + query", out:"re-scored top-K with rerank_score appended (never overwritten)"},
+  dials:[{n:"Depth",v:"100"},{n:"Cost",v:"~0.5–1.5 ms/doc on GPU"},{n:"Max input tokens",v:"cap it explicitly"}],
+  callout:"Cross-encoding cannot fix what retrieval never found. If nDCG@10 is flat while recall@200 is much higher, this stage is the fix. If both are flat, <b>retrieval</b> is the problem.",
+  failures:[
+    {f:"Overturns a good fused list",s:"nDCG@10 falls while recall@100 is unchanged",m:"nDCG@10 with and without rerank, same candidate set"},
+    {f:"Latency spikes on long documents",s:"p99 far above p95",m:"rerank latency by document token length"}]
+});
+
+def({
+  id:"vlmrerank", name:"VLM rerank", group:"Reranking", tier:"optional", intro:3,
+  sub:"query vs document images, top-M only", lat:[80,500], conditional:true, cx:4, model:true,
+  caps:["visual"], handles:["fireplace","waterfront"],
+  purpose:"A vision-language model judging the query against the document's actual images. The only component that can verify a fine visual claim rather than approximate it.",
+  decisions:[{
+    q:"How many candidates does it see?",
+    opts:["Top 50","Top 10–20","All reranked"],
+    def:"Top 10–20, gated on visual intent",
+    why:"At 50–500 ms per call this is the most expensive component on the menu. It should be gated by routing, cached hard, and dropped first under load."
+  }],
+  contract:{in:"top-M candidates + their images + query", out:"visual relevance score / verdict per candidate"},
+  dials:[{n:"Depth",v:"10–20"},{n:"Cache TTL",v:"hours to days"},{n:"Gate",v:"visual intent or image query only"}],
+  failures:[{f:"Ungated VLM calls",s:"p95 latency doubles for no gain on non-visual queries",m:"VLM fire rate by intent class; latency attribution"}],
+  example:"Confirms the fireplace is actually a wood fireplace rather than a gas insert — a distinction no embedding reliably makes."
+});
+
+def({
+  id:"ltr", name:"Learning-to-Rank", group:"Reranking", tier:"optional", intro:3,
+  sub:"GBDT over retrieval, behaviour, quality features", lat:[5,20], cx:5, model:true,
+  caps:["learning","precision"],
+  purpose:"A trained model that blends every upstream signal — retrieval scores, rerank scores, behavioural features, quality and freshness — into the final relevance ordering.",
+  decisions:[{
+    q:"Where does LTR sit relative to the neural rerankers?",
+    opts:["Before them","After them"],
+    def:"After",
+    why:"Its most valuable features are their scores. Placing it first throws away the signal that makes it work."
+  },{
+    q:"What does the model get to trade away?",
+    opts:["Everything, including business rules","Relevance and soft business signals only"],
+    def:"Relevance and soft signals only",
+    why:"Hard business rules — compliance, availability, legal suppression — must stay outside the model. The boundary between LTR and business ranking is a policy decision, not a modelling one."
+  }],
+  contract:{in:"candidates + full feature vector", out:"learned relevance score"},
+  dials:[{n:"Training data floor",v:"tens of thousands of judgements"},{n:"Feature count",v:"start small and inspectable"}],
+  callout:"Click data carries <b>position bias</b>. Train on it naively and you teach the model to reproduce your current ranking, which will look like a win on every offline metric you have.",
+  failures:[{f:"Position bias baked in",s:"Offline gains that do not replicate online",m:"interleaving or a debiased offline estimator"}]
+});
+
+/* ---------- final ranking ---------- */
+def({
+  id:"business", name:"Business ranking", group:"Final ranking", tier:"core", intro:1,
+  sub:"availability, quality tier, policy", lat:[1,5], cx:2,
+  purpose:"Apply the rules the business owns: availability, quality tiers, promotion, suppression, compliance. Deterministic, auditable, and outside any learned model.",
+  decisions:[{
+    q:"Rules or model?",
+    opts:["Hand-written rules","Folded into LTR features","Hard rules outside, soft signals inside"],
+    def:"Hard rules outside the model, soft preferences as features",
+    why:"You need to be able to explain and audit why a document was suppressed. A learned score cannot answer that question in a compliance review."
+  }],
+  contract:{in:"ranked candidates", out:"re-ordered with business_score and applied_rules[] recorded"},
+  failures:[{f:"Business boosts swamp relevance",s:"Promoted but irrelevant results at the top",m:"nDCG@10 before and after business ranking"}]
+});
+
+def({
+  id:"freshness", name:"Freshness & temporal", group:"Final ranking", tier:"recommended", intro:2,
+  sub:"recency decay or time-window boost", lat:[1,3], cx:1, caps:["fresh"],
+  purpose:"Express time preference: decay old documents, boost recent ones, or hard-filter to a window when the query implies one.",
+  decisions:[{
+    q:"How is time applied?",
+    opts:["Hard recency filter","Decay multiplier","A feature into the ranking model"],
+    def:"Decay multiplier, tuned per intent class",
+    why:"Navigational queries want the canonical document, not the newest one. A single global recency setting is wrong for at least one large query class in every corpus."
+  }],
+  contract:{in:"ranked candidates + timestamps", out:"time-adjusted ranking"},
+  dials:[{n:"Half-life",v:"per intent class"}],
+  failures:[{f:"Global recency preference",s:"Canonical documents pushed below fresh noise",m:"nDCG on navigational queries specifically"}]
+});
+
+def({
+  id:"personalisation", name:"Personalisation", group:"Final ranking", tier:"optional", intro:3,
+  sub:"user profile and history signals", lat:[3,15], cx:4, caps:["personal"],
+  purpose:"Adjust ranking using who is asking: prior behaviour, saved items, stated preferences.",
+  decisions:[{
+    q:"How strong is the personalisation?",
+    opts:["Re-rank the whole page","Adjust a few slots","Tie-break only"],
+    def:"Adjust a few slots, always reserving unpersonalised ones",
+    why:"Filter bubbles are the failure mode, and they are invisible in aggregate metrics because engagement goes up while discovery collapses."
+  }],
+  contract:{in:"ranked candidates + user profile", out:"personalised ranking + which slots were affected"},
+  callout:"Hold out a control group permanently. Personalisation is the component most likely to look successful while narrowing what users can find.",
+  failures:[{f:"Filter bubble",s:"Engagement up, discovery and query diversity down",m:"result diversity per user over time; holdout comparison"}]
+});
+
+def({
+  id:"diversity", name:"Diversity", group:"Final ranking", tier:"recommended", intro:2,
+  sub:"MMR or per-attribute capping", lat:[2,8], cx:2, caps:["diversity"],
+  purpose:"Stop the top of the page collapsing onto one cluster — one seller, one location, one near-identical variant.",
+  decisions:[{
+    q:"MMR or attribute caps?",
+    opts:["Maximal Marginal Relevance","Per-attribute capping","Both"],
+    def:"Per-attribute capping",
+    why:"Cruder than MMR, but far easier to explain to stakeholders and to debug when someone asks why their listing dropped. Debuggability wins for a stage that visibly reorders the page."
+  }],
+  contract:{in:"ranked candidates", out:"diversified ranking"},
+  dials:[{n:"Cap",v:"max 3 per group in the top 20"},{n:"MMR lambda",v:"0.7 if using MMR"}],
+  failures:[{f:"Diversity applied too hard",s:"The best result is displaced by a worse, different one",m:"nDCG@10 before and after diversification"}]
+});
+
+def({
+  id:"dedup", name:"Deduplication", group:"Final ranking", tier:"core", intro:1,
+  sub:"near-duplicate collapse", lat:[2,10], cx:2,
+  purpose:"Collapse near-identical documents so the page shows distinct options, keeping the highest-ranked representative.",
+  decisions:[{
+    q:"What is the duplicate key?",
+    opts:["Content hash","SimHash / MinHash","Embedding similarity threshold"],
+    def:"Hash for exact at union; SimHash or embedding threshold for near-duplicates here",
+    why:"Splitting the stage puts the cheap collapse where it shrinks the most work, and the expensive one where it only has to be right for the page being shown."
+  }],
+  contract:{in:"ranked candidates", out:"deduplicated ranking + collapsed_group[] for the UI"},
+  failures:[{f:"Over-collapsing",s:"Genuinely distinct documents disappear",m:"manual audit of collapsed groups; complaint rate"}]
+});
+
+def({
+  id:"assembly", name:"Results assembly", group:"Results", tier:"core", io:true, intro:1,
+  sub:"hydrate fields, images, highlights, paging", lat:[15,40], cx:2,
+  purpose:"Hydrate the final ranking into a response: fields, images, snippets and highlights, pagination — plus the honesty metadata about what the pipeline did.",
+  decisions:[{
+    q:"What does the response disclose?",
+    opts:["Results only","Results + relaxation and degradation state"],
+    def:"Results plus relaxation, degradation and route state",
+    why:"The UI cannot say “showing broader results” unless the pipeline tells it. This is a schema contract, not a nicety — it is the only defence against silent relaxation."
+  }],
+  contract:{in:"final ranking", out:"{ results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id, timings }"},
+  dials:[{n:"Page size",v:"20"},{n:"Hydration",v:"batch, never per-result"}],
+  failures:[{f:"Hydration is the hidden latency",s:"Fast search, slow response",m:"per-stage latency attribution"}]
+});
+
+/* ---------- cross-cutting control ---------- */
+def({
+  id:"degradation", name:"Degradation controller", group:"Reranking", tier:"optional", control:true, intro:3,
+  sub:"deadlines, partial results", lat:[0,2], cx:3,
+  purpose:"Give every leg and rerank tier an independent deadline, and proceed with whatever returned instead of failing the request.",
+  decisions:[{
+    q:"What is the degradation order?",
+    opts:["Whatever times out first","A fixed, pre-agreed order"],
+    def:"Fixed order: VLM, then rerank depth, then the slowest retrieval leg",
+    why:"Degrading in an undefined order means your fast responses are also your least predictable ones. Decide the order while calm, not during an incident."
+  }],
+  contract:{in:"stage deadlines", out:"partial results + degraded_legs[] on the response"},
+  steers:["lexical","crossenc","vlmrerank"],
+  callout:"Good-enough in 300 ms beats perfect in 2 s, and beats a 500 error absolutely. But <b>never degrade silently</b> — an untagged latency win reappears as an unexplained relevance regression.",
+  failures:[{f:"Silent degradation",s:"Unexplained relevance drops correlated with load",m:"degraded_legs rate vs relevance metrics"}]
+});
+
+def({
+  id:"behavioural", name:"Behavioural signals", group:"Results", tier:"optional", control:true, intro:3,
+  sub:"clicks, saves, enquiries, reformulations", lat:[0,0], cx:3, caps:["learning"],
+  purpose:"The offline loop: capture clicks, saves, enquiries and reformulations, turn them into labels, and feed the trained components. Not in the request path.",
+  decisions:[{
+    q:"When do you start collecting?",
+    opts:["When a model needs it","From day one"],
+    def:"From day one",
+    why:"You cannot retroactively collect it, and it is the gating dependency for learned fusion, LTR, personalisation and retriever fine-tuning. Instrument it before anything consumes it."
+  }],
+  contract:{in:"impressions + interactions", out:"labelled judgements, hard negatives, training sets"},
+  steers:["fusionpolicy","personalisation","ltr"],
+  callout:"Mine hard negatives carefully: an unlabelled <b>relevant</b> document mined as a hard negative actively teaches the retriever the wrong thing.",
+  failures:[{f:"Position bias untreated",s:"Models that reproduce the current ranking",m:"interleaving experiments; debiased estimators"}]
+});
+
+/* =======================================================================
+   TEMPLATES — rows are laid out as [left aside | centre spine | control]
+   ======================================================================= */
+
+const BRANCHES = [
+  ["sufficiency","relax","too few","branch"],
+  ["sufficiency","zerofallback","zero","branch"],
+  ["relax","prefilter","relaxed predicate","loop"],
+  ["zerofallback","prefilter","recovery mode","loop"]
+];
+
+const TPL = {
+  1:{
+    name:"Core",
+    tagline:"The irreducible hybrid path",
+    target:"~150 ms p95",
+    desc:"The smallest pipeline that is <b>genuinely hybrid</b>: one lexical leg, one dense leg, a filter pushed down into both, and business rules on top. Ship it, and build the evaluation harness around it.",
+    rows:[
+      {lane:"Query inputs", c:["q-text"]},
+      {lane:"Query processing", c:["normalise"]},
+      {c:["understand"]},
+      {lane:"Constraint handling", c:["prefilter"]},
+      {lane:"Candidate retrieval", c:["lexical","textvec"]},
+      {lane:"Candidate generation", c:["union"]},
+      {lane:"Final ranking", c:["business"]},
+      {c:["dedup"]},
+      {lane:"Results", c:["assembly"]}
+    ],
+    extra:[]
+  },
+  2:{
+    name:"Core + recommended",
+    tagline:"The production target",
+    target:"~400 ms p95",
+    desc:"The <b>default answer</b>. Adds rewriting, cross-modal image retrieval, a bounded relaxation loop, principled rank fusion, a rerank cascade, and freshness and diversity. Architect against this one.",
+    rows:[
+      {lane:"Query inputs", c:["q-text"]},
+      {lane:"Query processing", c:["normalise"]},
+      {c:["understand"]},
+      {c:["rewrite"]},
+      {lane:"Constraint handling", c:["prefilter"]},
+      {lane:"Candidate retrieval", c:["lexical","textvec","imagevec"]},
+      {lane:"Candidate generation", c:["union"]},
+      {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
+      {l:["relax","zerofallback"], c:["prune"]},
+      {lane:"Fusion", c:["fusion"]},
+      {lane:"Reranking", c:["semrerank"]},
+      {c:["crossenc"]},
+      {lane:"Final ranking", c:["business"]},
+      {c:["freshness"]},
+      {c:["diversity"]},
+      {c:["dedup"]},
+      {lane:"Results", c:["assembly"]}
+    ],
+    extra:BRANCHES
+  },
+  3:{
+    name:"Full surface",
+    tagline:"The menu, not the target",
+    target:"~600 ms p95, plus conditional work",
+    desc:"Everything on the menu. <b>Do not read this as “execute every box”</b> — a simple navigational query should fire two legs, skip fusion policy, and never see a VLM. The dashed control plane decides which parts run.",
+    rows:[
+      {lane:"Query inputs", l:["q-image"], c:["q-text"], r:["session"]},
+      {lane:"Query processing", c:["normalise"]},
+      {c:["understand"], r:["confidence"]},
+      {c:["rewrite"]},
+      {c:["expand"]},
+      {lane:"Constraint handling", c:["prefilter"], r:["routing"]},
+      {lane:"Candidate retrieval", c:["lexical","sparse","textvec","imagevec","multivec","late"], r:["budget","degradation"]},
+      {lane:"Candidate generation", c:["union"]},
+      {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
+      {l:["relax","zerofallback"], c:["prune"]},
+      {lane:"Fusion", c:["fusion"], r:["fusionpolicy"]},
+      {lane:"Reranking", c:["semrerank"]},
+      {c:["crossenc"]},
+      {c:["vlmrerank"]},
+      {c:["ltr"]},
+      {lane:"Final ranking", c:["business"]},
+      {c:["freshness"]},
+      {c:["personalisation"]},
+      {c:["diversity"]},
+      {c:["dedup"]},
+      {lane:"Results", c:["assembly"], r:["behavioural"]}
+    ],
+    extra:BRANCHES.concat([
+      ["q-image","imagevec","image tower","branch"],
+      ["q-image","routing","","ctrl"],
+      ["session","understand","","ctrl"],
+      ["session","routing","","ctrl"],
+      ["confidence","prefilter","","ctrl"],
+      ["confidence","relax","","ctrl"],
+      ["routing","budget","","ctrl"],
+      ["budget","row:6","","ctrl"],
+      ["degradation","row:6","","ctrl"],
+      ["degradation","crossenc","","ctrl"],
+      ["fusionpolicy","fusion","","ctrl"],
+      ["behavioural","personalisation","","ctrl"],
+      ["assembly","behavioural","","feedback"]
+    ])
+  }
+};
+
+/* components that cannot exist without a parent */
+const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency" };
+
+/* =======================================================================
+   BUILD ORDER
+   ======================================================================= */
+
+const STEPS = [
+  {n:0, t:0, title:"Evaluation harness", stages:[],
+   build:"A labelled set of 200–500 queries with graded relevance, pooled across legs so recall is measurable rather than assumed. Deterministic replay. A probe suite of ~30 queries with known rank-1 answers.",
+   trigger:"Before anything else.",
+   buys:"Every later decision becomes measurable instead of arguable. Without it, all the tradeoffs below are opinions."},
+  {n:1, t:1, title:"Template 1 spine, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","business","dedup","assembly"],
+   build:"Normalise, understand, pre-filter, two retrieval legs, union, business ranking, dedup, assembly.",
+   trigger:"—",
+   buys:"A working baseline and honest numbers."},
+  {n:2, t:2, title:"Fusion (RRF) replacing weighted union", stages:["fusion"],
+   build:"Rank-based fusion over the per-leg lists, k ≈ 60.",
+   trigger:"One leg supplies more than ~80% of the top-10.",
+   buys:"Removes cross-leg score-calibration guesswork entirely."},
+  {n:3, t:2, title:"Cross-encoder rerank", stages:["crossenc","semrerank"],
+   build:"Joint query-document scoring over the top ~100 fused candidates.",
+   trigger:"nDCG@10 plateaus while recall@200 is materially higher — retrieval is fine, ranking is the bottleneck.",
+   buys:"Usually the largest single relevance jump available anywhere in the list."},
+  {n:4, t:2, title:"Sufficiency, bounded relaxation, zero-result fallback", stages:["sufficiency","relax","zerofallback"],
+   build:"A quality-floor sufficiency check, an ordered ladder capped at 2 passes, and a distinct recovery retrieval mode.",
+   trigger:"Zero-result rate above ~5% of queries.",
+   buys:"Recovers the queries you are currently losing entirely."},
+  {n:5, t:2, title:"Image vector retrieval", stages:["imagevec"],
+   build:"Text-to-image ANN over document image embeddings, max rollup, down-weighted.",
+   trigger:"Users search for attributes only visible in images.",
+   buys:"Unlocks a modality you have already indexed and are currently ignoring."},
+  {n:6, t:2, title:"Freshness, diversity, near-duplicate collapse", stages:["freshness","diversity"],
+   build:"Recency decay per intent class, per-attribute capping, near-dup collapse at the end.",
+   trigger:"The top-10 looks repetitive or stale.",
+   buys:"Perceived quality, cheaply."},
+  {n:7, t:2, title:"Query rewriting", stages:["rewrite","prune"],
+   build:"Spelling, synonym canonicalisation, and the constraint-stripped query for the dense legs.",
+   trigger:"Spelling and synonym failures show up in the reformulation rate.",
+   buys:"Tail recovery, and the asymmetric-query trick that costs nothing."},
+  {n:8, t:3, title:"Behavioural instrumentation", stages:["behavioural"],
+   build:"Clicks, saves, enquiries, reformulations — captured and joined to the query that produced them.",
+   trigger:"As soon as you have traffic.",
+   buys:"Nothing immediately. It is the gating dependency for every learned component below, and it cannot be collected retroactively."},
+  {n:9, t:3, title:"Routing and budget allocation", stages:["routing","budget","degradation"],
+   build:"Per-query leg selection, per-leg k under a latency budget, and a defined degradation order.",
+   trigger:"Latency-bound with a heterogeneous query mix.",
+   buys:"Headroom — spend quality where it changes the answer, skip it where it does not."},
+  {n:10, t:3, title:"Passage-level OR late interaction", stages:["multivec","late"],
+   build:"Chunk-and-roll-up, or token-level MaxSim. Pick one deliberately.",
+   trigger:"Multi-faceted queries over long documents; rerank cannot fix what retrieval never found.",
+   buys:"Fixes the one failure the rerank cascade structurally cannot."},
+  {n:11, t:3, title:"Query-dependent / modality-weighted fusion", stages:["fusionpolicy"],
+   build:"A policy layer choosing strategy and leg weights per query class.",
+   trigger:"One global weighting is provably wrong for a whole query class.",
+   buys:"Per-class gains that a single fusion setting cannot deliver."},
+  {n:12, t:3, title:"VLM rerank", stages:["vlmrerank","q-image"],
+   build:"A vision-language model over the top 10–20, gated on visual intent, cached hard.",
+   trigger:"Visual intent demonstrably drives conversion.",
+   buys:"Verification of fine visual claims. High cost, narrow gate."},
+  {n:13, t:3, title:"LTR, learned fusion, personalisation", stages:["ltr","personalisation","expand","sparse","session","confidence"],
+   build:"Trained ranking over the full feature vector, learned fusion weights, per-user adjustment.",
+   trigger:"Tens of thousands of labelled or behavioural judgements exist.",
+   buys:"Compounding gains, with permanent maintenance and a position-bias problem to solve."}
+];
+
+/* =======================================================================
+   STATE
+   ======================================================================= */
+const state = { view:"pipe", tpl:1, prevTpl:null, off:{1:new Set(),2:new Set(),3:new Set()}, sel:null, facet:null };
+
+const $  = (s,r)=> (r||document).querySelector(s);
+const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
+const canvas = $("#canvas"), wires = $("#wires"), rowsEl = $("#rows");
+
+function tplStages(t){
+  const out=[];
+  TPL[t].rows.forEach(r=>{ (r.l||[]).concat(r.c||[],r.r||[]).forEach(id=>out.push(id)); });
+  return out;
+}
+function isOff(id){ return state.off[state.tpl].has(id); }
+function isOn(id){ return !isOff(id); }
+function lockedFor(id){ return S[id].tier==="core"; }
+
+function setOff(id,off){
+  const set = state.off[state.tpl];
+  if(off) set.add(id); else set.delete(id);
+  // dependents follow their parent down, but are not auto-revived
+  Object.keys(REQUIRES).forEach(k=>{ if(REQUIRES[k]===id && off) set.add(k); });
+  if(!off && REQUIRES[id]) set.delete(REQUIRES[id]);
+}
+
+/* =======================================================================
+   BUDGET MODEL
+   ======================================================================= */
+const PHASES = [
+  {id:"query",  label:"Query processing", groups:["Query inputs","Query processing","Constraint handling"], color:"var(--core-line)"},
+  {id:"retr",   label:"Retrieval",        groups:["Candidate retrieval"],                                    color:"var(--rec-line)"},
+  {id:"merge",  label:"Merge & fuse",     groups:["Candidate generation","Fusion"],                          color:"var(--opt-line)"},
+  {id:"rerank", label:"Rerank",           groups:["Reranking"],                                              color:"var(--warn)"},
+  {id:"final",  label:"Rank & assemble",  groups:["Final ranking","Results"],                                color:"var(--ctrl-line)"}
+];
+const MAX_CX = Object.values(S).reduce((a,s)=>a+(s.cx||0),0);
+
+function budget(){
+  const ids = tplStages(state.tpl).filter(isOn);
+  const per = {}, cond = [];
+  let lo=0, hi=0, cxSum=0, models=0;
+  const modelNames=[], caps=new Set();
+  const parallel = {};
+
+  ids.forEach(id=>{
+    const s = S[id];
+    cxSum += s.cx||0;
+    (s.caps||[]).forEach(c=>caps.add(c));
+    if(s.model){ models++; modelNames.push(s.name); }
+    const [a,b] = s.lat||[0,0];
+    if(s.conditional){ if(b>0) cond.push({name:s.name, lat:s.lat}); return; }
+    if(s.parallel){ // legs run concurrently: the group costs its slowest member
+      const g = parallel[s.parallel] || (parallel[s.parallel]={lo:0,hi:0,group:s.group});
+      g.lo = Math.max(g.lo,a); g.hi = Math.max(g.hi,b);
+      return;
+    }
+    lo+=a; hi+=b;
+    const ph = PHASES.find(p=>p.groups.includes(s.group));
+    if(ph) per[ph.id] = (per[ph.id]||0) + b;
+  });
+  Object.values(parallel).forEach(g=>{
+    lo+=g.lo; hi+=g.hi;
+    const ph = PHASES.find(p=>p.groups.includes(g.group));
+    if(ph) per[ph.id] = (per[ph.id]||0) + g.hi;
+  });
+  return {lo:Math.round(lo), hi:Math.round(hi), per, cond, cx:cxSum, models, modelNames,
+          caps, count:ids.length, off:tplStages(state.tpl).filter(isOff).length};
+}
+
+function renderBudget(){
+  const b = budget();
+  $("#stageCount").textContent = b.count + " on";
+  $("#latVal").textContent = b.lo + "–" + b.hi + " ms";
+  const scale = 900;
+  $("#latLo").style.width = Math.min(100, b.lo/scale*100) + "%";
+  $("#latHi").style.width = Math.min(100-Math.min(100,b.lo/scale*100), (b.hi-b.lo)/scale*100) + "%";
+  $("#latNote").innerHTML = b.cond.length
+    ? "Plus conditional work: " + b.cond.map(c=>c.name.toLowerCase()+" (+"+c.lat[0]+"–"+c.lat[1]+" ms)").join(", ") + "."
+    : "Retrieval legs run concurrently, so the group costs its slowest member.";
+
+  const total = Object.values(b.per).reduce((a,c)=>a+c,0) || 1;
+  $("#latStack").innerHTML = PHASES.filter(p=>b.per[p.id]).map(p=>
+    '<i style="width:'+(b.per[p.id]/total*100)+'%;background:'+p.color+'" title="'+p.label+'"></i>').join("");
+  $("#latLegend").innerHTML = PHASES.filter(p=>b.per[p.id]).map(p=>
+    '<span><i style="background:'+p.color+'"></i>'+p.label+' '+Math.round(b.per[p.id]/total*100)+'%</span>').join("");
+
+  const band = b.cx<=18 ? "Lean" : b.cx<=32 ? "Moderate" : b.cx<=50 ? "Substantial" : "Heavy";
+  $("#cxVal").textContent = band + " · " + b.cx;
+  $("#cxBar").style.width = Math.min(100, b.cx/MAX_CX*100) + "%";
+  $("#cxNote").textContent = "Relative index over enabled components — for comparing variants, not an estimate of effort.";
+  $("#mdlVal").textContent = b.models;
+  $("#mdlNote").textContent = b.models ? b.modelNames.join(", ") + "." : "No learned models in the request path.";
+
+  $("#caps").innerHTML = CAPS.map(c=>
+    '<span class="cap'+(b.caps.has(c.id)?" on":"")+'">'+c.label+'</span>').join("");
+
+  const offEl = $("#offCount");
+  offEl.hidden = b.off===0; offEl.textContent = b.off + " off";
+}
+
+/* =======================================================================
+   CANVAS RENDER
+   ======================================================================= */
+function nodeEl(id, newIds){
+  const s = S[id];
+  const el = document.createElement("button");
+  el.className = "node " + (s.control ? "control" : s.tier) +
+                 (s.decision ? " decision":"") + (s.io ? " io":"");
+  el.dataset.id = id;
+  el.dataset.on = isOn(id) ? "1" : "0";
+  if(!isOn(id)) el.classList.add("off");
+  if(newIds.has(id)) el.classList.add("isnew");
+  if(state.sel===id) el.classList.add("selected");
+  const ms = (s.lat && s.lat[1] ? '<span class="ms">'+s.lat[0]+"–"+s.lat[1]+" ms</span>" : "") +
+             (s.conditional ? '<span class="condchip">conditional</span>' : "");
+  el.innerHTML =
+    (newIds.has(id) ? '<span class="badge">new in '+state.tpl+'</span>' : "") +
+
+    '<div class="nm">'+s.name+'</div>' +
+    (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
+    (ms ? '<div class="meta">'+ms+'</div>' : "") +
+    '<span class="offmark"></span>';
+  el.addEventListener("click", ()=> openDrawer(id));
+  return el;
+}
+
+function renderCanvas(){
+  const t = state.tpl;
+  const prev = t>1 ? new Set(tplStages(t-1)) : new Set();
+  const newIds = t>1 ? new Set(tplStages(t).filter(id=>!prev.has(id))) : new Set();
+  const nNew = newIds.size;
+  const pill = $("#diffPill");
+  if(t>1 && nNew){ pill.hidden=false; pill.textContent = "+ " + nNew + " new vs template " + (t-1); }
+  else pill.hidden = true;
+
+  $("#tplDesc").innerHTML = "<b>"+TPL[t].tagline+".</b> " + TPL[t].desc;
+  rowsEl.innerHTML = "";
+
+  TPL[t].rows.forEach((r,i)=>{
+    const row = document.createElement("div");
+    row.className = "row"; row.dataset.row = i;
+    if(r.lane) row.insertAdjacentHTML("beforeend", '<span class="lane">'+r.lane+'</span>');
+    ["l","c","r"].forEach(k=>{
+      const cell = document.createElement("div");
+      cell.className = "cell " + (k==="l"?"left":k==="c"?"center":"right");
+      if(k==="c") cell.dataset.cellRow = i;
+      (r[k]||[]).forEach(id=> cell.appendChild(nodeEl(id,newIds)));
+      row.appendChild(cell);
+    });
+    rowsEl.appendChild(row);
+  });
+  applyFacet();
+  requestAnimationFrame(drawWires);
+}
+
+/* ---------- wires ---------- */
+function rectOf(sel){
+  const el = typeof sel==="string" ? canvas.querySelector(sel) : sel;
+  if(!el) return null;
+  const cr = canvas.getBoundingClientRect(), r = el.getBoundingClientRect();
+  return {x:r.left-cr.left, y:r.top-cr.top, w:r.width, h:r.height,
+          cx:r.left-cr.left+r.width/2, cy:r.top-cr.top+r.height/2};
+}
+function nodeRect(id){
+  if(String(id).startsWith("row:")) return rectOf('[data-cell-row="'+id.slice(4)+'"]');
+  return rectOf('.node[data-id="'+id+'"]');
+}
+
+function edgeList(){
+  const t = TPL[state.tpl], edges = [];
+  const groups = t.rows.map((r,i)=>({ ids:(r.c||[]).filter(isOn), row:i, label:r.nextLabel }))
+                       .filter(g=>g.ids.length);
+  for(let i=0;i<groups.length-1;i++){
+    const a=groups[i], b=groups[i+1];
+    a.ids.forEach(from=> b.ids.forEach(to=>{
+      const label = (a.ids.length===1 && b.ids.length===1) ? a.label : null;
+      edges.push({from,to,label,kind:"flow"});
+    }));
+  }
+  (t.extra||[]).forEach(([from,to,label,kind])=>{
+    const okFrom = String(from).startsWith("row:") || isOn(from);
+    const okTo   = String(to).startsWith("row:")   || isOn(to);
+    if(okFrom && okTo) edges.push({from,to,label,kind});
+  });
+  return edges;
+}
+
+function drawWires(){
+  if(window.innerWidth<=700){ wires.innerHTML=""; $$(".elabel").forEach(e=>e.remove()); return; }
+  const W = canvas.scrollWidth, H = canvas.scrollHeight;
+  wires.setAttribute("width",W); wires.setAttribute("height",H);
+  wires.setAttribute("viewBox","0 0 "+W+" "+H);
+  $$(".elabel").forEach(e=>e.remove());
+
+  let defs = '<defs>' +
+    ['flow:var(--wire)','loop:var(--wire-loop)','ctrl:var(--wire-ctrl)'].map(d=>{
+      const [k,c]=d.split(":");
+      return '<marker id="ah-'+k+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
+             '<path d="M0,0 L8,4 L0,8 z" style="fill:'+c+'"/></marker>';
+    }).join("") + '</defs>';
+
+  let paths = "", labels = [];
+  edgeList().forEach(e=>{
+    const a = nodeRect(e.from), b = nodeRect(e.to);
+    if(!a||!b) return;
+    let d, stroke="var(--wire)", dash="", marker="flow", lx, ly;
+
+    if(e.kind==="ctrl"){
+      stroke="var(--wire-ctrl)"; dash='stroke-dasharray="3 4"'; marker="ctrl";
+      const fromLeft = a.cx > b.cx;
+      const sx = fromLeft ? a.x : a.x+a.w, sy = a.cy;
+      const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
+      const k = Math.max(30, Math.abs(tx-sx)*0.45) * (fromLeft?-1:1);
+      d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
+    } else if(e.kind==="loop" || b.y < a.y){
+      stroke="var(--wire-loop)"; marker="loop";
+      const gx = 62;
+      const sx=a.x, sy=a.cy, tx=b.x, ty=b.cy;
+      d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+ty+" "+tx+","+ty;
+      lx = gx+9; ly = (sy+ty)/2;
+    } else if(e.kind==="feedback"){
+      stroke="var(--wire-ctrl)"; dash='stroke-dasharray="1 5" stroke-linecap="round"'; marker="ctrl";
+      const sx=a.x+a.w, sy=a.cy, tx=b.x, ty=b.cy;
+      d = "M"+sx+","+sy+" C"+(sx+40)+","+sy+" "+(tx-40)+","+ty+" "+tx+","+ty;
+    } else {
+      const sx=a.cx, sy=a.y+a.h, tx=b.cx, ty=b.y;
+      const dy = Math.max(12,(ty-sy)*0.55);
+      d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
+      if(e.kind==="branch"){
+        dash='stroke-dasharray="6 4"';
+        lx = sx + (tx-sx)*0.2; ly = sy + (ty-sy)*0.2;
+      } else { lx = (sx+tx)/2; ly = (sy+ty)/2; }
+    }
+    paths += '<path d="'+d+'" style="fill:none;stroke:'+stroke+'" stroke-width="1.4" '+dash+
+             ' marker-end="url(#ah-'+marker+')" opacity="'+(e.kind==="ctrl"?".8":"1")+'"/>';
+    if(e.label && lx!=null) labels.push({x:lx,y:ly,text:e.label,loop:e.kind==="loop"});
+  });
+  wires.innerHTML = defs + paths;
+  labels.forEach(l=>{
+    const el = document.createElement("span");
+    el.className = "elabel" + (l.loop?" loop":"");
+    el.style.left = l.x+"px"; el.style.top = l.y+"px"; el.textContent = l.text;
+    canvas.appendChild(el);
+  });
+}
+
+/* ---------- facet trace ---------- */
+function applyFacet(){
+  const f = state.facet;
+  $$(".node").forEach(n=>{
+    n.classList.remove("hl","dimmed");
+    if(!f) return;
+    const s = S[n.dataset.id];
+    if((s.handles||[]).includes(f)) n.classList.add("hl"); else n.classList.add("dimmed");
+  });
+}
+
+/* =======================================================================
+   DETAIL DRAWER
+   ======================================================================= */
+const drawer = $("#drawer"), scrim = $("#scrim");
+
+function openDrawer(id){
+  const s = S[id];
+  if(!s) return;
+  state.sel = id;
+  $$(".node").forEach(n=> n.classList.toggle("selected", n.dataset.id===id));
+
+  $("#dTags").innerHTML =
+    '<span class="tag '+s.tier+'">'+s.tier+'</span>' +
+    (s.control ? '<span class="tag ctl">control plane</span>' : "") +
+    '<span class="tag grp">'+s.group+'</span>';
+  $("#dTitle").textContent = s.name;
+  $("#dPurpose").textContent = s.purpose;
+
+  const locked = lockedFor(id), on = isOn(id);
+  $("#dChips").innerHTML =
+    '<span class="chip">Introduced in <b>template '+s.intro+'</b></span>' +
+    (s.lat && s.lat[1] ? '<span class="chip">'+(s.conditional?"Conditional ":"")+'p95 <b>'+s.lat[0]+"–"+s.lat[1]+' ms</b></span>' : "") +
+    (s.cx ? '<span class="chip">Complexity <b>'+s.cx+'/5</b></span>' : "") +
+    (s.model ? '<span class="chip">model in path</span>' : "") +
+    '<button class="enable-btn" id="dToggle" data-on="'+(on?1:0)+'"'+(locked?" disabled title=\"Core components cannot be switched off\"":"")+'>'+
+      (locked ? "core · always on" : (on ? "✓ enabled" : "disabled — enable")) + '</button>';
+
+  const sect = (t,b)=> '<div class="sect"><h4>'+t+'</h4>'+b+'</div>';
+  let h = "";
+
+  if(s.decisions) h += sect("What you are choosing", s.decisions.map(d=>
+    '<div class="dec"><div class="q">'+d.q+'</div><ul>'+
+    d.opts.map(o=>'<li>'+o+'</li>').join("")+'</ul>'+
+    '<div class="def"><b>Default:</b> '+d.def+'<br>'+d.why+'</div></div>').join(""));
+
+  if(s.contract) h += sect("Stage contract",
+    '<div class="iobox"><span class="k">in  </span>'+s.contract.in+'\n<span class="k">out </span>'+s.contract.out+'</div>');
+
+  if(s.dials) h += sect("Dials", s.dials.map(d=>
+    '<div class="dial"><span class="dn">'+d.n+'</span><span class="dv">'+d.v+'</span>'+
+    (d.note?'<span class="dnote">'+d.note+'</span>':"")+'</div>').join(""));
+
+  if(s.failures) h += sect("Failure modes",
+    '<table class="mini"><thead><tr><th>Failure</th><th>Symptom</th><th>Metric that catches it</th></tr></thead><tbody>'+
+    s.failures.map(f=>'<tr><td>'+f.f+'</td><td>'+f.s+'</td><td class="met">'+f.m+'</td></tr>').join("")+
+    '</tbody></table>');
+
+  if(s.callout) h += '<div class="callout">'+s.callout+'</div>';
+  if(s.example) h += sect("In the worked example", '<div class="exline">'+s.example+'</div>');
+
+  if(s.steers && s.steers.length) h += sect("Steers",
+    '<div class="reflist">'+s.steers.filter(x=>S[x]).map(x=>'<button class="ref" data-goto="'+x+'">'+S[x].name+'</button>').join("")+'</div>');
+
+  const usedIn = [1,2,3].filter(t=>tplStages(t).includes(id));
+  h += sect("Appears in", '<div class="reflist">'+usedIn.map(t=>
+        '<button class="ref" data-tpl="'+t+'">Template '+t+' · '+TPL[t].name+'</button>').join("")+'</div>');
+
+  $("#dBody").innerHTML = h;
+  $$("#dBody .ref[data-goto]").forEach(b=> b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
+  $$("#dBody .ref[data-tpl]").forEach(b=> b.addEventListener("click",()=>{ setTpl(+b.dataset.tpl); openDrawer(id); }));
+  const tg = $("#dToggle");
+  if(tg && !locked) tg.addEventListener("click", ()=>{ setOff(id, isOn(id)); renderAll(); openDrawer(id); });
+
+  drawer.classList.add("open"); scrim.classList.add("open");
+  drawer.setAttribute("aria-modal","false");
+}
+function closeDrawer(){
+  drawer.classList.remove("open"); scrim.classList.remove("open");
+  state.sel = null; $$(".node").forEach(n=>n.classList.remove("selected"));
+}
+
+/* =======================================================================
+   COMPONENT LIST
+   ======================================================================= */
+function renderCompList(){
+  const ids = tplStages(state.tpl);
+  const groups = [];
+  ids.forEach(id=>{ const g=S[id].group; if(!groups.includes(g)) groups.push(g); });
+  const dot = t=> t==="core"?"var(--core-line)":t==="recommended"?"var(--rec-line)":"var(--opt-line)";
+  $("#compList").innerHTML = groups.map((g,i)=>{
+    const gi = ids.filter(id=>S[id].group===g);
+    const on = gi.filter(isOn).length;
+    return '<details'+(i<3?" open":"")+'><summary>'+g+'<span class="count">'+on+"/"+gi.length+'</span></summary>'+
+      gi.map(id=>{
+        const s=S[id], locked=lockedFor(id);
+        return '<button class="tog" data-id="'+id+'" data-on="'+(isOn(id)?1:0)+'" data-locked="'+(locked?1:0)+'">'+
+          '<span class="sw"></span><span class="tier" style="background:'+dot(s.tier)+'"></span>'+
+          '<span class="nm">'+s.name+'</span></button>';
+      }).join("") + '</details>';
+  }).join("");
+  $$("#compList .tog").forEach(b=>{
+    b.addEventListener("click", (ev)=>{
+      const id = b.dataset.id;
+      if(lockedFor(id)) return;
+      if(ev.shiftKey){ openDrawer(id); return; }
+      setOff(id, isOn(id));
+      renderAll();
+      if(state.sel===id) openDrawer(id);
+    });
+  });
+}
+
+/* =======================================================================
+   BUILD ORDER VIEW
+   ======================================================================= */
+function renderBuild(){
+  $("#steps").innerHTML = STEPS.map(s=>{
+    const chips = s.stages.filter(x=>S[x]).map(x=>
+      '<button class="ref" data-goto="'+x+'">'+S[x].name+'</button>').join("");
+    const html =
+      '<div class="step" data-t="'+s.t+'"><div><span class="num">'+(s.n||"0")+'</span></div><div>'+
+      '<h4>'+s.title+'</h4>'+
+      '<div class="grid">'+
+        '<div><div class="lb">Trigger to start</div>'+s.trigger+'</div>'+
+        '<div><div class="lb">What it buys</div>'+s.buys+'</div>'+
+      '</div>'+
+      '<div class="grid" style="grid-template-columns:1fr"><div><div class="lb">Build</div>'+s.build+'</div></div>'+
+      (chips ? '<div class="chips">'+chips+'</div>' : "") +
+      '</div></div>';
+    return s.n===8 ? '<div class="divider">Steps 1–7 above are Template 2 — the production target. Everything below is Template 3 territory.</div>'+html : html;
+  }).join("");
+  $$("#steps .ref[data-goto]").forEach(b=> b.addEventListener("click",()=>{
+    const id = b.dataset.goto;
+    const t = [1,2,3].find(t=>tplStages(t).includes(id)) || 3;
+    setView("pipe"); setTpl(t);
+    setTimeout(()=>{
+      openDrawer(id);
+      const n = canvas.querySelector('.node[data-id="'+id+'"]');
+      if(n) n.scrollIntoView({behavior:"smooth", block:"center"});
+    },60);
+  }));
+}
+
+/* =======================================================================
+   WIRING
+   ======================================================================= */
+function renderAll(){ renderCanvas(); renderBudget(); renderCompList(); }
+
+function setTpl(t){
+  if(state.tpl===t){ renderAll(); return; }
+  state.prevTpl = state.tpl; state.tpl = t;
+  $$(".seg button").forEach(b=> b.setAttribute("aria-pressed", String(+b.dataset.tpl===t)));
+  renderAll();
+}
+function setView(v){
+  state.view = v;
+  $("#view-pipe").classList.toggle("on", v==="pipe");
+  $("#view-build").classList.toggle("on", v==="build");
+  $$(".tabs button").forEach(b=> b.setAttribute("aria-selected", String(b.dataset.view===v)));
+  if(v==="pipe") requestAnimationFrame(drawWires);
+}
+
+$$(".seg button").forEach(b=> b.addEventListener("click",()=> setTpl(+b.dataset.tpl)));
+$$(".tabs button").forEach(b=> b.addEventListener("click",()=> setView(b.dataset.view)));
+$("#resetBtn").addEventListener("click", ()=>{ state.off[state.tpl] = new Set(); renderAll(); });
+$("#dClose").addEventListener("click", closeDrawer);
+scrim.addEventListener("click", closeDrawer);
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDrawer(); });
+
+$("#themeBtn").addEventListener("click", ()=>{
+  const cur = document.documentElement.getAttribute("data-theme");
+  const dark = cur ? cur==="dark"
+    : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+  requestAnimationFrame(drawWires);
+});
+
+/* worked example + facet trace */
+$("#exQuery").textContent = "quiet waterfront cabin with a wood fireplace, sleeps 6, under $300 a night, within 2 hours of the city";
+$("#facets").innerHTML = FACETS.map(f=>
+  '<button class="facet" data-f="'+f.id+'" aria-pressed="false" title="'+f.kind+'">'+f.label+'</button>').join(" ");
+$$("#facets .facet").forEach(b=> b.addEventListener("click", ()=>{
+  state.facet = state.facet===b.dataset.f ? null : b.dataset.f;
+  $$("#facets .facet").forEach(x=> x.setAttribute("aria-pressed", String(x.dataset.f===state.facet)));
+  applyFacet();
+}));
+
+let rt;
+new ResizeObserver(()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); }).observe(canvas);
+window.addEventListener("resize", ()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); });
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=> setTimeout(drawWires,50));
+
+renderBuild();
+renderAll();
+</script>
+</body>
+</html>
