@@ -18,7 +18,7 @@
   --rec-bg:#dcfce7; --rec-line:#15803d; --rec-text:#12351f;
   --opt-bg:#ede9fe; --opt-line:#6d28d9; --opt-text:#2b1a52;
   --ctrl-bg:#e8ecf2; --ctrl-line:#64748b; --ctrl-text:#27303f;
-  --wire:#94a1b3; --wire-loop:#c2704a; --wire-ctrl:#8b93a5;
+  --wire:#94a1b3; --wire-loop:#c2704a; --wire-ctrl:#8b93a5; --wire-train:#0f766e;
   --warn:#b45309; --warn-bg:#fef3c7;
   --ok:#15803d;
   --shadow:0 1px 2px rgba(16,23,37,.06),0 4px 12px rgba(16,23,37,.06);
@@ -36,7 +36,7 @@
       --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
       --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
       --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-      --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a;
+      --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf;
       --warn:#e0a94a; --warn-bg:#332a17;
       --ok:#4ea96e;
       --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
@@ -52,7 +52,7 @@
   --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
   --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
   --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-  --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a;
+  --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf;
   --warn:#e0a94a; --warn-bg:#332a17;
   --ok:#4ea96e;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
@@ -158,16 +158,36 @@ a{color:var(--accent)}
 .stack{display:flex;gap:2px;height:9px;border-radius:4px;overflow:hidden;background:var(--surface-3)}
 .stack i{height:100%}
 .legendrow{display:flex;flex-wrap:wrap;gap:5px 10px;margin-top:6px}
-.legendrow span{font-size:10.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:4px}
+.legendrow span,.legendrow button{font-size:10.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:4px}
+.legendrow button{border:0;background:none;padding:2px 4px;border-radius:5px;margin:-2px -4px}
+.legendrow button:hover{background:var(--surface-2);color:var(--text)}
+.legendrow button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 .legendrow i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.legendrow i.wkey{width:16px;height:0;border-radius:0}
 
 .caps{display:flex;flex-wrap:wrap;gap:5px}
 .cap{
   font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);
-  background:var(--surface-2);color:var(--text-3);opacity:.55
+  background:var(--surface-2);color:var(--text-3);opacity:.55;text-align:left
 }
+.cap:hover{opacity:1;border-color:var(--accent-soft)}
+.cap[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1px;opacity:1}
 .cap.on{opacity:1;background:var(--rec-bg);border-color:var(--rec-line);color:var(--rec-text)}
 
+.focusbox{
+  border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:11px 12px
+}
+.focusbox h3{color:var(--accent);margin-bottom:6px}
+.focusbox .fclear{
+  border:0;background:none;color:var(--accent);font-size:10.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;padding:0
+}
+.focusbox .fclear:hover{text-decoration:underline}
+.focusbox .fdesc{font-size:11.5px;color:var(--text-2);margin:0 0 9px;line-height:1.45}
+.focusbox .fdesc b{color:var(--text)}
+.focusbox .ref{background:var(--surface);font-size:11px}
+.focusbox .ref.isoff{opacity:.5;font-style:italic}
+.focusbox .fnone{font-size:11.5px;color:var(--text-2);font-style:italic}
 .complist details{border-top:1px solid var(--border)}
 .complist details:last-of-type{border-bottom:1px solid var(--border)}
 .complist summary{
@@ -259,8 +279,10 @@ a{color:var(--accent)}
   background:var(--accent);color:#fff;border-radius:20px;padding:2px 7px;box-shadow:var(--shadow)
 }
 .badge.cond{background:var(--warn);color:#fff;top:auto;bottom:-8px;left:-6px;right:auto}
-@keyframes pop{0%{transform:scale(.9);opacity:0}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
-.node.isnew{animation:pop .38s ease-out both}
+/* transform only: animating opacity here would win the cascade over
+   .dimmed / .off and stop focus dimming from working on new nodes */
+@keyframes pop{0%{transform:scale(.92)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
+.node.isnew{animation:pop .38s ease-out}
 .node .offmark{position:absolute;inset:0;pointer-events:none;border-radius:var(--radius)}
 .node[data-on="0"] .offmark{
   background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(125,135,152,.16) 6px 12px)
@@ -338,9 +360,24 @@ table.mini .met{color:var(--accent)}
 .callout b{color:var(--text)}
 .exline{font-size:12px;color:var(--text-2);margin-top:8px}
 .exline code{font-family:var(--mono);font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text)}
+.reflink{
+  display:block;border:1px solid var(--border);border-radius:9px;padding:9px 11px;margin-bottom:7px;
+  text-decoration:none;background:var(--surface-2);transition:border-color .12s,background .12s
+}
+.reflink:hover{border-color:var(--accent);background:var(--accent-soft)}
+.reflink .rt{display:block;font-size:12.5px;font-weight:600;color:var(--text);line-height:1.35}
+.reflink .rt::after{content:" ↗";font-size:10px;color:var(--text-3);font-weight:400}
+.reflink .rs{display:block;font-size:11px;color:var(--text-3);margin-top:2px}
+.reflink .rw{display:block;font-size:11.5px;color:var(--text-2);margin-top:5px;line-height:1.45}
 .reflist{display:flex;flex-wrap:wrap;gap:6px}
 .ref{font-size:11px;border:1px solid var(--border);background:var(--surface-2);border-radius:6px;padding:4px 8px;color:var(--text-2)}
 .ref:hover{border-color:var(--accent);color:var(--accent)}
+.ref.isoff{opacity:.55;font-style:italic}
+.relnote{font-size:11.5px;color:var(--text-3);margin:0 0 8px;line-height:1.45}
+.reldep{
+  font-size:11.5px;color:var(--text-2);background:var(--warn-bg);border-left:3px solid var(--warn);
+  border-radius:0 7px 7px 0;padding:8px 10px;margin:9px 0 0;line-height:1.45
+}
 
 /* ---------- build order ---------- */
 .build{max-width:1000px;margin:0 auto;padding:28px 20px 120px}
@@ -446,6 +483,11 @@ table.mini .met{color:var(--accent)}
 
   <div class="app">
     <aside class="side">
+      <div class="panel focusbox" id="focusBox" hidden>
+        <h3>Focus <button class="fclear" id="clearFocus">clear</button></h3>
+        <p class="fdesc" id="focusDesc"></p>
+        <div class="reflist" id="focusList"></div>
+      </div>
       <div class="panel">
         <h3>Estimated budget <span class="pill" id="stageCount"></span></h3>
         <div class="metric">
@@ -472,6 +514,9 @@ table.mini .met{color:var(--accent)}
       <div class="panel">
         <h3>Capability coverage</h3>
         <div class="caps" id="caps"></div>
+        <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
+          Click any capability to see which components provide it.
+        </p>
       </div>
 
       <div class="panel">
@@ -482,9 +527,14 @@ table.mini .met{color:var(--accent)}
           <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>optional</span>
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
         </div>
+        <div class="legendrow" style="gap:7px 12px;margin-top:9px">
+          <span><i class="wkey" style="border-top:2px dashed var(--wire-ctrl)"></i>steers &mdash; request time</span>
+          <span><i class="wkey" style="border-top:2px dashed var(--wire-train)"></i>trains &mdash; offline</span>
+        </div>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
           Control-plane components steer a stage rather than transforming candidates.
-          Dashed wires show what they steer.
+          A <em>trains</em> wire is not a request-time path: it means the target's model is
+          fitted from that data.
         </p>
       </div>
 
@@ -700,7 +750,6 @@ def({
     why:"Stale context sticking to an unrelated new query is far more damaging than losing context on a refinement, because it is invisible to the user and unattributable."
   }],
   contract:{in:"session history", out:"{ inherited_constraints[], resolved_query, route_hints }"},
-  steers:["understand","rewrite","routing","personalisation"],
   callout:"Needs an explicit <b>reset heuristic</b>. Without one, a session accumulates constraints until nothing matches and the user cannot see why.",
   failures:[{f:"Context sticks to an unrelated query",s:"Inexplicable empty or narrow results mid-session",m:"zero-result rate by turn index"}]
 });
@@ -717,7 +766,6 @@ def({
     why:"An uncalibrated confidence is worse than a fixed threshold, because it looks principled while behaving arbitrarily. Type-based heuristics (UI filter = certain, parsed number = high, parsed geo = low) are honest and effective."
   }],
   contract:{in:"constraints[]", out:"constraints[] with {confidence, treatment: hard|soft}"},
-  steers:["prefilter","relax"],
   callout:"This is what makes low-confidence constraint removal cheap: the relaxation ladder just <b>promotes soft constraints out of the filter</b> rather than re-parsing the query.",
   failures:[{f:"Uncalibrated confidence",s:"Relaxation drops the wrong constraint first",m:"post-relaxation click-through vs unrelaxed baseline"}],
   example:"<code>sleeps 6</code> parses with high confidence; <code>within 2 hours of the city</code> should score low — it has no precise referent."
@@ -817,7 +865,6 @@ def({
     why:"Routing failures are invisible — a rule that never fires the image leg looks exactly like a corpus problem. Start with rules you can read, and log every decision."
   }],
   contract:{in:"intent, constraints, has_image", out:"legs_to_fire[] + route_id (logged)"},
-  steers:["budget"],
   callout:"A control-plane bug fails <b>silently, as a quality regression</b>, not as an error. Log the route on every query or you will never find it.",
   failures:[{f:"A leg is never routed to",s:"Looks like a corpus or index problem",m:"route distribution; per-leg fire rate"}]
 });
@@ -833,8 +880,7 @@ def({
     why:"Budget allocation and routing interact strongly. Tune them together or not at all — independently tuned, each will appear to make things worse."
   }],
   contract:{in:"active legs + latency budget", out:"{ leg: k } allocation"},
-  dials:[{n:"Total candidate budget",v:"300–600"},{n:"Latency budget",v:"the number the whole design hangs on"}],
-  steers:["lexical","textvec","imagevec","sparse","multivec","late"]
+  dials:[{n:"Total candidate budget",v:"300–600"},{n:"Latency budget",v:"the number the whole design hangs on"}]
 });
 
 /* ---------- retrieval legs ---------- */
@@ -1025,7 +1071,6 @@ def({
     why:"Query-dependent fusion is not a sibling of RRF, it is the policy layer above it. Building it as a parallel strategy produces a system where nobody can say which fusion actually ran."
   }],
   contract:{in:"query class + leg statistics", out:"{ strategy, weights[] } (logged per query)"},
-  steers:["fusion"],
   example:"For <code>wood fireplace</code> the image leg should dominate. For <code>quiet</code> it should be nearly muted. One global weighting cannot serve both."
 });
 
@@ -1209,7 +1254,6 @@ def({
     why:"Degrading in an undefined order means your fast responses are also your least predictable ones. Decide the order while calm, not during an incident."
   }],
   contract:{in:"stage deadlines", out:"partial results + degraded_legs[] on the response"},
-  steers:["lexical","crossenc","vlmrerank"],
   callout:"Good-enough in 300 ms beats perfect in 2 s, and beats a 500 error absolutely. But <b>never degrade silently</b> — an untagged latency win reappears as an unexplained relevance regression.",
   failures:[{f:"Silent degradation",s:"Unexplained relevance drops correlated with load",m:"degraded_legs rate vs relevance metrics"}]
 });
@@ -1225,10 +1269,272 @@ def({
     why:"You cannot retroactively collect it, and it is the gating dependency for learned fusion, LTR, personalisation and retriever fine-tuning. Instrument it before anything consumes it."
   }],
   contract:{in:"impressions + interactions", out:"labelled judgements, hard negatives, training sets"},
-  steers:["fusionpolicy","personalisation","ltr"],
   callout:"Mine hard negatives carefully: an unlabelled <b>relevant</b> document mined as a hard negative actively teaches the retriever the wrong thing.",
   failures:[{f:"Position bias untreated",s:"Models that reproduce the current ranking",m:"interleaving experiments; debiased estimators"}]
 });
+
+
+/* =======================================================================
+   BACKGROUND READING
+   Every URL below was resolved and title-checked before shipping.
+   t = title, s = venue/year, u = url, w = why this one is worth reading.
+   ======================================================================= */
+const A = id => "https://arxiv.org/abs/" + id;
+const D = doi => "https://doi.org/" + doi;
+
+const REFS = {
+  "q-text":[
+    {t:"A Taxonomy of Web Search", s:"Broder, SIGIR Forum 2002", u:D("10.1145/792550.792552"),
+     w:"The navigational / informational / transactional split that most intent classifiers still start from."}
+  ],
+  "q-image":[
+    {t:"Learning Transferable Visual Models From Natural Language Supervision (CLIP)", s:"Radford et al., 2021", u:A("2103.00020"),
+     w:"The dual-tower design that makes a text query and an image comparable in one space."},
+    {t:"Sigmoid Loss for Language Image Pre-Training (SigLIP)", s:"Zhai et al., 2023", u:A("2303.15343"),
+     w:"A stronger, cheaper training objective than CLIP's softmax contrastive loss."}
+  ],
+  normalise:[
+    {t:"UAX #15: Unicode Normalization Forms", s:"Unicode Consortium", u:"https://unicode.org/reports/tr15/",
+     w:"The spec behind the NFKC choice — read the compatibility-composition section."},
+    {t:"Text analysis", s:"Elasticsearch reference", u:"https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis.html",
+     w:"Concrete illustration of why query-time and index-time analysis must match."}
+  ],
+  understand:[
+    {t:"A Taxonomy of Web Search", s:"Broder, SIGIR Forum 2002", u:D("10.1145/792550.792552")},
+    {t:"Predicting Query Performance", s:"Cronen-Townsend et al., SIGIR 2002", u:D("10.1145/564376.564429"),
+     w:"Query performance prediction — estimating up front whether a query will retrieve well."}
+  ],
+  rewrite:[
+    {t:"Query2doc: Query Expansion with Large Language Models", s:"Wang et al., 2023", u:A("2303.07678")},
+    {t:"How to Write a Spelling Corrector", s:"Norvig", u:"https://norvig.com/spell-correct.html",
+     w:"Twenty lines of noisy-channel spelling correction; still the clearest explanation of the idea."}
+  ],
+  expand:[
+    {t:"Precise Zero-Shot Dense Retrieval without Relevance Labels (HyDE)", s:"Gao et al., 2022", u:A("2212.10496")},
+    {t:"Query Expansion by Prompting Large Language Models", s:"Jagerman et al., 2023", u:A("2305.03653")},
+    {t:"Relevance Based Language Models", s:"Lavrenko & Croft, SIGIR 2001", u:D("10.1145/383952.383972"),
+     w:"RM3 — the pseudo-relevance-feedback baseline every LLM expansion result should be compared against."}
+  ],
+  session:[
+    {t:"Contextualized Query Embeddings for Conversational Search", s:"Lin et al., 2021", u:A("2104.08707")},
+    {t:"TREC CAsT 2019: Conversational Assistance Track Overview", s:"Dalton et al., 2020", u:A("2003.13624"),
+     w:"The benchmark that defines what multi-turn context resolution actually has to solve."}
+  ],
+  confidence:[
+    {t:"On Calibration of Modern Neural Networks", s:"Guo et al., 2017", u:A("1706.04599"),
+     w:"Why a model's raw confidence is not a probability, and how to fix it. Directly applicable to extraction confidence."}
+  ],
+  prefilter:[
+    {t:"ACORN: Predicate-Agnostic Search Over Vector Embeddings and Structured Data", s:"Patel et al., 2024", u:A("2403.04871"),
+     w:"The filtered-ANN problem stated properly: why naive pre- and post-filtering both degrade."},
+    {t:"Hierarchical Navigable Small World graphs (HNSW)", s:"Malkov & Yashunin, 2016", u:A("1603.09320"),
+     w:"The index most filtered-ANN implementations are built on; explains what filtering has to fight."}
+  ],
+  sufficiency:[
+    {t:"Predicting Query Performance", s:"Cronen-Townsend et al., SIGIR 2002", u:D("10.1145/564376.564429"),
+     w:"The formal version of the question this stage asks cheaply: did retrieval actually work?"}
+  ],
+  relax:[
+    {t:"Predicting Query Performance", s:"Cronen-Townsend et al., SIGIR 2002", u:D("10.1145/564376.564429"),
+     w:"Deciding when to intervene. The ladder order itself is a product decision with no paper to defer to."},
+    {t:"How to Write a Spelling Corrector", s:"Norvig", u:"https://norvig.com/spell-correct.html",
+     w:"Relevant when the real cause of a near-empty result set is a typo, not an over-tight filter."}
+  ],
+  zerofallback:[
+    {t:"How to Write a Spelling Corrector", s:"Norvig", u:"https://norvig.com/spell-correct.html"},
+    {t:"BEIR: Zero-shot Evaluation of Information Retrieval Models", s:"Thakur et al., 2021", u:A("2104.08663"),
+     w:"Useful for choosing the semantic-only model this fallback drops back to."}
+  ],
+  routing:[
+    {t:"Adaptive-RAG: Learning to Adapt Retrieval through Question Complexity", s:"Jeong et al., 2024", u:A("2403.14403"),
+     w:"Routing by predicted query difficulty — the same control-plane idea, in a RAG setting."}
+  ],
+  budget:[
+    {t:"Efficient Query Evaluation Using a Two-Level Retrieval Process (WAND)", s:"Broder et al., CIKM 2003", u:D("10.1145/956863.956944"),
+     w:"The classic statement of the depth-versus-latency trade this stage manages."}
+  ],
+  lexical:[
+    {t:"The Probabilistic Relevance Framework: BM25 and Beyond", s:"Robertson & Zaragoza, FnTIR 2009", u:D("10.1561/1500000019"),
+     w:"The definitive BM25 treatment, including BM25F for fielded documents — which is what you actually want here."}
+  ],
+  sparse:[
+    {t:"SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking", s:"Formal et al., 2021", u:A("2107.05720")},
+    {t:"SPLADE v2", s:"Formal et al., 2021", u:A("2109.10086")},
+    {t:"An Efficiency Study for SPLADE Models", s:"Lassance & Clinchant, SIGIR 2022", u:D("10.1145/3477495.3531833"),
+     w:"Read before adopting: expansion aggressiveness drives query cost superlinearly."}
+  ],
+  textvec:[
+    {t:"Dense Passage Retrieval for Open-Domain Question Answering", s:"Karpukhin et al., 2020", u:A("2004.04906")},
+    {t:"Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks", s:"Reimers & Gurevych, 2019", u:A("1908.10084")},
+    {t:"BEIR: A Heterogenous Benchmark for Zero-shot IR", s:"Thakur et al., 2021", u:A("2104.08663"),
+     w:"The corrective to leaderboard-chasing: dense retrievers generalise far less than in-domain numbers suggest."},
+    {t:"Hierarchical Navigable Small World graphs (HNSW)", s:"Malkov & Yashunin, 2016", u:A("1603.09320")}
+  ],
+  imagevec:[
+    {t:"CLIP: Learning Transferable Visual Models From Natural Language Supervision", s:"Radford et al., 2021", u:A("2103.00020"),
+     w:"Establishes the shared space that makes a text-driven image leg possible at all."},
+    {t:"Sigmoid Loss for Language Image Pre-Training (SigLIP)", s:"Zhai et al., 2023", u:A("2303.15343")}
+  ],
+  multivec:[
+    {t:"Late Chunking: Contextual Chunk Embeddings Using Long-Context Models", s:"Günther et al., 2024", u:A("2409.04701"),
+     w:"Directly addresses the boundary problem: embed the whole document first, then pool per chunk."},
+    {t:"Dense Text Retrieval based on Pretrained Language Models: A Survey", s:"Zhao et al., 2022", u:A("2211.14876")}
+  ],
+  late:[
+    {t:"ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction", s:"Khattab & Zaharia, 2020", u:A("2004.12832"),
+     w:"The original. MaxSim, and why deferring the interaction is what makes it affordable."},
+    {t:"ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction", s:"Santhanam et al., 2021", u:A("2112.01488"),
+     w:"Residual compression cuts the index blow-up by 6–10×. Read this before rejecting the approach on storage grounds."},
+    {t:"PLAID: An Efficient Engine for Late Interaction Retrieval", s:"Santhanam et al., 2022", u:A("2205.09707"),
+     w:"How to actually serve it at low latency."},
+    {t:"ColPali: Efficient Document Retrieval with Vision Language Models", s:"Faysse et al., 2024", u:A("2407.01449"),
+     w:"Late interaction over document <em>images</em> — squarely relevant to a corpus with an image set per document."}
+  ],
+  union:[
+    {t:"Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods", s:"Cormack et al., SIGIR 2009", u:D("10.1145/1571941.1572114"),
+     w:"Section 2 explains why the per-leg score normalisation this stage would otherwise need is so fragile."}
+  ],
+  prune:[
+    {t:"Efficient Query Evaluation Using a Two-Level Retrieval Process (WAND)", s:"Broder et al., CIKM 2003", u:D("10.1145/956863.956944")},
+    {t:"Faster Top-k Document Retrieval Using Block-Max Indexes", s:"Ding & Suel, SIGIR 2011", u:D("10.1145/2009916.2010048"),
+     w:"Pruning done inside the index rather than after it — cheaper than pruning a materialised list."}
+  ],
+  fusion:[
+    {t:"Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods", s:"Cormack et al., SIGIR 2009", u:D("10.1145/1571941.1572114"),
+     w:"The whole case for RRF, including where k ≈ 60 comes from and why it is insensitive."}
+  ],
+  fusionpolicy:[
+    {t:"Predicting Query Performance", s:"Cronen-Townsend et al., SIGIR 2002", u:D("10.1145/564376.564429"),
+     w:"Per-query prediction is what a fusion policy needs to select a strategy sensibly."},
+    {t:"Adaptive-RAG: Learning to Adapt Retrieval through Question Complexity", s:"Jeong et al., 2024", u:A("2403.14403")}
+  ],
+  semrerank:[
+    {t:"Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks", s:"Reimers & Gurevych, 2019", u:A("1908.10084")},
+    {t:"Pretrained Transformers for Text Ranking: BERT and Beyond", s:"Lin et al., 2020", u:A("2010.06467"),
+     w:"The book-length survey of the whole rerank cascade. The single best orientation text here."}
+  ],
+  crossenc:[
+    {t:"Passage Re-ranking with BERT", s:"Nogueira & Cho, 2019", u:A("1901.04085"),
+     w:"The paper that made cross-encoder reranking standard practice."},
+    {t:"Document Ranking with a Pretrained Sequence-to-Sequence Model (monoT5)", s:"Nogueira et al., 2020", u:A("2003.06713")},
+    {t:"Pretrained Transformers for Text Ranking: BERT and Beyond", s:"Lin et al., 2020", u:A("2010.06467"),
+     w:"Chapter 3 covers the depth-versus-quality curve you need to pick a rerank depth."}
+  ],
+  vlmrerank:[
+    {t:"ColPali: Efficient Document Retrieval with Vision Language Models", s:"Faysse et al., 2024", u:A("2407.01449"),
+     w:"The strongest current evidence that VLMs can judge document images directly."},
+    {t:"Visual Instruction Tuning (LLaVA)", s:"Liu et al., 2023", u:A("2304.08485"),
+     w:"Background on the open VLMs you would actually deploy in this slot."}
+  ],
+  ltr:[
+    {t:"Unbiased Learning-to-Rank with Biased Feedback", s:"Joachims et al., 2016", u:A("1608.04468"),
+     w:"The position-bias correction. Read before training on any click log."},
+    {t:"Learning to Rank with Selection Bias in Personal Search", s:"Wang et al., SIGIR 2016", u:D("10.1145/2911451.2911537")},
+    {t:"Applying Deep Learning to Airbnb Search", s:"Haldar et al., 2018", u:A("1810.09591"),
+     w:"An unusually honest account of what did and did not work in production ranking."}
+  ],
+  business:[
+    {t:"Applying Deep Learning to Airbnb Search", s:"Haldar et al., 2018", u:A("1810.09591"),
+     w:"Covers blending business objectives with relevance, and the failure modes of doing it inside the model."}
+  ],
+  freshness:[
+    {t:"Towards Recency Ranking in Web Search", s:"Dong et al., WSDM 2010", u:D("10.1145/1718487.1718490"),
+     w:"Treats recency as query-dependent rather than a global constant — the point this stage turns on."}
+  ],
+  personalisation:[
+    {t:"Personalizing Search via Automated Analysis of Interests and Activities", s:"Teevan et al., SIGIR 2005", u:D("10.1145/1076034.1076111"),
+     w:"Still the clearest measurement of how much personalisation can help — and how much variance is between users, not within them."}
+  ],
+  diversity:[
+    {t:"The Use of MMR, Diversity-Based Reranking", s:"Carbonell & Goldstein, SIGIR 1998", u:D("10.1145/290941.291025"),
+     w:"The original MMR formulation and its lambda trade-off."},
+    {t:"Diversifying Search Results", s:"Agrawal et al., WSDM 2009", u:D("10.1145/1498759.1498766"),
+     w:"Diversity as intent coverage rather than as dissimilarity — a better fit for faceted catalogues."}
+  ],
+  dedup:[
+    {t:"Similarity Estimation Techniques from Rounding Algorithms (SimHash)", s:"Charikar, STOC 2002", u:D("10.1145/509907.509965")},
+    {t:"On the Resemblance and Containment of Documents (MinHash)", s:"Broder, 1997", u:D("10.1109/SEQUEN.1997.666900"),
+     w:"Shingling and resemblance — the containment case matters when one listing is a superset of another."}
+  ],
+  assembly:[
+    {t:"Fast Generation of Result Snippets in Web Search", s:"Turpin et al., SIGIR 2007", u:D("10.1145/1277741.1277766"),
+     w:"Hydration and snippet generation are a bigger share of the latency budget than most designs assume."}
+  ],
+  degradation:[
+    {t:"The Tail at Scale", s:"Dean & Barroso, CACM 2013", u:D("10.1145/2408776.2408794"),
+     w:"Required reading. Fan-out to N legs means your p99 is the p99 of the slowest leg, every time."}
+  ],
+  behavioural:[
+    {t:"Accurately Interpreting Clickthrough Data as Implicit Feedback", s:"Joachims et al., SIGIR 2005", u:D("10.1145/1076034.1076063"),
+     w:"Clicks are relative preferences, not absolute labels. The foundational result for this whole loop."},
+    {t:"Unbiased Learning-to-Rank with Biased Feedback", s:"Joachims et al., 2016", u:A("1608.04468")}
+  ]
+};
+Object.keys(REFS).forEach(k=>{ if(S[k]) S[k].refs = REFS[k]; });
+
+/* =======================================================================
+   COMPLETENESS PASS — every component carries a worked example, dials and
+   failure modes. Callouts stay selective: a warning on every card is noise.
+   ======================================================================= */
+const EXAMPLES = {
+  "q-image":"The user uploads a photo of a cabin interior they liked. That image becomes an extra retrieval leg — but <code>sleeps 6</code> and <code>under $300</code> were still typed, and must still be enforced.",
+  normalise:"<code>$300</code> has to survive as a currency token the price parser can read, and <code>2 hours</code> has to stay two tokens the geo parser can see. Over-eager punctuation stripping destroys both.",
+  expand:"Expanding <code>cabin</code> to cottage, chalet and lodge is safe recall. Expanding <code>quiet</code> to secluded or remote is drift — it changes what the user asked for.",
+  session:"If the previous turn was “cabins in the mountains”, <code>within 2 hours of the city</code> must <em>replace</em> that geo constraint, not stack with it. Stacked, the two are unsatisfiable.",
+  prefilter:"Compiles <code>sleeps &gt;= 6 AND price &lt;= 300</code> as hard predicates. <code>within 2 hours</code> should become a soft boost, not a filter, because its confidence is low.",
+  sufficiency:"With all four constraints applied as hard filters this corpus might return three candidates — above zero, well below n_min. That gap is exactly what the relaxation ladder exists for.",
+  zerofallback:"Nothing survives even a relaxed filter: fall back to “waterfront cabins” semantically, and offer “try up to $350” or “try within 3 hours” as explicit next steps.",
+  routing:"<code>wood fireplace</code> is a visual attribute, so this query should fire the image leg. A query like “booking reference 4471” should fire only the lexical leg.",
+  budget:"Six legs are available and the budget is 400 ms. For this query, spend the depth on the image leg — the fireplace evidence is there — and skip late interaction.",
+  sparse:"Expands <code>cabin</code> toward cottage and lodge in a sparse space, so a listing that never uses the word “cabin” is still reachable — and you can see exactly which term matched.",
+  textvec:"One vector has to represent quiet, waterfront, fireplace, capacity, price and distance simultaneously. It cannot, and this is the clearest illustration of why.",
+  multivec:"<code>quiet</code> is evidenced in the reviews section and <code>wood fireplace</code> in the amenities list — two different passages of the same listing, which document-level embedding averages away.",
+  late:"Each of the six facets finds its own evidence independently rather than competing inside one averaged vector. This query is the canonical argument for the leg.",
+  union:"A listing found by the lexical leg at rank 40 (it has the <code>waterfront</code> tag) and by the image leg at rank 2 (its fireplace photo matched) must merge into one candidate carrying both ranks.",
+  prune:"If the image leg returned 200 candidates and the lexical leg 150, cap both before the cross-encoder is asked to score 350 documents.",
+  fusion:"The lexical leg ranks the <code>waterfront</code> tag match first; the image leg ranks the fireplace photo first. RRF lets both surface without ever comparing a BM25 score to a cosine.",
+  semrerank:"Cheaply drops listings that matched only on the word “cabin” before the expensive tier has to look at them.",
+  crossenc:"Can tell that “the cabin sits on a quiet bay” is a match for <code>quiet</code>, while “quiet neighbours are appreciated” is a house rule, not a property.",
+  ltr:"Blends the cross-encoder relevance score with enquiry rate, photo quality and cancellation history into the order actually shown.",
+  business:"A cabin that is unavailable for the requested dates must not rank first, no matter how perfectly it matches all six facets.",
+  freshness:"A listing updated last week is far more likely to have accurate pricing against the <code>under $300</code> constraint than one last touched in 2019.",
+  personalisation:"If this user has repeatedly saved coastal properties, nudge waterfront listings up — while keeping unpersonalised slots so they can still discover the lake cabins.",
+  diversity:"Stops the top ten filling with ten near-identical cabins from the same operator on the same lake.",
+  dedup:"The same cabin listed by two different agencies should collapse into one result, keeping the better-ranked copy.",
+  assembly:"Hydrate the <em>matched</em> image as the thumbnail. If the fireplace photo is why this listing ranked, showing the driveway photo wastes the match.",
+  degradation:"Under load, drop the VLM fireplace check first. Returning waterfront cabins in 300 ms beats returning verified fireplaces in 2 s.",
+  behavioural:"A user who saves a listing with no fireplace is telling you that constraint was soft. That signal is only capturable if you logged the impression alongside the query."
+};
+Object.keys(EXAMPLES).forEach(k=>{ if(S[k]) S[k].example = EXAMPLES[k]; });
+
+const DIALS = {
+  "q-text":[{n:"Max query length",v:"~256 chars",note:"Longer inputs are usually pasted text, and want a different pipeline."},
+            {n:"UI filters",v:"kept separate",note:"Never merge them into extracted constraints."}],
+  "q-image":[{n:"Max upload size",v:"resize before encoding"},{n:"Rollup",v:"max over document images"}],
+  session:[{n:"Context window",v:"last 2–3 turns"},{n:"Reset heuristic",v:"on intent-class change",note:"The single most important dial here."}],
+  confidence:[{n:"Hard-constraint threshold",v:"tuned per field type"},{n:"UI filter confidence",v:"1.0, always hard"}],
+  zerofallback:[{n:"Suggestions returned",v:"3–5"},{n:"Semantic-only depth",v:"k of a normal leg"}],
+  routing:[{n:"Route classes",v:"start with 3–5"},{n:"Logging",v:"route_id on every query",note:"Non-negotiable — routing bugs are otherwise invisible."}],
+  multivec:[{n:"Chunk size",v:"200–400 tokens"},{n:"Overlap",v:"10–20%"},{n:"Chunks per doc returned",v:"top 2–3"}],
+  union:[{n:"Output cap",v:"200–400"},{n:"Exact-dup key",v:"content hash"}],
+  fusionpolicy:[{n:"Policy classes",v:"match your intent classes"},{n:"Logging",v:"chosen strategy per query"}],
+  business:[{n:"Boost ceiling",v:"cap it",note:"An uncapped boost will eventually outrank everything on relevance."},
+            {n:"Audit log",v:"applied_rules[] per result"}],
+  personalisation:[{n:"Personalised slots",v:"2–3 of the top 10"},{n:"Holdout",v:"permanent control group"}],
+  dedup:[{n:"Near-dup threshold",v:"tune on a labelled duplicate set"},{n:"Collapse UI",v:"show “N similar” rather than hiding"}],
+  degradation:[{n:"Per-leg deadline",v:"60–80% of the leg's p99"},{n:"Degradation order",v:"VLM → rerank depth → slowest leg"}],
+  behavioural:[{n:"Impression logging",v:"every result shown, with position"},
+               {n:"Join window",v:"query → interaction, ~30 min",note:"Without position, the log cannot be debiased later."}]
+};
+Object.keys(DIALS).forEach(k=>{ if(S[k]) S[k].dials = DIALS[k]; });
+
+const FAILS = {
+  budget:[{f:"Budget tuned independently of routing",s:"Each change looks like a regression in isolation",m:"latency and nDCG measured per route class, not in aggregate"},
+          {f:"Depth starved on the deciding leg",s:"The right document is never retrieved, so no reranker can save it",m:"recall@k per leg under the allocated budget"}],
+  fusionpolicy:[{f:"Nobody can say which strategy ran",s:"Irreproducible results and unexplainable regressions",m:"strategy distribution per query class; strategy logged per query"},
+                {f:"Policy overfits a small query class",s:"Aggregate metrics flat, one class much worse",m:"nDCG@10 sliced by query class, never pooled"}]
+};
+Object.keys(FAILS).forEach(k=>{ if(S[k]) S[k].failures = FAILS[k]; });
 
 /* =======================================================================
    TEMPLATES — rows are laid out as [left aside | centre spine | control]
@@ -1315,22 +1621,52 @@ const TPL = {
       {lane:"Results", c:["assembly"], r:["behavioural"]}
     ],
     extra:BRANCHES.concat([
-      ["q-image","imagevec","image tower","branch"],
-      ["q-image","routing","","ctrl"],
-      ["session","understand","","ctrl"],
-      ["session","routing","","ctrl"],
-      ["confidence","prefilter","","ctrl"],
-      ["confidence","relax","","ctrl"],
-      ["routing","budget","","ctrl"],
-      ["budget","row:6","","ctrl"],
-      ["degradation","row:6","","ctrl"],
-      ["degradation","crossenc","","ctrl"],
-      ["fusionpolicy","fusion","","ctrl"],
-      ["behavioural","personalisation","","ctrl"],
-      ["assembly","behavioural","","feedback"]
-    ])
+      ["q-image","imagevec","image tower","branch"]
+    ])  /* control and training wires are generated from REL — see relEdges() */
   }
 };
+
+/* =======================================================================
+   COMPONENT RELATIONSHIPS — the single source of truth.
+   The template-3 control wires AND the drawer's dependency sections are
+   both generated from this, so the diagram and the detail can never drift.
+
+   steers : request-time control. A changes how B behaves for THIS query.
+   trains : offline dependency.   B's parameters are fitted from data A produces.
+            Drawn differently on purpose — behavioural signals do not steer
+            Learning-to-Rank at query time, they are what it is trained on.
+   feeds  : plain data flow between stages that is not part of the spine.
+   ======================================================================= */
+const LEGS = ["lexical","sparse","textvec","imagevec","multivec","late"];
+
+const REL = {
+  "q-image":    { steers:["routing"] },
+  session:      { steers:["understand","rewrite","routing","personalisation"] },
+  confidence:   { steers:["prefilter","relax"] },
+  routing:      { steers:LEGS.concat(["budget"]) },
+  budget:       { steers:LEGS },
+  degradation:  { steers:LEGS.concat(["crossenc","vlmrerank"]) },
+  fusionpolicy: { steers:["fusion"] },
+  assembly:     { feeds:["behavioural"] },
+  behavioural:  { trains:["fusionpolicy","personalisation","ltr"] }
+};
+
+const REL_KINDS = ["steers","trains","feeds"];
+const REL_LABEL = {
+  steers:{ fwd:"Steers", rev:"Steered by",
+           note:"Request-time control — changes how the stage behaves for this query." },
+  trains:{ fwd:"Trains", rev:"Trained by",
+           note:"Offline dependency — this component's parameters are fitted from that data, not steered by it at query time." },
+  feeds: { fwd:"Feeds", rev:"Fed by", note:"Data flow outside the main spine." }
+};
+
+/* reverse index, built once */
+const RREL = {};
+Object.keys(REL).forEach(from=> REL_KINDS.forEach(kind=>
+  (REL[from][kind]||[]).forEach(to=>{
+    (RREL[to] = RREL[to] || {});
+    (RREL[to][kind] = RREL[to][kind] || []).push(from);
+  })));
 
 /* components that cannot exist without a parent */
 const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency" };
@@ -1401,7 +1737,7 @@ const STEPS = [
 /* =======================================================================
    STATE
    ======================================================================= */
-const state = { view:"pipe", tpl:1, prevTpl:null, off:{1:new Set(),2:new Set(),3:new Set()}, sel:null, facet:null };
+const state = { view:"pipe", tpl:1, prevTpl:null, off:{1:new Set(),2:new Set(),3:new Set()}, sel:null, focus:null };
 
 const $  = (s,r)=> (r||document).querySelector(s);
 const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
@@ -1483,7 +1819,8 @@ function renderBudget(){
   $("#latStack").innerHTML = PHASES.filter(p=>b.per[p.id]).map(p=>
     '<i style="width:'+(b.per[p.id]/total*100)+'%;background:'+p.color+'" title="'+p.label+'"></i>').join("");
   $("#latLegend").innerHTML = PHASES.filter(p=>b.per[p.id]).map(p=>
-    '<span><i style="background:'+p.color+'"></i>'+p.label+' '+Math.round(b.per[p.id]/total*100)+'%</span>').join("");
+    '<button data-phase="'+p.id+'" aria-pressed="false" title="Show the components in this phase">'+
+    '<i style="background:'+p.color+'"></i>'+p.label+' '+Math.round(b.per[p.id]/total*100)+'%</button>').join("");
 
   const band = b.cx<=18 ? "Lean" : b.cx<=32 ? "Moderate" : b.cx<=50 ? "Substantial" : "Heavy";
   $("#cxVal").textContent = band + " · " + b.cx;
@@ -1493,10 +1830,15 @@ function renderBudget(){
   $("#mdlNote").textContent = b.models ? b.modelNames.join(", ") + "." : "No learned models in the request path.";
 
   $("#caps").innerHTML = CAPS.map(c=>
-    '<span class="cap'+(b.caps.has(c.id)?" on":"")+'">'+c.label+'</span>').join("");
+    '<button class="cap'+(b.caps.has(c.id)?" on":"")+'" data-cap="'+c.id+'" aria-pressed="false">'+
+    c.label+'</button>').join("");
 
   const offEl = $("#offCount");
   offEl.hidden = b.off===0; offEl.textContent = b.off + " off";
+
+  $$("#caps .cap").forEach(el=> el.addEventListener("click", ()=> setFocus("cap", el.dataset.cap)));
+  $$("#latLegend button").forEach(el=> el.addEventListener("click", ()=> setFocus("phase", el.dataset.phase)));
+  syncFocusUI();
 }
 
 /* =======================================================================
@@ -1550,7 +1892,7 @@ function renderCanvas(){
     });
     rowsEl.appendChild(row);
   });
-  applyFacet();
+  applyFocus();
   requestAnimationFrame(drawWires);
 }
 
@@ -1567,6 +1909,40 @@ function nodeRect(id){
   return rectOf('.node[data-id="'+id+'"]');
 }
 
+/* Turn REL into drawable edges for this template. A source that steers three or
+   more members of one parallel group collapses to a single edge into that row,
+   which is what keeps the retrieval fan-out from becoming six overlapping wires. */
+function relEdges(t){
+  const rows = TPL[t].rows;
+  const present = new Set(tplStages(t));
+  const rowOf = id => rows.findIndex(r => (r.c||[]).includes(id));
+  const out = [];
+
+  Object.keys(REL).forEach(from=>{
+    if(!present.has(from) || !isOn(from)) return;
+    REL_KINDS.forEach(kind=>{
+      const targets = (REL[from][kind]||[]).filter(id=> present.has(id) && isOn(id));
+      if(!targets.length) return;
+      const kindName = kind==="trains" ? "train" : kind==="feeds" ? "feedback" : "ctrl";
+
+      const byGroup = {};
+      targets.forEach(id=>{
+        const g = S[id].parallel;
+        (byGroup[g||("@"+id)] = byGroup[g||("@"+id)] || []).push(id);
+      });
+      Object.keys(byGroup).forEach(g=>{
+        const ids = byGroup[g];
+        if(!g.startsWith("@") && ids.length>=3){
+          const ri = rowOf(ids[0]);
+          if(ri>=0){ out.push([from,"row:"+ri,"",kindName]); return; }
+        }
+        ids.forEach(id=> out.push([from,id,"",kindName]));
+      });
+    });
+  });
+  return out;
+}
+
 function edgeList(){
   const t = TPL[state.tpl], edges = [];
   const groups = t.rows.map((r,i)=>({ ids:(r.c||[]).filter(isOn), row:i, label:r.nextLabel }))
@@ -1578,7 +1954,7 @@ function edgeList(){
       edges.push({from,to,label,kind:"flow"});
     }));
   }
-  (t.extra||[]).forEach(([from,to,label,kind])=>{
+  (t.extra||[]).concat(relEdges(state.tpl)).forEach(([from,to,label,kind])=>{
     const okFrom = String(from).startsWith("row:") || isOn(from);
     const okTo   = String(to).startsWith("row:")   || isOn(to);
     if(okFrom && okTo) edges.push({from,to,label,kind});
@@ -1594,7 +1970,7 @@ function drawWires(){
   $$(".elabel").forEach(e=>e.remove());
 
   let defs = '<defs>' +
-    ['flow:var(--wire)','loop:var(--wire-loop)','ctrl:var(--wire-ctrl)'].map(d=>{
+    ['flow:var(--wire)','loop:var(--wire-loop)','ctrl:var(--wire-ctrl)','train:var(--wire-train)'].map(d=>{
       const [k,c]=d.split(":");
       return '<marker id="ah-'+k+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
              '<path d="M0,0 L8,4 L0,8 z" style="fill:'+c+'"/></marker>';
@@ -1606,8 +1982,11 @@ function drawWires(){
     if(!a||!b) return;
     let d, stroke="var(--wire)", dash="", marker="flow", lx, ly;
 
-    if(e.kind==="ctrl"){
-      stroke="var(--wire-ctrl)"; dash='stroke-dasharray="3 4"'; marker="ctrl";
+    if(e.kind==="ctrl" || e.kind==="train"){
+      const train = e.kind==="train";
+      stroke = train ? "var(--wire-train)" : "var(--wire-ctrl)";
+      dash   = train ? 'stroke-dasharray="7 5"' : 'stroke-dasharray="3 4"';
+      marker = train ? "train" : "ctrl";
       const fromLeft = a.cx > b.cx;
       const sx = fromLeft ? a.x : a.x+a.w, sy = a.cy;
       const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
@@ -1645,15 +2024,69 @@ function drawWires(){
   });
 }
 
-/* ---------- facet trace ---------- */
-function applyFacet(){
-  const f = state.facet;
+/* ---------- unified focus: facet | capability | latency phase ---------- */
+const FOCUS = {
+  facet:{
+    match:(s,id)=> (s.handles||[]).includes(id),
+    describe:id=>{ const f=FACETS.find(x=>x.id===id);
+      return "<b>"+f.label+"</b> — "+f.kind+". Components that carry this facet:"; }
+  },
+  cap:{
+    match:(s,id)=> (s.caps||[]).includes(id),
+    describe:id=>{ const c=CAPS.find(x=>x.id===id);
+      return "<b>"+c.label+"</b> — components that provide this capability:"; }
+  },
+  phase:{
+    match:(s,id)=>{ const p=PHASES.find(x=>x.id===id); return !!p && p.groups.includes(s.group); },
+    describe:id=>{ const p=PHASES.find(x=>x.id===id);
+      return "<b>"+p.label+"</b> — components spending time in this phase:"; }
+  }
+};
+
+function focusMatches(){
+  if(!state.focus) return [];
+  const {kind,id} = state.focus;
+  return tplStages(state.tpl).filter(sid => FOCUS[kind].match(S[sid], id));
+}
+
+function setFocus(kind, id){
+  const same = state.focus && state.focus.kind===kind && state.focus.id===id;
+  state.focus = same ? null : {kind, id};
+  applyFocus();
+  syncFocusUI();
+}
+
+function applyFocus(){
+  const hits = new Set(focusMatches());
+  // nothing matches: leave the diagram alone rather than dimming everything,
+  // which reads as a broken page. The focus panel explains why.
+  const dim = state.focus && hits.size > 0;
   $$(".node").forEach(n=>{
     n.classList.remove("hl","dimmed");
-    if(!f) return;
-    const s = S[n.dataset.id];
-    if((s.handles||[]).includes(f)) n.classList.add("hl"); else n.classList.add("dimmed");
+    if(!dim) return;
+    n.classList.add(hits.has(n.dataset.id) ? "hl" : "dimmed");
   });
+}
+
+function syncFocusUI(){
+  const f = state.focus;
+  $$("#facets .facet").forEach(el=>
+    el.setAttribute("aria-pressed", String(!!f && f.kind==="facet" && f.id===el.dataset.f)));
+  $$("#caps .cap").forEach(el=>
+    el.setAttribute("aria-pressed", String(!!f && f.kind==="cap" && f.id===el.dataset.cap)));
+  $$("#latLegend button").forEach(el=>
+    el.setAttribute("aria-pressed", String(!!f && f.kind==="phase" && f.id===el.dataset.phase)));
+
+  const box = $("#focusBox");
+  if(!f){ box.hidden = true; return; }
+  box.hidden = false;
+  $("#focusDesc").innerHTML = FOCUS[f.kind].describe(f.id);
+  const hits = focusMatches();
+  $("#focusList").innerHTML = hits.length
+    ? hits.map(id=>'<button class="ref'+(isOff(id)?" isoff":"")+'" data-goto="'+id+'">'+
+        S[id].name + (isOff(id)?" · off":"") + '</button>').join("")
+    : '<p class="fnone">No component in template '+state.tpl+' provides this. Switch template, or re-enable a component.</p>';
+  $$("#focusList .ref").forEach(b=> b.addEventListener("click", ()=> openDrawer(b.dataset.goto)));
 }
 
 /* =======================================================================
@@ -1706,8 +2139,30 @@ function openDrawer(id){
   if(s.callout) h += '<div class="callout">'+s.callout+'</div>';
   if(s.example) h += sect("In the worked example", '<div class="exline">'+s.example+'</div>');
 
-  if(s.steers && s.steers.length) h += sect("Steers",
-    '<div class="reflist">'+s.steers.filter(x=>S[x]).map(x=>'<button class="ref" data-goto="'+x+'">'+S[x].name+'</button>').join("")+'</div>');
+  if(s.refs && s.refs.length) h += sect("Background reading", s.refs.map(r=>
+    '<a class="reflink" href="'+r.u+'" target="_blank" rel="noopener noreferrer">'+
+      '<span class="rt">'+r.t+'</span><span class="rs">'+r.s+'</span>'+
+      (r.w ? '<span class="rw">'+r.w+'</span>' : "")+
+    '</a>').join(""));
+
+  const relRow = (kind, ids, dir) => {
+    const live = ids.filter(x=>S[x]);
+    if(!live.length) return "";
+    const offAndNeeded = dir==="rev" ? live.filter(isOff) : [];
+    return sect(REL_LABEL[kind][dir==="fwd"?"fwd":"rev"],
+      '<p class="relnote">'+REL_LABEL[kind].note+'</p>' +
+      '<div class="reflist">'+live.map(x=>
+        '<button class="ref'+(isOff(x)?" isoff":"")+'" data-goto="'+x+'">'+
+        S[x].name + (isOff(x)?" · off":"") + '</button>').join("")+'</div>' +
+      (offAndNeeded.length && kind==="trains"
+        ? '<p class="reldep">'+S[id].name+' is trained from data '+
+          offAndNeeded.map(x=>S[x].name).join(" and ")+
+          ' produces, and that is currently switched off. In a real build this is a sequencing dependency, not an optional extra.</p>'
+        : ""));
+  };
+  const fwd = REL[id] || {}, rev = RREL[id] || {};
+  REL_KINDS.forEach(k=>{ h += relRow(k, fwd[k]||[], "fwd"); });
+  REL_KINDS.forEach(k=>{ h += relRow(k, rev[k]||[], "rev"); });
 
   const usedIn = [1,2,3].filter(t=>tplStages(t).includes(id));
   h += sect("Appears in", '<div class="reflist">'+usedIn.map(t=>
@@ -1813,7 +2268,11 @@ $$(".tabs button").forEach(b=> b.addEventListener("click",()=> setView(b.dataset
 $("#resetBtn").addEventListener("click", ()=>{ state.off[state.tpl] = new Set(); renderAll(); });
 $("#dClose").addEventListener("click", closeDrawer);
 scrim.addEventListener("click", closeDrawer);
-document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDrawer(); });
+document.addEventListener("keydown", e=>{
+  if(e.key!=="Escape") return;
+  if(drawer.classList.contains("open")) closeDrawer();
+  else if(state.focus) setFocus(state.focus.kind, state.focus.id);
+});
 
 $("#themeBtn").addEventListener("click", ()=>{
   const cur = document.documentElement.getAttribute("data-theme");
@@ -1827,11 +2286,8 @@ $("#themeBtn").addEventListener("click", ()=>{
 $("#exQuery").textContent = "quiet waterfront cabin with a wood fireplace, sleeps 6, under $300 a night, within 2 hours of the city";
 $("#facets").innerHTML = FACETS.map(f=>
   '<button class="facet" data-f="'+f.id+'" aria-pressed="false" title="'+f.kind+'">'+f.label+'</button>').join(" ");
-$$("#facets .facet").forEach(b=> b.addEventListener("click", ()=>{
-  state.facet = state.facet===b.dataset.f ? null : b.dataset.f;
-  $$("#facets .facet").forEach(x=> x.setAttribute("aria-pressed", String(x.dataset.f===state.facet)));
-  applyFacet();
-}));
+$$("#facets .facet").forEach(b=> b.addEventListener("click", ()=> setFocus("facet", b.dataset.f)));
+$("#clearFocus").addEventListener("click", ()=> setFocus(state.focus.kind, state.focus.id));
 
 let rt;
 new ResizeObserver(()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); }).observe(canvas);
