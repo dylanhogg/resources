@@ -253,7 +253,7 @@ a{color:var(--accent)}
 .node:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .node .nm{font-size:12.5px;font-weight:600;line-height:1.3}
 .node .sb{font-size:10.5px;color:var(--text-3);margin-top:3px;line-height:1.35}
-.node .meta{display:flex;gap:6px;align-items:center;margin-top:7px}
+.node .meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:7px}
 .node .ms{font-size:10px;font-family:var(--mono);color:var(--text-3)}
 .node .condchip{
   font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
@@ -274,11 +274,14 @@ a{color:var(--accent)}
 .node.off{opacity:.32;filter:grayscale(.85)}
 .node.dimmed{opacity:.22}
 .node.hl{outline:2px solid var(--warn);outline-offset:2px}
-.badge{
-  position:absolute;top:-8px;right:-6px;font-size:9px;font-weight:700;letter-spacing:.03em;
-  background:var(--accent);color:#fff;border-radius:20px;padding:2px 7px;box-shadow:var(--shadow)
+.tierchip{
+  font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:1px 6px;border-radius:20px;border:1px solid currentColor;opacity:.75
 }
-.badge.cond{background:var(--warn);color:#fff;top:auto;bottom:-8px;left:-6px;right:auto}
+.tierchip.core{color:var(--core-line)}
+.tierchip.recommended{color:var(--rec-line)}
+.tierchip.optional{color:var(--opt-line)}
+.node.control .tierchip{color:var(--ctrl-line);opacity:.9}
 /* transform only: animating opacity here would win the cascade over
    .dimmed / .off and stop focus dimming from working on new nodes */
 @keyframes pop{0%{transform:scale(.92)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
@@ -293,6 +296,35 @@ a{color:var(--accent)}
   padding:1px 6px;border-radius:5px;white-space:nowrap;pointer-events:none
 }
 .elabel.loop{color:var(--wire-loop);transform:translate(0,-50%)}
+
+/* ---------- hover preview ---------- */
+.hovercard{
+  position:fixed;z-index:80;width:330px;max-width:calc(100vw - 24px);
+  background:var(--surface);border:1px solid var(--border-strong);border-radius:11px;
+  box-shadow:var(--shadow-lg);padding:12px 13px;pointer-events:none
+}
+.hovercard .hc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+.hovercard .hc-group{
+  font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3)
+}
+.hovercard .hc-cx{
+  font-size:10px;font-weight:600;color:var(--text-2);background:var(--surface-2);
+  border:1px solid var(--border);border-radius:6px;padding:2px 7px;white-space:nowrap
+}
+.hovercard .hc-desc{margin:0;font-size:12px;line-height:1.5;color:var(--text)}
+.hovercard .hc-ex{
+  margin-top:10px;padding-top:9px;border-top:1px solid var(--border);
+  font-size:11.5px;line-height:1.5;color:var(--text-2)
+}
+.hovercard .hc-lb{
+  display:block;font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:4px
+}
+.hovercard code{
+  font-family:var(--mono);font-size:10.5px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:4px;padding:1px 4px;color:var(--text)
+}
+@media (max-width:700px){ .hovercard{display:none} }
 
 /* ---------- drawer ---------- */
 .scrim{position:fixed;inset:0;background:rgba(8,12,20,.35);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -522,9 +554,9 @@ table.mini .met{color:var(--accent)}
       <div class="panel">
         <h3>Legend</h3>
         <div class="legendrow" style="gap:7px 12px">
-          <span><i style="background:var(--core-bg);border:1px solid var(--core-line)"></i>core</span>
-          <span><i style="background:var(--rec-bg);border:1px solid var(--rec-line)"></i>recommended</span>
-          <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>optional</span>
+          <span><i style="background:var(--core-bg);border:1px solid var(--core-line)"></i>core &middot; template 1</span>
+          <span><i style="background:var(--rec-bg);border:1px solid var(--rec-line)"></i>recommended &middot; template 2</span>
+          <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full &middot; template 3</span>
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
         </div>
         <div class="legendrow" style="gap:7px 12px;margin-top:9px">
@@ -620,6 +652,11 @@ const CAPS = [
 
 const S = {};
 function def(o){ S[o.id] = o; }
+
+/* The template a component first appears in. tier and intro are perfectly
+   correlated across all components, so this doubles as a text reading of the
+   node colour — no legend lookup needed. */
+const TIER_LABEL = {1:"core", 2:"recommended", 3:"full"};
 
 /* ---------- inputs ---------- */
 def({
@@ -1854,14 +1891,15 @@ function nodeEl(id, newIds){
   if(!isOn(id)) el.classList.add("off");
   if(newIds.has(id)) el.classList.add("isnew");
   if(state.sel===id) el.classList.add("selected");
-  const ms = (s.lat && s.lat[1] ? '<span class="ms">'+s.lat[0]+"–"+s.lat[1]+" ms</span>" : "") +
-             (s.conditional ? '<span class="condchip">conditional</span>' : "");
+  const meta =
+    '<span class="tierchip '+s.tier+'" title="First appears in template '+s.intro+' — '+TPL[s.intro].name+'">'+
+      TIER_LABEL[s.intro]+'</span>' +
+    (s.lat && s.lat[1] ? '<span class="ms">'+s.lat[0]+"–"+s.lat[1]+" ms</span>" : "") +
+    (s.conditional ? '<span class="condchip">conditional</span>' : "");
   el.innerHTML =
-    (newIds.has(id) ? '<span class="badge">new in '+state.tpl+'</span>' : "") +
-
     '<div class="nm">'+s.name+'</div>' +
     (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
-    (ms ? '<div class="meta">'+ms+'</div>' : "") +
+    '<div class="meta">'+meta+'</div>' +
     '<span class="offmark"></span>';
   el.addEventListener("click", ()=> openDrawer(id));
   return el;
@@ -2097,6 +2135,7 @@ const drawer = $("#drawer"), scrim = $("#scrim");
 function openDrawer(id){
   const s = S[id];
   if(!s) return;
+  hideHover();
   state.sel = id;
   $$(".node").forEach(n=> n.classList.toggle("selected", n.dataset.id===id));
 
@@ -2183,6 +2222,57 @@ function closeDrawer(){
 }
 
 /* =======================================================================
+   HOVER PREVIEW — a four-field summary of the full drawer. Desktop pointers
+   only, and never while the drawer is open so the two cannot compete.
+   ======================================================================= */
+const hoverCard = document.createElement("div");
+hoverCard.className = "hovercard";
+hoverCard.hidden = true;
+document.body.appendChild(hoverCard);
+
+let hoverTimer = null, hoverId = null;
+const finePointer = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+function hideHover(){
+  clearTimeout(hoverTimer); hoverTimer = null; hoverId = null;
+  hoverCard.hidden = true;
+}
+
+function showHover(el, id){
+  const s = S[id];
+  if(!s || drawer.classList.contains("open")) return;
+  hoverCard.innerHTML =
+    '<div class="hc-top"><span class="hc-group">'+s.group+'</span>'+
+      '<span class="hc-cx">Complexity '+(s.cx||0)+'/5</span></div>'+
+    '<p class="hc-desc">'+s.purpose+'</p>'+
+    (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "");
+  hoverCard.hidden = false;          // must be visible before it can be measured
+  const r = el.getBoundingClientRect();
+  const cw = hoverCard.offsetWidth, ch = hoverCard.offsetHeight, gap = 12, pad = 8;
+  let x = r.right + gap;
+  if(x + cw > window.innerWidth - pad) x = r.left - cw - gap;   // flip to the left
+  if(x < pad) x = Math.max(pad, window.innerWidth - cw - pad);
+  let y = Math.min(r.top, window.innerHeight - ch - pad);
+  hoverCard.style.left = x + "px";
+  hoverCard.style.top  = Math.max(pad, y) + "px";
+}
+
+rowsEl.addEventListener("mouseover", e=>{
+  if(!finePointer() || drawer.classList.contains("open")) return;
+  const el = e.target.closest(".node");
+  if(!el || el.dataset.id === hoverId) return;
+  hideHover();
+  hoverId = el.dataset.id;
+  hoverTimer = setTimeout(()=> showHover(el, el.dataset.id), 250);
+});
+rowsEl.addEventListener("mouseout", e=>{
+  const el = e.target.closest(".node");
+  if(!el || el.contains(e.relatedTarget)) return;
+  hideHover();
+});
+window.addEventListener("scroll", hideHover, {passive:true});
+
+/* =======================================================================
    COMPONENT LIST
    ======================================================================= */
 function renderCompList(){
@@ -2247,7 +2337,7 @@ function renderBuild(){
 /* =======================================================================
    WIRING
    ======================================================================= */
-function renderAll(){ renderCanvas(); renderBudget(); renderCompList(); }
+function renderAll(){ hideHover(); renderCanvas(); renderBudget(); renderCompList(); }
 
 function setTpl(t){
   if(state.tpl===t){ renderAll(); return; }

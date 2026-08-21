@@ -473,7 +473,7 @@ flowchart LR
         FBC["Behavioural signals<br/>offline, feeds trained components"]
     end
 
-    subgraph STAGE["Data-plane stage it steers"]
+    subgraph STAGE["Data-plane stage"]
         direction TB
         S1["Query understanding<br/>and rewriting"]
         S2["Metadata pre-filter"]
@@ -481,26 +481,37 @@ flowchart LR
         S4["Fusion"]
         S5["Rerank cascade"]
         S6["Personalisation"]
+        S7["Learning-to-Rank"]
     end
 
-    SESS -.-> S1
-    SESS -.-> ROUTE
-    CONF -.-> S2
-    CONF -.-> ROUTE
-    ROUTE -.-> BUDGET
-    ROUTE -.-> S3
-    BUDGET -.-> S3
-    FPOL -.-> S4
-    DEGRADE -.-> S3
-    DEGRADE -.-> S5
-    FBC -.-> FPOL
-    FBC -.-> S6
+    SESS -.->|"steers"| S1
+    SESS -.->|"steers"| ROUTE
+    SESS -.->|"steers"| S6
+    CONF -.->|"steers"| S2
+    ROUTE -.->|"steers"| BUDGET
+    ROUTE -.->|"steers"| S3
+    BUDGET -.->|"steers"| S3
+    FPOL -.->|"steers"| S4
+    DEGRADE -.->|"steers"| S3
+    DEGRADE -.->|"steers"| S5
+    FBC ==>|"trains"| FPOL
+    FBC ==>|"trains"| S6
+    FBC ==>|"trains"| S7
 
     classDef opt fill:#ede9fe,stroke:#6d28d9,stroke-width:1px,color:#0b1220
     classDef stage fill:#e2e8f0,stroke:#475569,stroke-width:1px,color:#0b1220
     class SESS,CONF,ROUTE,BUDGET,FPOL,DEGRADE,FBC opt
-    class S1,S2,S3,S4,S5,S6 stage
+    class S1,S2,S3,S4,S5,S6,S7 stage
 ```
+
+**Two different relationships are drawn here, and conflating them is a real design error.**
+A dotted `steers` edge is request-time control: the source changes how that stage behaves for
+*this* query. A solid `trains` edge is an offline dependency: the target's parameters are fitted
+from data the source produces. Behavioural signals do not steer Learning-to-Rank at query time —
+they are what it is trained on, which makes them a *sequencing* dependency in the build order
+rather than a component you can switch on beside it. Draw them the same way and you will end up
+either putting a training pipeline in the request path or, more commonly, discovering six months
+in that the learned components you planned have no data to learn from.
 
 A control-plane bug fails **silently, as a quality regression** rather than as an error — a routing
 rule that never fires the image leg looks exactly like a corpus problem. Log the routing decision,
