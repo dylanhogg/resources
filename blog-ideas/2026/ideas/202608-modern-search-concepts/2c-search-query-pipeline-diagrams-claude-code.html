@@ -444,6 +444,42 @@ table.mini .met{color:var(--accent)}
 .view{display:none}
 .view.on{display:block}
 
+/* ---------- about ---------- */
+.about{max-width:1000px;margin:0 auto;padding:34px 20px 120px}
+.about-hero{
+  padding:24px 26px;border:1px solid var(--border);border-radius:14px;
+  background:linear-gradient(135deg,var(--surface),var(--accent-soft));box-shadow:var(--shadow)
+}
+.about-kicker{
+  margin:0 0 8px;font-size:10.5px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--accent)
+}
+.about-hero h2{font-size:24px;line-height:1.25;max-width:28ch}
+.about-hero .lead{font-size:14px;color:var(--text-2);max-width:76ch;margin:13px 0 0;line-height:1.65}
+.about-section{margin-top:30px}
+.about-section > h3{font-size:16px;margin-bottom:6px}
+.about-section > p{font-size:13px;color:var(--text-2);max-width:78ch;margin:0 0 16px}
+.about-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.about-card{border:1px solid var(--border);border-radius:11px;background:var(--surface);padding:15px 16px}
+.about-card h4{font-size:13px;margin-bottom:5px}
+.about-card p{font-size:12px;color:var(--text-2);margin:0;line-height:1.55}
+.about-steps{counter-reset:about-step;display:grid;gap:0;margin-top:8px}
+.about-step{
+  counter-increment:about-step;display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;
+  padding:13px 0;border-top:1px solid var(--border)
+}
+.about-step::before{
+  content:counter(about-step);display:grid;place-items:center;width:28px;height:28px;border-radius:8px;
+  background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700
+}
+.about-step h4{font-size:13px;margin:3px 0 4px}
+.about-step p{font-size:12px;color:var(--text-2);margin:0;line-height:1.55}
+.about-note{
+  margin-top:26px;border-left:3px solid var(--warn);border-radius:0 9px 9px 0;
+  background:var(--warn-bg);padding:12px 14px;font-size:12px;color:var(--text-2);line-height:1.55
+}
+.about-note b{color:var(--text)}
+
 @media (max-width:1180px){
   .app{grid-template-columns:1fr}
   .side{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--border)}
@@ -479,7 +515,10 @@ table.mini .met{color:var(--accent)}
   .drawer{width:100vw}
   .step{grid-template-columns:1fr;gap:8px}
   .step .grid{grid-template-columns:1fr}
-  .build{padding:20px 14px 60px}
+  .build,.about{padding:20px 14px 60px}
+  .about-hero{padding:20px}
+  .about-hero h2{font-size:21px}
+  .about-grid{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001ms!important;transition-duration:.001ms!important}
@@ -493,14 +532,15 @@ table.mini .met{color:var(--accent)}
     <span class="sub">Progressive reference templates &middot; hybrid multimodal retrieval &middot; logical architecture, not frameworks</span>
   </div>
   <div class="tabs" role="tablist" aria-label="Views">
-    <button role="tab" id="tab-pipe" aria-selected="true" data-view="pipe">Pipelines</button>
-    <button role="tab" id="tab-build" aria-selected="false" data-view="build">Build order</button>
+    <button role="tab" id="tab-pipe" aria-controls="view-pipe" aria-selected="true" data-view="pipe">Pipelines</button>
+    <button role="tab" id="tab-build" aria-controls="view-build" aria-selected="false" data-view="build">Build order</button>
+    <button role="tab" id="tab-about" aria-controls="view-about" aria-selected="false" data-view="about">About</button>
   </div>
   <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle colour theme">◐</button>
 </header>
 
 <!-- ================= PIPELINE VIEW ================= -->
-<section class="view on" id="view-pipe">
+<section class="view on" id="view-pipe" role="tabpanel" aria-labelledby="tab-pipe">
 
   <div class="ctxbar">
     <div class="ctx-row">
@@ -597,7 +637,7 @@ table.mini .met{color:var(--accent)}
 </section>
 
 <!-- ================= BUILD ORDER VIEW ================= -->
-<section class="view" id="view-build">
+<section class="view" id="view-build" role="tabpanel" aria-labelledby="tab-build">
   <div class="build">
     <h2 style="font-size:20px;margin-bottom:8px">Build order</h2>
     <p class="build-intro">
@@ -608,6 +648,97 @@ table.mini .met{color:var(--accent)}
     </p>
     <div id="steps"></div>
   </div>
+</section>
+
+<!-- ================= ABOUT VIEW ================= -->
+<section class="view" id="view-about" role="tabpanel" aria-labelledby="tab-about">
+  <main class="about">
+    <div class="about-hero">
+      <p class="about-kicker">About this explorer</p>
+      <h2>Explore logical architecture options for query-side search pipelines</h2>
+      <p class="lead">
+        This full-page tool makes the query side of a modern search system visible and discussable. It maps the
+        logical stages between receiving a query and assembling a response: understanding and constraints,
+        retrieval legs, fusion, reranking, policy, recovery, presentation, and the control or feedback paths that
+        support them. Use it to compare sensible pipeline shapes, expose dependencies and trade-offs, and decide
+        which capabilities earn a place in the request path.
+      </p>
+    </div>
+
+    <section class="about-section" aria-labelledby="about-functionality">
+      <h3 id="about-functionality">What the tool offers</h3>
+      <p>The explorer combines an interactive architecture map with implementation guidance and component-level design notes.</p>
+      <div class="about-grid">
+        <article class="about-card">
+          <h4>Progressive reference templates</h4>
+          <p>Move from a locked Core baseline, through the recommended production target, to the Full surface of specialised options. Each level reveals the additions it makes.</p>
+        </article>
+        <article class="about-card">
+          <h4>Composable pipeline variants</h4>
+          <p>Switch non-core components on or off to test a pipeline shape. The sidebar updates estimated p95 latency, build-and-run complexity, request-path model count, and capability coverage.</p>
+        </article>
+        <article class="about-card">
+          <h4>Query-facet and capability tracing</h4>
+          <p>Use the worked query to follow a hard constraint, subjective need, text attribute, or visual attribute through the stages that handle it. Select a capability to see its contributing components.</p>
+        </article>
+        <article class="about-card">
+          <h4>Component design detail</h4>
+          <p>Open any node for its purpose, decisions, defaults, inputs and outputs, failure modes, tuning dials, dependencies, implementation notes, and supporting references.</p>
+        </article>
+        <article class="about-card">
+          <h4>Request-time and offline relationships</h4>
+          <p>Connections show how data and candidates flow, while distinct control and training wires separate request-time steering from offline learning and feedback.</p>
+        </article>
+        <article class="about-card">
+          <h4>Evidence-gated build order</h4>
+          <p>The Build order view sequences work by value for cost. Each step names the trigger to begin, what it buys, and the concrete slice to build—rather than pretending every system needs every stage.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="about-section" aria-labelledby="about-use">
+      <h3 id="about-use">How to use it well</h3>
+      <p>Treat the explorer as a structured design conversation, then validate its hypotheses with your own queries, corpus, relevance judgements, and production constraints.</p>
+      <div class="about-steps">
+        <article class="about-step">
+          <div>
+            <h4>Start with Core</h4>
+            <p>Learn the minimum end-to-end path first. Open each component and make sure its contract, owner, and observable outcome are clear for your system.</p>
+          </div>
+        </article>
+        <article class="about-step">
+          <div>
+            <h4>Use the worked query to test responsibility</h4>
+            <p>Trace its facets and ask where each signal is extracted, retrieved, scored, enforced, and explained. Missing or duplicated responsibility usually reveals an architecture gap.</p>
+          </div>
+        </article>
+        <article class="about-step">
+          <div>
+            <h4>Advance to Core + recommended</h4>
+            <p>Review the newly added stages as a likely production target. Toggle alternatives deliberately and watch the comparative budget and capability effects.</p>
+          </div>
+        </article>
+        <article class="about-step">
+          <div>
+            <h4>Let evidence unlock complexity</h4>
+            <p>Use Build order triggers and evaluation failures to justify the next addition. Visit Full surface only for options tied to a demonstrated recall, ranking, modality, policy, or scale problem.</p>
+          </div>
+        </article>
+        <article class="about-step">
+          <div>
+            <h4>Record the resulting design</h4>
+            <p>Capture the chosen stages, boundaries, assumptions, degradation order, latency allocation, and evaluation plan. The useful output is the reasoning behind a pipeline—not the diagram alone.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <div class="about-note">
+      <b>Interpretation guardrail.</b> This is a logical architecture explorer, not a vendor recommendation,
+      deployment topology, capacity model, or guaranteed latency calculator. The estimates are comparative prompts;
+      benchmark the selected design against your own traffic, index, hardware, models, and quality targets.
+    </div>
+  </main>
 </section>
 
 <div class="scrim" id="scrim"></div>
@@ -2457,6 +2588,7 @@ function setView(v){
   state.view = v;
   $("#view-pipe").classList.toggle("on", v==="pipe");
   $("#view-build").classList.toggle("on", v==="build");
+  $("#view-about").classList.toggle("on", v==="about");
   $$(".tabs button").forEach(b=> b.setAttribute("aria-selected", String(b.dataset.view===v)));
   if(v==="pipe") requestAnimationFrame(drawWires);
 }
