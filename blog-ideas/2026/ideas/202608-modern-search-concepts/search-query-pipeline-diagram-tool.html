@@ -259,9 +259,14 @@ a{color:var(--accent)}
 .row .cell.center > .node{flex:1 1 154px}
 .row .cell.left{justify-content:flex-end}
 .row .cell.right{justify-content:flex-start}
-.row .cell.with-serving{display:block}
-.node-cluster{display:flex;gap:11px;flex-wrap:wrap;justify-content:center;min-width:0}
-.node-cluster > .node{flex:1 1 154px}
+.row.has-data-sources{
+  grid-template-columns:minmax(0,232px) minmax(0,1fr) minmax(0,176px);
+  width:calc(100% + 106px);margin-left:-106px
+}
+.row.has-data-sources.no-right{grid-template-columns:minmax(0,232px) minmax(0,1fr)}
+.row.has-data-sources .cell:empty{display:none}
+.row.has-data-sources .lane{left:218px}
+.row.has-data-sources .cell.data-source-cell{align-self:stretch;justify-content:flex-start}
 .lane{
   position:absolute;left:-114px;top:-9px;font-size:9.5px;font-weight:700;letter-spacing:.08em;
   text-transform:uppercase;color:var(--text-3);writing-mode:vertical-rl;transform:rotate(180deg);
@@ -307,42 +312,36 @@ a{color:var(--accent)}
 .node[data-id="assembly"]{text-align:left}
 
 /* ---------- serving dependencies ---------- */
-.serving-layer{
-  position:relative;width:fit-content;max-width:100%;margin:17px auto 0;
-  padding:30px 10px 10px;border:1px dashed var(--data-line);
-  border-radius:11px;background:color-mix(in srgb,var(--data-bg) 88%,transparent)
+.data-source-column{
+  display:flex;flex-direction:column;justify-content:center;gap:9px;width:206px;max-width:100%;min-width:0
 }
-.serving-layer::before{
-  content:"Serving data plane";position:absolute;top:8px;left:11px;font-size:9px;font-weight:700;
-  letter-spacing:.08em;text-transform:uppercase;color:var(--data-line)
-}
-.serving-layer .source-count{
-  position:absolute;top:7px;right:10px;font-size:9.5px;color:var(--text-3)
-}
-.source-grid{
-  display:grid;grid-template-columns:repeat(var(--source-cols,1),minmax(0,210px));
-  justify-content:center;width:fit-content;max-width:100%;gap:8px
-}
-.source-card{
+.data-source-node{
+  --source-line:var(--data-line);
   position:relative;display:flex;flex-direction:column;align-items:stretch;
-  width:100%;min-width:0;max-width:210px;padding:8px 9px;
-  border:1px solid var(--data-line);border-radius:8px;background:var(--data-bg);color:var(--data-text);
-  text-align:left;box-shadow:0 1px 2px rgba(16,23,37,.05);
+  width:100%;min-width:0;padding:17px 12px 12px;
+  border:1px solid var(--source-line);border-radius:50% / 13px;
+  background:var(--surface-2);color:var(--data-text);text-align:left;box-shadow:var(--shadow);
   transition:transform .12s,box-shadow .12s,opacity .18s,filter .18s
 }
-.source-card:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(16,23,37,.10)}
-.source-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.source-card .nm{font-size:11.5px;font-weight:600;line-height:1.3}
-.source-card .sb{font-size:10px;line-height:1.35;color:var(--text-3);margin-top:2px}
-.source-card .source-serves{font-size:9.5px;line-height:1.35;color:var(--data-line);margin-top:6px}
-.source-card .source-serves b{font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-.serving-layer[data-source-count="3"] .source-card:last-child{
-  grid-column:1/-1;justify-self:center;width:210px
+.data-source-node::before{
+  content:"";position:absolute;left:0;right:0;top:7px;height:11px;
+  border-bottom:1px solid var(--source-line);border-radius:50%;pointer-events:none;opacity:.72
 }
-.source-card.selected{outline:2px solid var(--accent);outline-offset:2px}
-.source-card.dimmed{opacity:.22}
-.source-card.hl{outline:2px solid var(--warn);outline-offset:2px}
-.source-card.hover-connected{
+.data-source-node:hover{transform:translateY(-1px);box-shadow:0 3px 6px rgba(16,23,37,.10),0 10px 22px rgba(16,23,37,.10)}
+.data-source-node:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.data-source-node .nm{font-size:11.5px;font-weight:600;line-height:1.3}
+.data-source-node .sb{font-size:9.5px;line-height:1.35;color:var(--text-3);margin-top:3px}
+.data-source-node .meta{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:7px}
+.data-plane-chip{
+  font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:1px 5px;border-radius:20px;border:1px solid currentColor;opacity:.72
+}
+.source-serves{font-size:9.5px;line-height:1.35;margin-top:7px;color:var(--data-line)}
+.source-serves b{font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.data-source-node.selected{outline:2px solid var(--accent);outline-offset:2px}
+.data-source-node.dimmed{opacity:.22}
+.data-source-node.hl{outline:2px solid var(--warn);outline-offset:2px}
+.data-source-node.hover-connected{
   opacity:.9;transform:translateY(-1px);
   box-shadow:0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)
 }
@@ -579,12 +578,12 @@ table.mini .met{color:var(--accent)}
   .row .cell{justify-content:center!important}
   .row .cell:empty{display:none}
   .row .cell.center > .node{flex:1 1 100%}
-  .node-cluster{display:grid;grid-template-columns:1fr;width:100%}
   .node{max-width:none;width:100%}
-  .serving-layer{margin-top:10px;padding:30px 9px 9px}
-  .source-grid{display:grid;grid-template-columns:1fr;width:100%}
-  .source-card{width:100%;min-width:0;max-width:none}
-  .serving-layer[data-source-count="3"] .source-card:last-child{grid-column:auto;width:100%}
+  .row.has-data-sources{grid-template-columns:1fr;width:100%;margin-left:0}
+  .row.has-data-sources.no-right{grid-template-columns:1fr}
+  .row.has-data-sources .lane{left:auto}
+  .data-source-column{width:100%;gap:9px}
+  .data-source-node{width:100%;max-width:none;padding:17px 12px 12px}
   .wires{display:none}
   .row:not(:last-child)::after{
     content:"";position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);
@@ -2110,6 +2109,12 @@ const RSERVING = {};
 Object.keys(SERVING_REL).forEach(sourceId=> SERVING_REL[sourceId].forEach(componentId=>{
   (RSERVING[componentId] = RSERVING[componentId] || []).push(sourceId);
 }));
+Object.keys(DATA_SOURCES).forEach(sourceId=>{
+  const intros = (SERVING_REL[sourceId]||[]).map(componentId=>S[componentId].intro);
+  const intro = Math.min(...intros);
+  DATA_SOURCES[sourceId].intro = intro;
+  DATA_SOURCES[sourceId].tier = intro===1 ? "core" : intro===2 ? "recommended" : "optional";
+});
 
 /* =======================================================================
    COMPONENT RELATIONSHIPS — the single source of truth.
@@ -2256,13 +2261,11 @@ function activeConsumers(sourceId){
   return (SERVING_REL[sourceId]||[]).filter(id=>present.has(id) && isOn(id));
 }
 
-function sourceIdsForRow(rowIndex, componentIds){
-  return activeSourceIds(componentIds).filter(sourceId=>{
-    const consumers = new Set(activeConsumers(sourceId));
-    const hostRow = TPL[state.tpl].rows.findIndex(row=>
-      (row.c||[]).some(componentId=>consumers.has(componentId)));
-    return hostRow===rowIndex;
-  });
+function sourceIdsFor(componentIds){
+  const position = new Map(componentIds.map((id,index)=>[id,index]));
+  const firstConsumer = sourceId=>Math.min(...activeConsumers(sourceId)
+    .filter(id=>position.has(id)).map(id=>position.get(id)));
+  return activeSourceIds(componentIds).sort((a,b)=>firstConsumer(a)-firstConsumer(b));
 }
 
 function setOff(id,off){
@@ -2394,33 +2397,23 @@ function nodeEl(id, newIds){
   return el;
 }
 
-function sourceEl(id){
+function dataSourceEl(id){
   const source = DATA_SOURCES[id];
   const consumers = activeConsumers(id);
   const el = document.createElement("button");
-  el.className = "source-card";
+  el.className = "data-source-node " + source.tier;
   el.dataset.sourceId = id;
   if(state.sel===id) el.classList.add("selected");
+  el.setAttribute("aria-label",source.name+", "+TIER_LABEL[source.intro]+", data plane. Serves "+
+    consumers.map(componentId=>S[componentId].name).join(", "));
   el.innerHTML =
     '<div class="nm">'+source.name+'</div>'+
     '<div class="sb">'+source.sub+'</div>'+
+    '<div class="meta"><span class="tierchip '+source.tier+'">'+TIER_LABEL[source.intro]+'</span>'+
+      '<span class="data-plane-chip">data plane</span></div>'+
     '<div class="source-serves"><b>Serves</b> '+consumers.map(cid=>S[cid].name).join(" · ")+'</div>';
   el.addEventListener("click", ()=> openSourceDrawer(id));
   return el;
-}
-
-function servingLayerEl(sourceIds){
-  const layer = document.createElement("section");
-  layer.className = "serving-layer";
-  layer.dataset.sourceCount = sourceIds.length;
-  const columns = sourceIds.length===1 ? 1 : sourceIds.length<=4 ? 2 : 3;
-  layer.style.setProperty("--source-cols",columns);
-  layer.setAttribute("aria-label", "Serving data dependencies");
-  layer.innerHTML = '<span class="source-count">'+sourceIds.length+
-    ' logical '+(sourceIds.length===1?"source":"sources")+'</span><div class="source-grid"></div>';
-  const grid = $(".source-grid",layer);
-  sourceIds.forEach(id=>grid.appendChild(sourceEl(id)));
-  return layer;
 }
 
 function renderCanvas(){
@@ -2438,21 +2431,24 @@ function renderCanvas(){
   TPL[t].rows.forEach((r,i)=>{
     const row = document.createElement("div");
     row.className = "row"; row.dataset.row = i;
+    const rowSourceIds = state.showServing ? sourceIdsFor((r.c||[]).filter(isOn)) : [];
+    if(rowSourceIds.length){
+      row.classList.add("has-data-sources");
+      if(!(r.r||[]).length) row.classList.add("no-right");
+    }
     if(r.lane) row.insertAdjacentHTML("beforeend", '<span class="lane">'+r.lane+'</span>');
     ["l","c","r"].forEach(k=>{
       const cell = document.createElement("div");
       cell.className = "cell " + (k==="l"?"left":k==="c"?"center":"right");
       if(k==="c") cell.dataset.cellRow = i;
       const ids = r[k]||[];
-      const sourceIds = k==="c" && state.showServing
-        ? sourceIdsForRow(i,ids.filter(isOn)) : [];
-      if(sourceIds.length){
-        cell.classList.add("with-serving");
-        const cluster = document.createElement("div");
-        cluster.className = "node-cluster";
-        ids.forEach(id=>cluster.appendChild(nodeEl(id,newIds)));
-        cell.appendChild(cluster);
-        cell.appendChild(servingLayerEl(sourceIds));
+      if(k==="l" && rowSourceIds.length){
+        cell.classList.add("data-source-cell");
+        const column = document.createElement("div");
+        column.className = "data-source-column";
+        rowSourceIds.forEach(id=>column.appendChild(dataSourceEl(id)));
+        cell.appendChild(column);
+        ids.forEach(id=>cell.appendChild(nodeEl(id,newIds)));
       } else {
         ids.forEach(id=>cell.appendChild(nodeEl(id,newIds)));
       }
@@ -2472,9 +2468,19 @@ function rectOf(sel){
   return {x:r.left-cr.left, y:r.top-cr.top, w:r.width, h:r.height,
           cx:r.left-cr.left+r.width/2, cy:r.top-cr.top+r.height/2};
 }
+function rowComponentRect(rowIndex){
+  const nodes = $$('.row[data-row="'+rowIndex+'"] .cell.center .node',canvas);
+  if(!nodes.length) return null;
+  const cr = canvas.getBoundingClientRect();
+  const rects = nodes.map(node=>node.getBoundingClientRect());
+  const left = Math.min(...rects.map(r=>r.left)), top = Math.min(...rects.map(r=>r.top));
+  const right = Math.max(...rects.map(r=>r.right)), bottom = Math.max(...rects.map(r=>r.bottom));
+  return {x:left-cr.left,y:top-cr.top,w:right-left,h:bottom-top,
+          cx:(left+right)/2-cr.left,cy:(top+bottom)/2-cr.top};
+}
 function nodeRect(id){
-  if(String(id).startsWith("row:")) return rectOf('[data-cell-row="'+id.slice(4)+'"]');
-  if(DATA_SOURCES[id]) return rectOf('.source-card[data-source-id="'+id+'"]');
+  if(String(id).startsWith("row:")) return rowComponentRect(id.slice(4));
+  if(DATA_SOURCES[id]) return rectOf('.data-source-node[data-source-id="'+id+'"]');
   return rectOf('.node[data-id="'+id+'"]');
 }
 
@@ -2518,9 +2524,7 @@ function edgeList(){
                        .filter(g=>g.ids.length);
   for(let i=0;i<groups.length-1;i++){
     const a=groups[i], b=groups[i+1];
-    const hasHostedSources = state.showServing && sourceIdsForRow(a.row,a.ids).length;
-    const fromIds = hasHostedSources ? ["row:"+a.row] : a.ids;
-    fromIds.forEach(from=> b.ids.forEach(to=>{
+    a.ids.forEach(from=> b.ids.forEach(to=>{
       const label = (a.ids.length===1 && b.ids.length===1) ? a.label : null;
       edges.push({from,to,label,kind:"flow"});
     }));
@@ -2554,6 +2558,7 @@ function drawWires(){
     }).join("") + '</defs>';
 
   let paths = "", labels = [];
+  const sourceColumnRect = state.showServing ? rectOf(".data-source-column") : null;
   edgeList().forEach((e,edgeIndex)=>{
     const a = nodeRect(e.from), b = nodeRect(e.to);
     if(!a||!b) return;
@@ -2568,9 +2573,18 @@ function drawWires(){
 
     if(e.kind==="serves"){
       stroke="var(--wire-data)"; dash='stroke-dasharray="2 5" stroke-linecap="round"'; marker="data";
-      const sx=a.cx, sy=a.y, tx=b.cx, ty=b.y+b.h;
-      const dy = Math.max(18,(sy-ty)*0.52);
-      d = "M"+sx+","+sy+" C"+sx+","+(sy-dy)+" "+tx+","+(ty+dy)+" "+tx+","+ty;
+      const horizontal = a.x+a.w <= b.x+6;
+      if(horizontal){
+        const sx=a.x+a.w, sy=a.cy, tx=b.x, ty=b.cy;
+        const dx=Math.max(18,(tx-sx)*.5);
+        d = "M"+sx+","+sy+" C"+(sx+dx)+","+sy+" "+(tx-dx)+","+ty+" "+tx+","+ty;
+      } else {
+        const sourceAbove = a.cy < b.cy;
+        const sx=a.cx, sy=sourceAbove?a.y+a.h:a.y;
+        const tx=b.cx, ty=sourceAbove?b.y:b.y+b.h;
+        const dy=Math.max(18,Math.abs(ty-sy)*.5)*(sourceAbove?1:-1);
+        d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
+      }
     } else if(e.kind==="ctrl" || e.kind==="train"){
       const train = e.kind==="train";
       stroke = train ? "var(--wire-train)" : "var(--wire-ctrl)";
@@ -2592,8 +2606,22 @@ function drawWires(){
       stroke="var(--wire-loop)"; marker="loop";
       const gx = 62;
       const sx=a.x, sy=a.cy, tx=b.x, ty=b.cy;
-      d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+ty+" "+tx+","+ty;
-      lx = gx+9; ly = (sy+ty)/2;
+      const crossesSourceColumn = sourceColumnRect &&
+        ty < sourceColumnRect.y && sy > sourceColumnRect.y+sourceColumnRect.h;
+      if(crossesSourceColumn){
+        const above=sourceColumnRect.y-9, below=sourceColumnRect.y+sourceColumnRect.h+9;
+        const bypass=sourceColumnRect.x+sourceColumnRect.w+18;
+        d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+(below+10)+" "+gx+","+(below+10)+
+            " Q"+gx+","+below+" "+(gx+10)+","+below+
+            " L"+(bypass-10)+","+below+" Q"+bypass+","+below+" "+bypass+","+(below-10)+
+            " L"+bypass+","+(above+10)+" Q"+bypass+","+above+" "+(bypass-10)+","+above+
+            " L"+(gx+10)+","+above+" Q"+gx+","+above+" "+gx+","+(above-10)+
+            " C"+gx+","+ty+" "+gx+","+ty+" "+tx+","+ty;
+        lx=gx+9; ly=(sy+below)/2;
+      } else {
+        d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+ty+" "+tx+","+ty;
+        lx = gx+9; ly = (sy+ty)/2;
+      }
     } else {
       const sx=a.cx, sy=a.y+a.h, tx=b.cx, ty=b.y;
       const dy = Math.max(12,(ty-sy)*0.55);
@@ -2603,7 +2631,7 @@ function drawWires(){
         lx = sx + (tx-sx)*0.2; ly = sy + (ty-sy)*0.2;
       } else { lx = (sx+tx)/2; ly = (sy+ty)/2; }
     }
-    paths += '<path data-edge-index="'+edgeIndex+'" d="'+d+'" style="fill:none;stroke:'+stroke+'" stroke-width="1.4" '+dash+
+    paths += '<path data-edge-index="'+edgeIndex+'" data-edge-kind="'+e.kind+'" d="'+d+'" style="fill:none;stroke:'+stroke+'" stroke-width="1.4" '+dash+
              ' marker-end="url(#ah-'+marker+')" opacity="'+(e.kind==="ctrl"?".8":e.kind==="serves"?".72":"1")+'"/>';
     if(e.label && lx!=null) labels.push({x:lx,y:ly,text:e.label,loop:e.kind==="loop"});
   });
@@ -2659,7 +2687,7 @@ function applyFocus(){
     if(!dim) return;
     n.classList.add(hits.has(n.dataset.id) ? "hl" : "dimmed");
   });
-  $$(".source-card").forEach(card=>{
+  $$(".data-source-node").forEach(card=>{
     card.classList.remove("hl","dimmed");
     if(!dim) return;
     card.classList.add(sourceHits.has(card.dataset.sourceId) ? "hl" : "dimmed");
@@ -2696,7 +2724,7 @@ const drawerSect = (title,body)=> '<div class="sect"><h4>'+title+'</h4>'+body+'<
 function selectEntity(id){
   state.sel = id;
   $$(".node").forEach(n=>n.classList.toggle("selected",n.dataset.id===id));
-  $$(".source-card").forEach(card=>
+  $$(".data-source-node").forEach(card=>
     card.classList.toggle("selected",card.dataset.sourceId===id));
 }
 
@@ -2800,14 +2828,15 @@ function openSourceDrawer(id){
   selectEntity(id);
 
   $("#dTags").innerHTML =
-    '<span class="tag data">serving data</span><span class="tag grp">logical dependency</span>';
+    '<span class="tag '+source.tier+'">'+TIER_LABEL[source.intro]+'</span>'+
+    '<span class="tag data">data plane</span><span class="tag grp">logical dependency</span>';
   $("#dTitle").textContent = source.name;
   $("#dPurpose").textContent = source.purpose;
 
   const consumers = SERVING_REL[id] || [];
   const active = activeConsumers(id);
   $("#dChips").innerHTML =
-    '<span class="chip">Logical source</span>'+
+    '<span class="chip">Introduced in <b>template '+source.intro+'</b></span>'+
     '<span class="chip">Active consumers <b>'+active.length+'</b></span>'+
     '<span class="chip">Defined consumers <b>'+consumers.length+'</b></span>';
 
@@ -2846,7 +2875,7 @@ function openSourceDrawer(id){
 function closeDrawer(){
   drawer.classList.remove("open"); scrim.classList.remove("open");
   state.sel = null;
-  $$(".node,.source-card").forEach(el=>el.classList.remove("selected"));
+  $$(".node,.data-source-node").forEach(el=>el.classList.remove("selected"));
 }
 
 /* =======================================================================
@@ -2882,7 +2911,7 @@ function showHoverConnections(id){
   });
   $$(".node",rowsEl).forEach(node=>
     node.classList.toggle("hover-connected", connected.has(node.dataset.id)));
-  $$(".source-card",rowsEl).forEach(card=>
+  $$(".data-source-node",rowsEl).forEach(card=>
     card.classList.toggle("hover-connected", connected.has(card.dataset.sourceId)));
   $$("path[data-edge-index]",wires).forEach(path=>
     path.classList.toggle("hover-connected", connectedEdges.has(+path.dataset.edgeIndex)));
@@ -2935,7 +2964,7 @@ function showHover(el, id){
 
 rowsEl.addEventListener("mouseover", e=>{
   if(!finePointer() || drawer.classList.contains("open")) return;
-  const el = e.target.closest(".node,.source-card");
+  const el = e.target.closest(".node,.data-source-node");
   const id = el && (el.dataset.id || el.dataset.sourceId);
   if(!el || id === hoverId) return;
   hideHover();
@@ -2944,7 +2973,7 @@ rowsEl.addEventListener("mouseover", e=>{
   hoverTimer = setTimeout(()=> showHover(el, id), 250);
 });
 rowsEl.addEventListener("mouseout", e=>{
-  const el = e.target.closest(".node,.source-card");
+  const el = e.target.closest(".node,.data-source-node");
   if(!el || el.contains(e.relatedTarget)) return;
   hideHover();
 });
