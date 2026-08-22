@@ -2228,7 +2228,8 @@ const STEPS = [
    ======================================================================= */
 const state = {
   view:"pipe", tpl:1, prevTpl:null, showServing:false,
-  off:{1:new Set(),2:new Set(),3:new Set()}, sel:null, focus:null
+  off:{1:new Set(),2:new Set(),3:new Set()}, collapsedGroups:new Set(),
+  sel:null, focus:null
 };
 
 const $  = (s,r)=> (r||document).querySelector(s);
@@ -2957,10 +2958,10 @@ function renderCompList(){
   const groups = [];
   ids.forEach(id=>{ const g=S[id].group; if(!groups.includes(g)) groups.push(g); });
   const dot = t=> t==="core"?"var(--core-line)":t==="recommended"?"var(--rec-line)":"var(--opt-line)";
-  $("#compList").innerHTML = groups.map((g,i)=>{
+  $("#compList").innerHTML = groups.map(g=>{
     const gi = ids.filter(id=>S[id].group===g);
     const on = gi.filter(isOn).length;
-    return '<details'+(i<3?" open":"")+'><summary>'+g+'<span class="count">'+on+"/"+gi.length+'</span></summary>'+
+    return '<details data-group="'+g+'"'+(state.collapsedGroups.has(g)?"":" open")+'><summary>'+g+'<span class="count">'+on+"/"+gi.length+'</span></summary>'+
       gi.map(id=>{
         const s=S[id], locked=lockedFor(id);
         return '<button class="tog" data-id="'+id+'" data-on="'+(isOn(id)?1:0)+'" data-locked="'+(locked?1:0)+'">'+
@@ -2968,6 +2969,12 @@ function renderCompList(){
           '<span class="nm">'+s.name+'</span></button>';
       }).join("") + '</details>';
   }).join("");
+  $$("#compList details").forEach(group=>{
+    group.addEventListener("toggle", ()=>{
+      if(group.open) state.collapsedGroups.delete(group.dataset.group);
+      else state.collapsedGroups.add(group.dataset.group);
+    });
+  });
   $$("#compList .tog").forEach(b=>{
     b.addEventListener("click", (ev)=>{
       const id = b.dataset.id;
