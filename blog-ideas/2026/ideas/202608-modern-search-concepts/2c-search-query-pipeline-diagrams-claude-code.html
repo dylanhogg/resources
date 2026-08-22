@@ -254,19 +254,18 @@ a{color:var(--accent)}
 .node .nm{font-size:12.5px;font-weight:600;line-height:1.3}
 .node .sb{font-size:10.5px;color:var(--text-3);margin-top:3px;line-height:1.35}
 .node .meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:7px}
-.node .ms{font-size:10px;font-family:var(--mono);color:var(--text-3)}
 .node .condchip{
   font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
   border:1px solid var(--warn);color:var(--warn);border-radius:20px;padding:1px 6px
 }
 .node.core{background:var(--core-bg);border-color:var(--core-line);color:var(--core-text)}
-.node.core .sb,.node.core .ms{color:var(--core-text);opacity:.72}
+.node.core .sb{color:var(--core-text);opacity:.72}
 .node.recommended{background:var(--rec-bg);border-color:var(--rec-line);color:var(--rec-text)}
-.node.recommended .sb,.node.recommended .ms{color:var(--rec-text);opacity:.72}
+.node.recommended .sb{color:var(--rec-text);opacity:.72}
 .node.optional{background:var(--opt-bg);border-color:var(--opt-line);color:var(--opt-text)}
-.node.optional .sb,.node.optional .ms{color:var(--opt-text);opacity:.72}
+.node.optional .sb{color:var(--opt-text);opacity:.72}
 .node.control{background:var(--ctrl-bg);border-color:var(--ctrl-line);border-style:dashed;color:var(--ctrl-text);min-width:150px;max-width:200px}
-.node.control .sb,.node.control .ms{color:var(--ctrl-text);opacity:.72}
+.node.control .sb{color:var(--ctrl-text);opacity:.72}
 .node.decision{border-radius:22px}
 .node.io{min-width:132px;text-align:center}
 .node.io .nm{font-size:12px}
@@ -282,6 +281,11 @@ a{color:var(--accent)}
 .tierchip.recommended{color:var(--rec-line)}
 .tierchip.optional{color:var(--opt-line)}
 .node.control .tierchip{color:var(--ctrl-line);opacity:.9}
+.groupchip{
+  font-size:9px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;
+  padding:1px 6px;border-radius:20px;border:1px solid currentColor;
+  color:var(--text-3);opacity:.68
+}
 /* transform only: animating opacity here would win the cascade over
    .dimmed / .off and stop focus dimming from working on new nodes */
 @keyframes pop{0%{transform:scale(.92)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
@@ -299,18 +303,16 @@ a{color:var(--accent)}
 
 /* ---------- hover preview ---------- */
 .hovercard{
-  position:fixed;z-index:80;width:330px;max-width:calc(100vw - 24px);
+  position:fixed;z-index:80;width:390px;max-width:calc(100vw - 24px);
   background:var(--surface);border:1px solid var(--border-strong);border-radius:11px;
   box-shadow:var(--shadow-lg);padding:12px 13px;pointer-events:none
 }
-.hovercard .hc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
-.hovercard .hc-group{
-  font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3)
-}
-.hovercard .hc-cx{
-  font-size:10px;font-weight:600;color:var(--text-2);background:var(--surface-2);
+.hovercard .hc-top{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+.hovercard .hc-pill{
+  font-size:9.5px;font-weight:650;letter-spacing:.025em;color:var(--text-2);background:var(--surface-2);
   border:1px solid var(--border);border-radius:6px;padding:2px 7px;white-space:nowrap
 }
+.hovercard .hc-group{text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
 .hovercard .hc-desc{margin:0;font-size:12px;line-height:1.5;color:var(--text)}
 .hovercard .hc-ex{
   margin-top:10px;padding-top:9px;border-top:1px solid var(--border);
@@ -385,11 +387,13 @@ table.mini .met{color:var(--accent)}
 .dial .dn{color:var(--text);font-weight:500}
 .dial .dv{font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap}
 .dial .dnote{font-size:11px;color:var(--text-3);flex-basis:100%;margin-top:2px}
-.callout{
+.notes{list-style:none;margin:0;padding:0}
+.note{
   font-size:12px;color:var(--text-2);background:var(--warn-bg);border:1px solid transparent;
   border-left:3px solid var(--warn);border-radius:0 8px 8px 0;padding:9px 11px;margin-top:10px
 }
-.callout b{color:var(--text)}
+.notes .note:first-child{margin-top:0}
+.note b{color:var(--text)}
 .exline{font-size:12px;color:var(--text-2);margin-top:8px}
 .exline code{font-family:var(--mono);font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text)}
 .reflink{
@@ -685,7 +689,7 @@ def({
     why:"Users who upload an image nearly always still mean the typed constraints. Dropping the text loses the filters entirely."
   }],
   contract:{in:"uploaded bytes or a reference doc_id", out:"image embedding + routing hint visual=true"},
-  callout:"An image query is a routing signal <b>and</b> a retrieval input. Wiring it only to the image leg wastes the strongest hint you will ever get about query intent.",
+  notes:["An image query is both a retrieval input and an explicit routing signal that the request contains visual intent. Pass that signal to the router as well as the image-retrieval leg so it can influence which retrieval and reranking stages run."],
   failures:[{f:"Image dominates and constraints are dropped",s:"Visually similar results that violate stated filters",m:"filter-violation rate on image-bearing queries"}]
 });
 
@@ -772,7 +776,10 @@ def({
   }],
   contract:{in:"rewritten query", out:"{ variants[], weights[] }"},
   dials:[{n:"Variants",v:"2–4",note:"More variants multiply retrieval cost linearly."},{n:"PRF depth",v:"top 10 docs"}],
-  callout:"Expansion is the classic <b>query drift</b> risk. Measure precision@10 and recall@100 together — a recall-only view will always tell you expansion is working.",
+  notes:[
+    "Query expansion can introduce query drift: results may match generated synonyms or paraphrases rather than the user’s original intent.",
+    "Measure expansion on the same evaluation set using both a top-rank precision metric, such as precision@10, and a deeper recall metric, such as recall@100. Recall alone cannot reveal whether additional coverage reduced the relevance of the top results."
+  ],
   failures:[{f:"Query drift",s:"Results relate to the expansion, not the query",m:"precision@10 vs recall@100, both, on the same set"}]
 });
 
@@ -787,7 +794,7 @@ def({
     why:"Stale context sticking to an unrelated new query is far more damaging than losing context on a refinement, because it is invisible to the user and unattributable."
   }],
   contract:{in:"session history", out:"{ inherited_constraints[], resolved_query, route_hints }"},
-  callout:"Needs an explicit <b>reset heuristic</b>. Without one, a session accumulates constraints until nothing matches and the user cannot see why.",
+  notes:["Needs an explicit reset heuristic. Without one, a session accumulates constraints until nothing matches and the user cannot see why."],
   failures:[{f:"Context sticks to an unrelated query",s:"Inexplicable empty or narrow results mid-session",m:"zero-result rate by turn index"}]
 });
 
@@ -803,7 +810,7 @@ def({
     why:"An uncalibrated confidence is worse than a fixed threshold, because it looks principled while behaving arbitrarily. Type-based heuristics (UI filter = certain, parsed number = high, parsed geo = low) are honest and effective."
   }],
   contract:{in:"constraints[]", out:"constraints[] with {confidence, treatment: hard|soft}"},
-  callout:"This is what makes low-confidence constraint removal cheap: the relaxation ladder just <b>promotes soft constraints out of the filter</b> rather than re-parsing the query.",
+  notes:["Treat low-confidence constraints as soft signals so relaxation can remove them without re-parsing the query."],
   failures:[{f:"Uncalibrated confidence",s:"Relaxation drops the wrong constraint first",m:"post-relaxation click-through vs unrelaxed baseline"}],
   example:"<code>sleeps 6</code> parses with high confidence; <code>within 2 hours of the city</code> should score low — it has no precise referent."
 });
@@ -869,7 +876,7 @@ def({
   }],
   contract:{in:"predicate + sufficiency verdict", out:"recompiled predicate + relaxed_constraints[] recorded on the response"},
   dials:[{n:"max_passes",v:"2"},{n:"Numeric tolerance step",v:"10–25%"},{n:"Geo band step",v:"one band"}],
-  callout:"<b>Always tag the response.</b> The UI must be able to say “no exact matches — showing places within 3 hours”. Silent relaxation destroys trust and makes offline evaluation unreproducible.",
+  notes:["Always tag the response. The UI must be able to say “no exact matches — showing places within 3 hours”. Silent relaxation destroys trust and makes offline evaluation unreproducible."],
   failures:[
     {f:"Fires too eagerly",s:"Results look broad and vague; users reformulate",m:"relaxation rate by query class; reformulation rate"},
     {f:"Relaxes silently",s:"Complaints that the filters do not work",m:"no metric saves you — enforce the tag in the response schema"}],
@@ -902,7 +909,7 @@ def({
     why:"Routing failures are invisible — a rule that never fires the image leg looks exactly like a corpus problem. Start with rules you can read, and log every decision."
   }],
   contract:{in:"intent, constraints, has_image", out:"{ legs_to_fire[], rerankers_to_fire[], route_id } (logged)"},
-  callout:"A control-plane bug fails <b>silently, as a quality regression</b>, not as an error. Log the route on every query or you will never find it.",
+  notes:["Routing errors may appear as relevance regressions rather than request failures. Log the selected route and activated stages for each query so routing decisions can be diagnosed."],
   failures:[{f:"A leg or gated reranker is never routed to",s:"Looks like a corpus, index or model-quality problem",m:"route distribution; per-stage fire rate"}]
 });
 
@@ -972,7 +979,7 @@ def({
   }],
   contract:{in:"dense_query embedding + predicate + k", out:"ranked [doc_id, cosine]"},
   dials:[{n:"k_vec",v:"100–200"},{n:"ef_search / nprobe",v:"tuned to recall@100 ≥ 0.95"}],
-  callout:"A single document vector <b>averages every facet together</b>. The six-facet example query is precisely the case it handles worst.",
+  notes:["A single document vector compresses information about all document facets into one representation. This can reduce retrieval quality for queries that require evidence across several distinct facets, including the six-facet worked example."],
   failures:[{f:"ANN parameters tuned at the wrong selectivity",s:"Recall collapses on filtered queries only",m:"recall@k bucketed by selectivity"}]
 });
 
@@ -994,7 +1001,10 @@ def({
   }],
   contract:{in:"query embedding (text tower) + predicate + k", out:"ranked [doc_id, score, matched_image_ids]"},
   dials:[{n:"k_img",v:"100–200"},{n:"Rollup",v:"max"},{n:"Leg weight",v:"0.5–0.8 of a text leg"}],
-  callout:"Load-bearing assumption: your image vectors must be in a space <b>reachable from a text query</b>. If they are not, this drops from recommended to optional and only fires on image uploads. Verify before designing around it.",
+  notes:[
+    "Text-driven image retrieval requires text and image embeddings that are compatible within a shared embedding space. Verify this before designing the retrieval leg around text-to-image similarity.",
+    "If the image vectors cannot be reached from a text query, treat this as an optional image-to-image retrieval leg and run it only when the user supplies an image."
+  ],
   failures:[{f:"Fires on abstract queries",s:"Visually similar, semantically wrong results",m:"per-leg precision@10, abstract vs concrete queries"}],
   example:"<code>wood fireplace</code> is visible in photos and frequently absent from the description. This leg is the only one that can find it."
 });
@@ -1027,7 +1037,7 @@ def({
     why:"Pure max ignores that a document matching four facets in four places is better than one matching a single facet perfectly."
   }],
   contract:{in:"dense_query + predicate + k", out:"ranked [doc_id, best_passage_score, passage_ids[]]"},
-  callout:"Passage retrieval and late interaction attack the <b>same problem</b> — one vector cannot represent six facets — from opposite ends. One splits the document, the other splits the representation. Running both is usually redundant spend.",
+  notes:["Passage retrieval and late interaction address the same representation problem — one vector may not capture multiple facets — from different directions. Passage retrieval splits the document; late interaction splits the representation. Whether using both is redundant or complementary requires workload-specific evidence."],
   failures:[
     RETRIEVAL_REPRESENTATION_OVERLAP,
     {f:"Document-wide evidence lost",s:"Documents whose facets are spread across sections rank below narrow ones",m:"nDCG on multi-facet queries specifically"},
@@ -1052,7 +1062,10 @@ def({
   }],
   contract:{in:"query token embeddings + predicate + k", out:"ranked [doc_id, maxsim_score, per-token evidence]"},
   dials:[{n:"Index size multiplier",v:"10–100× uncompressed",note:"Measure the compressed representation you will actually serve."},{n:"k_late",v:"100–300"},{n:"Candidate cells / probes",v:"tuned against exact MaxSim recall"}],
-  callout:"This placement can recover documents that the other legs never found, but it requires a dedicated token-level index — the assumed document/passage vector index is <b>not</b> that index. Multi-vector passage retrieval attacks the same problem from the chunk side; running both is usually redundant spend.",
+  notes:[
+    "Full-index late-interaction retrieval requires a dedicated token-level index. The assumed document or passage vector index cannot serve this retrieval method.",
+    "Late-interaction retrieval overlaps with multi-vector passage retrieval. Whether using both is redundant or complementary requires workload-specific evidence; decide with an ablation that includes retrieval quality, latency, and index cost."
+  ],
   failures:[
     LATE_MODE_OVERLAP,
     RETRIEVAL_REPRESENTATION_OVERLAP,
@@ -1078,7 +1091,7 @@ def({
     why:"Exact collapse is cheap and shrinks everything downstream, including the expensive rerank. Near-duplicate detection is expensive and only needs to be right for the page you show."
   }],
   contract:{in:"per-leg ranked lists", out:"Candidate{ doc_id, per_leg{rank, raw, normalised}, evidence, filter_state }"},
-  callout:"<b>Never discard per-leg provenance.</b> “Which leg contributed the top-10” is the single most useful diagnostic in the system, and it cannot be reconstructed after the fact.",
+  notes:["Preserve per-leg provenance when candidates are merged. Recording each contributing leg and its rank supports retrieval diagnostics; if neither this provenance nor the original per-leg results are retained, it cannot be reconstructed later."],
   failures:[{f:"One leg dominates regardless of query",s:"The other legs are decorative",m:"per-leg contribution to top-10 by intent class"}]
 });
 
@@ -1115,7 +1128,6 @@ def({
   }],
   contract:{in:"per-leg ranked lists", out:"single fused ranking + fused_score, per-leg ranks retained"},
   dials:[{n:"RRF k",v:"60"},{n:"Leg weights",v:"equal, unless measured otherwise"}],
-  callout:"Both source drafts draw <code>Fusion → RRF</code> as sequential boxes. It is <b>one stage with a strategy slot</b>; the chained reading invites building two stages that do one job.",
   failures:[{f:"RRF flattens a strong single-leg signal",s:"Exact-match queries no longer rank 1",m:"exact-match probe suite as a hard gate"}]
 });
 
@@ -1167,7 +1179,10 @@ def({
   }],
   contract:{in:"fused shortlist + query token embeddings", out:"shortlist with maxsim_score and per-token evidence appended"},
   dials:[{n:"Input depth",v:"100–200"},{n:"Output depth",v:"50–100"},{n:"Document representation",v:"stored and compressed"}],
-  callout:"This is a <b>ranking</b> intervention, not a recall intervention. Treat it and full-index late-interaction retrieval as ideally mutually exclusive placements of the same signal; enable both only when an ablation proves the second MaxSim pass earns its latency.",
+  notes:[
+    "Late-interaction reranking can reorder the retrieved candidates, but it cannot improve candidate recall.",
+    "Avoid combining late-interaction reranking with full-index late-interaction retrieval unless an ablation shows that the second MaxSim pass provides enough additional value to justify its latency."
+  ],
   failures:[
     LATE_MODE_OVERLAP,
     {f:"Expected to repair retrieval recall",s:"Relevant documents remain absent because they never entered the shortlist",m:"recall at rerank input, measured separately from final nDCG"},
@@ -1193,7 +1208,10 @@ def({
   }],
   contract:{in:"top-K fused candidates + query", out:"re-scored top-K with rerank_score appended (never overwritten)"},
   dials:[{n:"Depth",v:"100"},{n:"Cost",v:"~0.5–1.5 ms/doc on GPU"},{n:"Max input tokens",v:"cap it explicitly"}],
-  callout:"Cross-encoding cannot fix what retrieval never found. If nDCG@10 is flat while recall@200 is much higher, this stage is the fix. If both are flat, <b>retrieval</b> is the problem.",
+  notes:[
+    "A cross-encoder can only reorder retrieved candidates; it cannot recover relevant documents that retrieval failed to return.",
+    "Assess the cross-encoder relative to a retrieval-only baseline. If recall@200 is strong but nDCG@10 remains weak, reranking is a plausible intervention. If recall@200 is also weak, improve retrieval first."
+  ],
   failures:[
     {f:"Overturns a good fused list",s:"nDCG@10 falls while recall@100 is unchanged",m:"nDCG@10 with and without rerank, same candidate set"},
     {f:"Latency spikes on long documents",s:"p99 far above p95",m:"rerank latency by document token length"}]
@@ -1234,7 +1252,7 @@ def({
   }],
   contract:{in:"candidates + full feature vector", out:"learned relevance score"},
   dials:[{n:"Training data floor",v:"tens of thousands of judgements"},{n:"Feature count",v:"start small and inspectable"}],
-  callout:"Click data carries <b>position bias</b>. Train on it naively and you teach the model to reproduce your current ranking, which will look like a win on every offline metric you have.",
+  notes:["Click data carries position bias. Train on it naively and you teach the model to reproduce your current ranking, which will look like a win on every offline metric you have."],
   failures:[{f:"Position bias baked in",s:"Offline gains that do not replicate online",m:"interleaving or a debiased offline estimator"}]
 });
 
@@ -1279,7 +1297,10 @@ def({
     why:"Filter bubbles are the failure mode, and they are invisible in aggregate metrics because engagement goes up while discovery collapses."
   }],
   contract:{in:"ranked candidates + user profile", out:"personalised ranking + which slots were affected"},
-  callout:"Hold out a control group permanently. Personalisation is the component most likely to look successful while narrowing what users can find.",
+  notes:[
+    "Maintain a persistent unpersonalised control group where traffic and experimentation constraints make it viable. Size and duration should reflect the statistical power available and the product cost of withholding personalisation.",
+    "Monitor discovery and coverage as well as engagement. Personalisation can improve aggregate engagement while narrowing what users are able to find."
+  ],
   failures:[{f:"Filter bubble",s:"Engagement up, discovery and query diversity down",m:"result diversity per user over time; holdout comparison"}]
 });
 
@@ -1339,7 +1360,10 @@ def({
     why:"Degrading in an undefined order means your fast responses are also your least predictable ones. Decide the order while calm, not during an incident."
   }],
   contract:{in:"stage deadlines", out:"partial results + degraded_legs[] on the response"},
-  callout:"Good-enough in 300 ms beats perfect in 2 s, and beats a 500 error absolutely. But <b>never degrade silently</b> — an untagged latency win reappears as an unexplained relevance regression.",
+  notes:[
+    "Prefer timely partial results to a slow or failed response. The earlier 300 ms and 2 s figures are illustrative only; set actual stage deadlines from product service objectives, workload behaviour, and user expectations.",
+    "Never degrade silently. Record and return the degraded legs so that load-related changes in relevance can be identified rather than appearing as unexplained regressions."
+  ],
   failures:[{f:"Silent degradation",s:"Unexplained relevance drops correlated with load",m:"degraded_legs rate vs relevance metrics"}]
 });
 
@@ -1354,7 +1378,7 @@ def({
     why:"You cannot retroactively collect it, and it is the gating dependency for learned fusion, LTR, personalisation and retriever fine-tuning. Instrument it before anything consumes it."
   }],
   contract:{in:"impressions + interactions", out:"labelled judgements, hard negatives, training sets"},
-  callout:"Mine hard negatives carefully: an unlabelled <b>relevant</b> document mined as a hard negative actively teaches the retriever the wrong thing.",
+  notes:["Mine hard negatives carefully: an unlabelled relevant document mined as a hard negative actively teaches the retriever the wrong thing."],
   failures:[{f:"Position bias untreated",s:"Models that reproduce the current ranking",m:"interleaving experiments; debiased estimators"}]
 });
 
@@ -1949,11 +1973,11 @@ function nodeEl(id, newIds){
   if(!isOn(id)) el.classList.add("off");
   if(newIds.has(id)) el.classList.add("isnew");
   if(state.sel===id) el.classList.add("selected");
-  const meta =                                       // tier, then conditional, then latency
+  const meta =                                       // tier, group, then conditional state
     '<span class="tierchip '+s.tier+'" title="First appears in template '+s.intro+' — '+TPL[s.intro].name+'">'+
       TIER_LABEL[s.intro]+'</span>' +
-    (s.conditional ? '<span class="condchip">conditional</span>' : "") +
-    (s.lat && s.lat[1] ? '<span class="ms">'+s.lat[0]+"–"+s.lat[1]+" ms</span>" : "");
+    '<span class="groupchip">'+s.group+'</span>' +
+    (s.conditional ? '<span class="condchip">conditional</span>' : "");
   el.innerHTML =
     '<div class="nm">'+s.name+'</div>' +
     (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
@@ -2238,12 +2262,14 @@ function openDrawer(id){
     '<div class="dial"><span class="dn">'+d.n+'</span><span class="dv">'+d.v+'</span>'+
     (d.note?'<span class="dnote">'+d.note+'</span>':"")+'</div>').join(""));
 
+  if(s.notes && s.notes.length) h += sect("Notes",
+    '<ul class="notes">'+s.notes.map(n=>'<li class="note">'+n+'</li>').join("")+'</ul>');
+
   if(s.failures) h += sect("Failure modes",
     '<table class="mini"><thead><tr><th>Failure</th><th>Symptom</th><th>Metric that catches it</th></tr></thead><tbody>'+
     s.failures.map(f=>'<tr><td>'+f.f+'</td><td>'+f.s+'</td><td class="met">'+f.m+'</td></tr>').join("")+
     '</tbody></table>');
 
-  if(s.callout) h += '<div class="callout">'+s.callout+'</div>';
   if(s.example) h += sect("In the worked example", '<div class="exline">'+s.example+'</div>');
 
   if(s.refs && s.refs.length) h += sect("Background reading", s.refs.map(r=>
@@ -2309,9 +2335,11 @@ function hideHover(){
 function showHover(el, id){
   const s = S[id];
   if(!s || drawer.classList.contains("open")) return;
+  const latency = s.lat[0]===s.lat[1] ? s.lat[0]+" ms" : s.lat[0]+"–"+s.lat[1]+" ms";
   hoverCard.innerHTML =
-    '<div class="hc-top"><span class="hc-group">'+s.group+'</span>'+
-      '<span class="hc-cx">Complexity '+(s.cx||0)+'/5</span></div>'+
+    '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
+      '<span class="hc-pill">p95 '+latency+'</span>'+
+      '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span></div>'+
     '<p class="hc-desc">'+s.purpose+'</p>'+
     (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "");
   hoverCard.hidden = false;          // must be visible before it can be measured
