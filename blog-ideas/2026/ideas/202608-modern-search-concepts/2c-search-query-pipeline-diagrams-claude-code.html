@@ -642,7 +642,7 @@ table.mini .met{color:var(--accent)}
     <h2 style="font-size:20px;margin-bottom:8px">Build order</h2>
     <p class="build-intro">
       Ordered by value delivered per unit of cost, with the trigger condition that says <em>now</em> —
-      not a schedule. Steps 1&ndash;7 are Template&nbsp;2. Most systems should stop there and spend the
+      not a schedule. Steps 1&ndash;6 are Template&nbsp;2. Most systems should stop there and spend the
       remaining effort on data quality, the evaluation set, and the index, which is where the returns
       usually are. Click any component to open its detail.
     </p>
@@ -1217,19 +1217,22 @@ def({
   sub:"merge by doc_id, keep per-leg ranks", lat:[2,8], cx:1,
   purpose:"Merge the per-leg result sets into one candidate set keyed by document, preserving where each candidate came from.",
   decisions:[{
-    q:"How are scores handled at merge time?",
-    opts:["Rank only","Min-max normalise per leg","z-score per leg"],
-    def:"Keep ranks; normalise only if there is no fusion stage",
-    why:"BM25 scores are unbounded and corpus-dependent, cosine is bounded — they are not comparable. Without a fusion stage you must normalise here, and that hand-tuned blend is the weakest link in the core pipeline."
+    q:"What survives the merge?",
+    opts:["Document identity only","Best contributing leg only","All per-leg ranks, raw scores and evidence"],
+    def:"All per-leg ranks, raw scores and evidence",
+    why:"BM25, cosine and cross-modal scores are not directly comparable. Preserve their provenance here so Fusion can combine ranks without hiding score normalisation inside the merge, and so retrieval behaviour remains diagnosable."
   },{
     q:"Where does exact deduplication happen?",
     opts:["Here, by content hash","At final ranking","Both"],
     def:"Exact-hash collapse here; near-duplicate collapse at the end",
     why:"Exact collapse is cheap and shrinks everything downstream, including the expensive rerank. Near-duplicate detection is expensive and only needs to be right for the page you show."
   }],
-  contract:{in:"per-leg ranked lists", out:"Candidate{ doc_id, per_leg{rank, raw, normalised}, evidence, filter_state }"},
-  notes:["Preserve per-leg provenance when candidates are merged. Recording each contributing leg and its rank supports retrieval diagnostics; if neither this provenance nor the original per-leg results are retained, it cannot be reconstructed later."],
-  failures:[{f:"One leg dominates regardless of query",s:"The other legs are decorative",m:"per-leg contribution to top-10 by intent class"}]
+  contract:{in:"per-leg ranked lists", out:"Candidate{ doc_id, per_leg{rank, raw}, evidence, filter_state }"},
+  notes:[
+    "Preserve per-leg provenance when candidates are merged. Recording each contributing leg and its rank supports retrieval diagnostics; if neither this provenance nor the original per-leg results are retained, it cannot be reconstructed later.",
+    "When exact duplicates with different document IDs collapse, retain the best rank from each contributing leg and aggregate their evidence rather than keeping only the chosen representative's retrieval record."
+  ],
+  failures:[{f:"The same document survives as multiple candidates",s:"Fusion and downstream rerankers score duplicate identities independently",m:"duplicate doc_id or exact-hash groups before and after union"}]
 });
 
 def({
@@ -1238,40 +1241,47 @@ def({
   purpose:"Cut the candidate set to what the rerank budget can actually afford, before spending money on it.",
   decisions:[{
     q:"Prune by rank or by score?",
-    opts:["Top-N per leg","Global score floor","Both"],
-    def:"Top-N per leg plus a conservative floor",
-    why:"A global floor alone lets one leg's score distribution starve the others. Per-leg caps preserve the diversity that fusion depends on."
+    opts:["Top-N per leg","Per-leg calibrated score floors","Both"],
+    def:"Top-N per leg plus conservative per-leg floors",
+    why:"A global threshold over raw scores lets one leg's score distribution starve the others. Per-leg caps and calibrated floors preserve the diversity that Fusion depends on."
   }],
-  contract:{in:"unioned candidates", out:"candidates capped to rerank depth"},
+  contract:{in:"unioned candidates carrying per-leg ranks", out:"candidates capped to fusion and rerank depth"},
   dials:[{n:"Union cap",v:"200–400"},{n:"Per-leg cap",v:"k of that leg"}],
   failures:[{f:"Pruning before the sufficiency check",s:"A shortfall is masked as sufficiency",m:"candidate count in/out of every stage"}]
 });
 
 /* ---------- fusion ---------- */
 def({
-  id:"fusion", name:"Fusion", group:"Fusion", tier:"recommended", intro:2,
+  id:"fusion", name:"Fusion", group:"Fusion", tier:"core", intro:1,
   sub:"Reciprocal Rank Fusion by default", lat:[1,5], cx:2, caps:["precision"],
-  purpose:"Combine the per-leg ranked lists into one ordering. One stage with a strategy slot — not a chain of stages.",
+  purpose:"Score the unioned candidate set into one ordering using the retained per-leg ranks. One stage with a strategy slot — not a chain of stages.",
   decisions:[{
     q:"Which fusion strategy?",
     opts:["Reciprocal Rank Fusion (rank-based)","Weighted score fusion (needs calibration)","Modality-weighted (text vs image)","Learned fusion (needs training data)"],
     def:"RRF with k ≈ 60",
-    why:"RRF needs no cross-leg score calibration, which is precisely the problem you have. Weighted score fusion is better only once you have per-corpus calibration and an eval set to tune against."
+    why:"RRF needs no cross-leg score calibration for ranking, which is precisely the problem you have. Weighted score fusion is better only once you have per-corpus calibration and an eval set to tune against."
   },{
     q:"Is RRF's k worth tuning?",
     opts:["Tune it carefully","Set 60 and move on"],
     def:"Set 60 and move on",
     why:"Results are insensitive between roughly 20 and 100. Time spent here is time not spent on the rerank depth, which actually moves nDCG."
   }],
-  contract:{in:"per-leg ranked lists", out:"single fused ranking + fused_score, per-leg ranks retained"},
-  dials:[{n:"RRF k",v:"60"},{n:"Leg weights",v:"equal, unless measured otherwise"}],
-  failures:[{f:"RRF flattens a strong single-leg signal",s:"Exact-match queries no longer rank 1",m:"exact-match probe suite as a hard gate"}]
+  contract:{in:"unioned candidates carrying per-leg ranks", out:"single fused ranking + fused_score, per-leg ranks retained"},
+  dials:[{n:"RRF k",v:"60"},{n:"Leg weights",v:"lexical/dense 1.0; image 0.5–0.8 initially"}],
+  notes:[
+    "When only one retrieval leg is active, or only one survives its deadline, Fusion is an identity operation: preserve that leg's order and continue rather than treating the request as a fusion failure.",
+    "Use equal weights for the Core lexical and dense legs. A fixed conservative image-leg weight belongs in this stage; selecting weights or strategy per query belongs to Fusion policy."
+  ],
+  failures:[
+    {f:"RRF flattens a signal that is strong in only one leg",s:"Exact-match queries no longer rank 1",m:"exact-match probe suite as a hard gate"},
+    {f:"One leg dominates regardless of query",s:"The other legs are decorative",m:"per-leg contribution to top-10 by intent class"}
+  ]
 });
 
 def({
   id:"fusionpolicy", name:"Fusion policy", group:"Fusion", tier:"optional", control:true, intro:3,
   sub:"strategy and weights per query class", lat:[0,2], cx:4, caps:["adaptive"],
-  purpose:"Select the fusion strategy and leg weights per query rather than fixing them globally. Query-dependent fusion is the selector; learned fusion replaces the hand-written rules in the same slot.",
+  purpose:"Select the Fusion strategy and leg weights per query rather than fixing them globally. Rules or a learned policy configure the Core Fusion stage; they do not replace it or create a parallel fusion path.",
   decisions:[{
     q:"What selects the strategy?",
     opts:["Hand-written rules on intent class","Learned model over query features"],
@@ -1650,7 +1660,7 @@ const REFS = {
   ],
   union:[
     {t:"Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods", s:"Cormack et al., SIGIR 2009", u:D("10.1145/1571941.1572114"),
-     w:"Section 2 explains why the per-leg score normalisation this stage would otherwise need is so fragile."}
+     w:"Motivates preserving per-leg ranks here so downstream Fusion can combine retrieval legs without comparing incompatible raw scores."}
   ],
   prune:[
     {t:"Efficient Query Evaluation Using a Two-Level Retrieval Process (WAND)", s:"Broder et al., CIKM 2003", u:D("10.1145/956863.956944")},
@@ -1811,7 +1821,7 @@ const TPL = {
     name:"Core",
     tagline:"The irreducible hybrid path",
     target:"~150 ms p95",
-    desc:"The smallest pipeline that is <b>genuinely hybrid</b>: one lexical leg, one dense leg, a filter pushed down into both, and business rules on top. Ship it, and build the evaluation harness around it.",
+    desc:"The smallest pipeline that is <b>genuinely hybrid</b>: one lexical leg, one dense leg, a filter pushed down into both, fixed RRF over their ranks, and business rules on top. Ship it, and build the evaluation harness around it.",
     rows:[
       {lane:"Query inputs", c:["q-text"]},
       {lane:"Query processing", c:["normalise"]},
@@ -1819,6 +1829,7 @@ const TPL = {
       {lane:"Constraint handling", c:["prefilter"]},
       {lane:"Candidate retrieval", c:["lexical","textvec"]},
       {lane:"Candidate generation", c:["union"]},
+      {lane:"Fusion", c:["fusion"]},
       {lane:"Final ranking", c:["business"]},
       {c:["dedup"]},
       {lane:"Results", c:["assembly"]}
@@ -1829,7 +1840,7 @@ const TPL = {
     name:"Core + recommended",
     tagline:"The production target",
     target:"~400 ms p95",
-    desc:"The <b>default answer</b>. Adds rewriting, cross-modal image retrieval, a bounded relaxation loop, principled rank fusion, a rerank cascade, and freshness and diversity. Architect against this one.",
+    desc:"The <b>default answer</b>. Builds on the Core fused ranking with rewriting, cross-modal image retrieval, a bounded relaxation loop, candidate pruning, a rerank cascade, and freshness and diversity. Architect against this one.",
     rows:[
       {lane:"Query inputs", c:["q-text"]},
       {lane:"Query processing", c:["normalise"]},
@@ -1940,56 +1951,52 @@ const STEPS = [
    build:"A labelled set of 200–500 queries with graded relevance, pooled across legs so recall is measurable rather than assumed. Deterministic replay. A probe suite of ~30 queries with known rank-1 answers.",
    trigger:"Before anything else.",
    buys:"Every later decision becomes measurable instead of arguable. Without it, all the tradeoffs below are opinions."},
-  {n:1, t:1, title:"Template 1 spine, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","business","dedup","assembly"],
-   build:"Normalise, understand, pre-filter, two retrieval legs, union, business ranking, dedup, assembly.",
+  {n:1, t:1, title:"Template 1 spine, fixed RRF, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","fusion","business","dedup","assembly"],
+   build:"Normalise, understand, pre-filter, two retrieval legs, candidate union, fixed RRF, business ranking, dedup, assembly.",
    trigger:"—",
-   buys:"A working baseline and honest numbers."},
-  {n:2, t:2, title:"Fusion (RRF) replacing weighted union", stages:["fusion"],
-   build:"Rank-based fusion over the per-leg lists, k ≈ 60.",
-   trigger:"One leg supplies more than ~80% of the top-10.",
-   buys:"Removes cross-leg score-calibration guesswork entirely."},
-  {n:3, t:2, title:"Cross-encoder rerank", stages:["crossenc","semrerank"],
-   build:"Joint query-document scoring over the top ~100 fused candidates.",
+   buys:"A working hybrid baseline with an explicit relevance ordering and honest numbers."},
+  {n:2, t:2, title:"Candidate pruning and cross-encoder rerank", stages:["prune","semrerank","crossenc"],
+   build:"Cap the unioned candidates with per-leg limits and calibrated floors, then apply semantic and joint query-document scoring over the fused shortlist.",
    trigger:"nDCG@10 plateaus while recall@200 is materially higher — retrieval is fine, ranking is the bottleneck.",
    buys:"Usually the largest single relevance jump available anywhere in the list."},
-  {n:4, t:2, title:"Sufficiency, bounded relaxation, zero-result fallback", stages:["sufficiency","relax","zerofallback"],
+  {n:3, t:2, title:"Sufficiency, bounded relaxation, zero-result fallback", stages:["sufficiency","relax","zerofallback"],
    build:"A quality-floor sufficiency check, an ordered ladder capped at 2 passes, and a distinct recovery retrieval mode.",
    trigger:"Zero-result rate above ~5% of queries.",
    buys:"Recovers the queries you are currently losing entirely."},
-  {n:5, t:2, title:"Image vector retrieval", stages:["imagevec"],
+  {n:4, t:2, title:"Image vector retrieval", stages:["imagevec"],
    build:"Text-to-image ANN over document image embeddings, max rollup, down-weighted.",
    trigger:"Users search for attributes only visible in images.",
    buys:"Unlocks a modality you have already indexed and are currently ignoring."},
-  {n:6, t:2, title:"Freshness, diversity, near-duplicate collapse", stages:["freshness","diversity"],
-   build:"Recency decay per intent class, per-attribute capping, near-dup collapse at the end.",
+  {n:5, t:2, title:"Freshness and diversity", stages:["freshness","diversity"],
+   build:"Recency decay per intent class and per-attribute capping after relevance reranking.",
    trigger:"The top-10 looks repetitive or stale.",
    buys:"Perceived quality, cheaply."},
-  {n:7, t:2, title:"Query rewriting", stages:["rewrite","prune"],
+  {n:6, t:2, title:"Query rewriting", stages:["rewrite"],
    build:"Spelling, synonym canonicalisation, and the constraint-stripped query for the dense legs.",
    trigger:"Spelling and synonym failures show up in the reformulation rate.",
    buys:"Tail recovery, and the asymmetric-query trick that costs nothing."},
-  {n:8, t:3, title:"Behavioural instrumentation", stages:["behavioural"],
+  {n:7, t:3, title:"Behavioural instrumentation", stages:["behavioural"],
    build:"Clicks, saves, enquiries, reformulations — captured and joined to the query that produced them.",
    trigger:"As soon as you have traffic.",
    buys:"Nothing immediately. It is the gating dependency for every learned component below, and it cannot be collected retroactively."},
-  {n:9, t:3, title:"Routing and budget allocation", stages:["routing","budget","degradation"],
+  {n:8, t:3, title:"Routing and budget allocation", stages:["routing","budget","degradation"],
    build:"Per-query leg selection, per-leg k under a latency budget, and a defined degradation order.",
    trigger:"Latency-bound with a heterogeneous query mix.",
    buys:"Headroom — spend quality where it changes the answer, skip it where it does not."},
-  {n:10, t:3, title:"Passage-level or late-interaction placement", stages:["multivec","late","latererank"],
+  {n:9, t:3, title:"Passage-level or late-interaction placement", stages:["multivec","late","latererank"],
    build:"Choose passage retrieval or full-index late-interaction retrieval when candidate recall is weak; choose late-interaction reranking when shortlist recall is already high but multi-facet ordering is weak.",
    trigger:"Multi-faceted queries over long documents, sliced into recall-at-shortlist and final-ranking failures.",
    buys:"Puts token-level evidence at the stage where the measured failure occurs, without paying for MaxSim twice by default."},
-  {n:11, t:3, title:"Query-dependent / modality-weighted fusion", stages:["fusionpolicy"],
+  {n:10, t:3, title:"Query-dependent fusion", stages:["fusionpolicy"],
    build:"A policy layer choosing strategy and leg weights per query class.",
    trigger:"One global weighting is provably wrong for a whole query class.",
    buys:"Per-class gains that a single fusion setting cannot deliver."},
-  {n:12, t:3, title:"VLM rerank", stages:["vlmrerank","q-image"],
+  {n:11, t:3, title:"VLM rerank", stages:["vlmrerank","q-image"],
    build:"A vision-language model over the top 10–20, gated on visual intent, cached hard.",
    trigger:"Visual intent demonstrably drives conversion.",
    buys:"Verification of fine visual claims. High cost, narrow gate."},
-  {n:13, t:3, title:"LTR, learned fusion, personalisation", stages:["ltr","personalisation","expand","sparse","session","confidence"],
-   build:"Trained ranking over the full feature vector, learned fusion weights, per-user adjustment.",
+  {n:12, t:3, title:"LTR, learned fusion policy, personalisation", stages:["ltr","fusionpolicy","personalisation","expand","sparse","session","confidence"],
+   build:"Trained ranking over the full feature vector, a trained per-query Fusion policy, and per-user adjustment.",
    trigger:"Tens of thousands of labelled or behavioural judgements exist.",
    buys:"Compounding gains, with permanent maintenance and a position-bias problem to solve."}
 ];
@@ -2559,7 +2566,7 @@ function renderBuild(){
       '<div class="grid" style="grid-template-columns:1fr"><div><div class="lb">Build</div>'+s.build+'</div></div>'+
       (chips ? '<div class="chips">'+chips+'</div>' : "") +
       '</div></div>';
-    return s.n===8 ? '<div class="divider">Steps 1–7 above are Template 2 — the production target. Everything below is Template 3 territory.</div>'+html : html;
+    return s.n===7 ? '<div class="divider">Steps 1–6 above are Template 2 — the production target. Everything below is Template 3 territory.</div>'+html : html;
   }).join("");
   $$("#steps .ref[data-goto]").forEach(b=> b.addEventListener("click",()=>{
     const id = b.dataset.goto;
