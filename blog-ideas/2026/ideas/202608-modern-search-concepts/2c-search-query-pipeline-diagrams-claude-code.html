@@ -732,6 +732,7 @@ def({
   }],
   contract:{in:"normalised_query", out:"{ intent, entities[], constraints[{field, op, value, confidence}], residual_text }"},
   dials:[{n:"Latency (rules)",v:"4–15 ms"},{n:"Latency (LLM)",v:"100–400 ms",note:"Cache-or-don't-ship territory."}],
+  notes:["Treat extracted structure as untrusted input. Validate field names, operators, value types, ranges and locale-dependent units against an allow-listed schema before compiling a retrieval predicate."],
   failures:[
     {f:"Extracts a constraint that was not one",s:"Good documents filtered out silently",m:"constraint-extraction precision on a labelled query set"},
     {f:"Misses a stated constraint",s:"Results violate an explicit requirement",m:"constraint-extraction recall; filter-violation rate"}],
@@ -855,6 +856,7 @@ def({
   }],
   contract:{in:"unioned candidates + current predicate", out:"one of: sufficient | too_few | zero"},
   dials:[{n:"n_min",v:"≈ 3 × page size"},{n:"Score floor",v:"from the score distribution of judged-relevant docs"}],
+  notes:["A single quality floor is meaningful only when its input scores are comparable. Calibrate scores by retrieval leg and query class, or use a separate sufficiency model; do not apply one threshold directly to raw BM25, cosine and other model scores."],
   failures:[{f:"Count-only sufficiency",s:"Pages of weak results instead of an honest recovery",m:"precision@10 on queries that passed the check marginally"}]
 });
 
@@ -894,6 +896,7 @@ def({
     why:"Fallback is a retrieval mode, not a merge step. Routing it forward into union means it never actually retrieves anything — a mistake that is easy to draw and impossible to notice in a diagram review."
   }],
   contract:{in:"exhausted ladder", out:"recovery result set + suggestions[], flagged as recovered"},
+  notes:["Preserve all non-relaxable predicates, including authorization, compliance, safety and mandatory user-selected constraints. Recovery may relax only constraints explicitly classified as relaxable."],
   failures:[{f:"Fallback returns the corpus",s:"Irrelevant but non-empty results, worse than an honest empty state",m:"CTR on recovered result sets vs normal"}]
 });
 
@@ -1268,6 +1271,7 @@ def({
     why:"You need to be able to explain and audit why a document was suppressed. A learned score cannot answer that question in a compliance review."
   }],
   contract:{in:"ranked candidates", out:"re-ordered with business_score and applied_rules[] recorded"},
+  notes:["Hard eligibility, authorization, compliance and legal-suppression rules should be applied during candidate filtering, with final defence-in-depth validation. Use this stage for soft business preferences and auditable ordering rules."],
   failures:[{f:"Business boosts swamp relevance",s:"Promoted but irrelevant results at the top",m:"nDCG@10 before and after business ranking"}]
 });
 
@@ -1283,6 +1287,7 @@ def({
   }],
   contract:{in:"ranked candidates + timestamps", out:"time-adjusted ranking"},
   dials:[{n:"Half-life",v:"per intent class"}],
+  notes:["Define which timestamp is being ranked — publication, update, event, observation or index time — and validate its reliability by corpus. A shared decay function is not meaningful across incompatible timestamps."],
   failures:[{f:"Global recency preference",s:"Canonical documents pushed below fresh noise",m:"nDCG on navigational queries specifically"}]
 });
 
@@ -1330,6 +1335,7 @@ def({
     why:"Splitting the stage puts the cheap collapse where it shrinks the most work, and the expensive one where it only has to be right for the page being shown."
   }],
   contract:{in:"ranked candidates", out:"deduplicated ranking + collapsed_group[] for the UI"},
+  notes:["Do not collapse documents that are textually or visually similar but differ in access rights, availability, price, locale or another user-visible property. Define duplicate identity in product terms before choosing the representative."],
   failures:[{f:"Over-collapsing",s:"Genuinely distinct documents disappear",m:"manual audit of collapsed groups; complaint rate"}]
 });
 
@@ -1345,6 +1351,7 @@ def({
   }],
   contract:{in:"final ranking", out:"{ results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id, timings }"},
   dials:[{n:"Page size",v:"20"},{n:"Hydration",v:"batch, never per-result"}],
+  notes:["Pagination should use a stable cursor or ranking snapshot. Offset pagination over a ranking that can change through freshness, personalisation or index updates can produce skipped or repeated results."],
   failures:[{f:"Hydration is the hidden latency",s:"Fast search, slow response",m:"per-stage latency attribution"}]
 });
 
