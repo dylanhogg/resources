@@ -273,6 +273,12 @@ a{color:var(--accent)}
 .node.off{opacity:.32;filter:grayscale(.85)}
 .node.dimmed{opacity:.22}
 .node.hl{outline:2px solid var(--warn);outline-offset:2px}
+.node.hover-connected:not(.off){
+  opacity:.88;transform:translateY(-1px);
+  box-shadow:0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)
+}
+.wires path.hover-connected{stroke-width:2.2!important;opacity:1!important}
+.node[data-id="assembly"]{text-align:left}
 .tierchip{
   font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
   padding:1px 6px;border-radius:20px;border:1px solid currentColor;opacity:.75
@@ -529,7 +535,7 @@ table.mini .met{color:var(--accent)}
 <header class="hdr">
   <div class="brand">
     <h1>Query Search Pipeline Explorer</h1>
-    <span class="sub">Progressive reference templates &middot; hybrid multimodal retrieval &middot; logical architecture, not frameworks</span>
+    <span class="sub">Progressive reference templates &middot; assumes indexed data &middot; hybrid text &amp; image retrieval &middot; logical architecture, not frameworks</span>
   </div>
   <div class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-pipe" aria-controls="view-pipe" aria-selected="true" data-view="pipe">Pipelines</button>
@@ -1880,7 +1886,7 @@ const TPL = {
       {c:["rewrite"]},
       {c:["expand"]},
       {lane:"Constraint handling", c:["prefilter"], r:["routing"]},
-      {lane:"Candidate retrieval", c:["lexical","sparse","textvec","imagevec","multivec","late"], r:["budget","degradation"]},
+      {lane:"Candidate retrieval", c:["lexical","textvec","imagevec","sparse","multivec","late"], r:["budget","degradation"]},
       {lane:"Candidate generation", c:["union"]},
       {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
       {l:["relax","zerofallback"], c:["prune"]},
@@ -2255,7 +2261,7 @@ function drawWires(){
     }).join("") + '</defs>';
 
   let paths = "", labels = [];
-  edgeList().forEach(e=>{
+  edgeList().forEach((e,edgeIndex)=>{
     const a = nodeRect(e.from), b = nodeRect(e.to);
     if(!a||!b) return;
     let d, stroke="var(--wire)", dash="", marker="flow", lx, ly;
@@ -2299,7 +2305,7 @@ function drawWires(){
         lx = sx + (tx-sx)*0.2; ly = sy + (ty-sy)*0.2;
       } else { lx = (sx+tx)/2; ly = (sy+ty)/2; }
     }
-    paths += '<path d="'+d+'" style="fill:none;stroke:'+stroke+'" stroke-width="1.4" '+dash+
+    paths += '<path data-edge-index="'+edgeIndex+'" d="'+d+'" style="fill:none;stroke:'+stroke+'" stroke-width="1.4" '+dash+
              ' marker-end="url(#ah-'+marker+')" opacity="'+(e.kind==="ctrl"?".8":"1")+'"/>';
     if(e.label && lx!=null) labels.push({x:lx,y:ly,text:e.label,loop:e.kind==="loop"});
   });
@@ -2485,9 +2491,39 @@ document.body.appendChild(hoverCard);
 let hoverTimer = null, hoverId = null;
 const finePointer = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
+function endpointIds(endpoint){
+  if(!String(endpoint).startsWith("row:")) return [endpoint];
+  const row = TPL[state.tpl].rows[+String(endpoint).slice(4)];
+  return row ? (row.c||[]).filter(isOn) : [];
+}
+
+function showHoverConnections(id){
+  const connected = new Set(), connectedEdges = new Set();
+  edgeList().forEach((edge,index)=>{
+    const from = endpointIds(edge.from), to = endpointIds(edge.to);
+    if(from.includes(id)){
+      to.forEach(target=>connected.add(target));
+      connectedEdges.add(index);
+    }
+    if(to.includes(id)){
+      from.forEach(source=>connected.add(source));
+      connectedEdges.add(index);
+    }
+  });
+  $$(".node",rowsEl).forEach(node=>
+    node.classList.toggle("hover-connected", connected.has(node.dataset.id)));
+  $$("path[data-edge-index]",wires).forEach(path=>
+    path.classList.toggle("hover-connected", connectedEdges.has(+path.dataset.edgeIndex)));
+}
+
+function clearHoverConnections(){
+  $$(".hover-connected",canvas).forEach(el=>el.classList.remove("hover-connected"));
+}
+
 function hideHover(){
   clearTimeout(hoverTimer); hoverTimer = null; hoverId = null;
   hoverCard.hidden = true;
+  clearHoverConnections();
 }
 
 function showHover(el, id){
@@ -2519,6 +2555,7 @@ rowsEl.addEventListener("mouseover", e=>{
   if(!el || el.dataset.id === hoverId) return;
   hideHover();
   hoverId = el.dataset.id;
+  showHoverConnections(hoverId);
   hoverTimer = setTimeout(()=> showHover(el, el.dataset.id), 250);
 });
 rowsEl.addEventListener("mouseout", e=>{
