@@ -268,12 +268,6 @@ a{color:var(--accent)}
 .canvas.with-data-sources .cell.center{grid-column:4}
 .canvas.with-data-sources .cell.right{grid-column:5}
 .canvas.with-data-sources .cell:empty{display:none}
-.canvas.with-data-sources .lane{left:374px}
-.lane{
-  position:absolute;left:-114px;top:-9px;font-size:9.5px;font-weight:700;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--text-3);writing-mode:vertical-rl;transform:rotate(180deg);
-  max-height:120px
-}
 
 /* ---------- node ---------- */
 .node{
@@ -341,6 +335,7 @@ a{color:var(--accent)}
 .source-serves{font-size:9.5px;line-height:1.35;margin-top:7px;color:var(--data-line)}
 .source-serves b{font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .data-source-node.selected{outline:2px solid var(--accent);outline-offset:2px}
+.data-source-node.off{opacity:.32;filter:grayscale(.85)}
 .data-source-node.dimmed{opacity:.22}
 .data-source-node.hl{outline:2px solid var(--warn);outline-offset:2px}
 .data-source-node.hover-connected{
@@ -364,8 +359,10 @@ a{color:var(--accent)}
    .dimmed / .off and stop focus dimming from working on new nodes */
 @keyframes pop{0%{transform:scale(.92)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
 .node.isnew{animation:pop .38s ease-out}
-.node .offmark{position:absolute;inset:0;pointer-events:none;border-radius:var(--radius)}
-.node[data-on="0"] .offmark{
+.node .offmark,.data-source-node .offmark{position:absolute;inset:0;pointer-events:none}
+.node .offmark{border-radius:var(--radius)}
+.data-source-node .offmark{border-radius:50% / 13px}
+.node[data-on="0"] .offmark,.data-source-node[data-on="0"] .offmark{
   background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(125,135,152,.16) 6px 12px)
 }
 .elabel{
@@ -568,7 +565,6 @@ table.mini .met{color:var(--accent)}
   .canvas.with-data-sources .cell.left,
   .canvas.with-data-sources .cell.center,
   .canvas.with-data-sources .cell.right{grid-column:1}
-  .canvas.with-data-sources .lane{display:none}
   .canvas.with-data-sources .data-source-column{
     display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%
   }
@@ -584,7 +580,6 @@ table.mini .met{color:var(--accent)}
   .stage-area{order:1;padding:18px 14px 40px}
   .side{order:2;border-bottom:0;border-top:1px solid var(--border)}
   .canvas{padding-left:0}
-  .lane{display:none}
   .row{grid-template-columns:1fr;gap:10px;margin-bottom:26px;position:relative}
   .row .cell{justify-content:center!important}
   .row .cell:empty{display:none}
@@ -1964,14 +1959,14 @@ const TPL = {
     target:"~150 ms p95",
     desc:"The smallest pipeline that is <b>genuinely hybrid</b>: mandatory constraints pushed into one lexical and one dense leg, explicit candidate union, fixed RRF over their ranks, and results assembly. Ship it, and build the evaluation harness around it.",
     rows:[
-      {lane:"Query inputs", c:["q-text"]},
-      {lane:"Query processing", c:["normalise"]},
+      {c:["q-text"]},
+      {c:["normalise"]},
       {c:["understand"]},
-      {lane:"Constraint handling", c:["prefilter"]},
-      {lane:"Candidate retrieval", c:["lexical","textvec"]},
-      {lane:"Candidate generation", c:["union"]},
-      {lane:"Fusion", c:["fusion"]},
-      {lane:"Results", c:["assembly"]}
+      {c:["prefilter"]},
+      {c:["lexical","textvec"]},
+      {c:["union"]},
+      {c:["fusion"]},
+      {c:["assembly"]}
     ],
     extra:[]
   },
@@ -1981,22 +1976,22 @@ const TPL = {
     target:"~400 ms p95",
     desc:"The <b>default answer</b>. Adds rewriting, static routing, cross-modal text-to-image retrieval, bounded recovery, candidate pruning, cross-encoder reranking, operational deadlines, auditable final-ranking controls, and feedback instrumentation. Architect against this one.",
     rows:[
-      {lane:"Query inputs", c:["q-text"]},
-      {lane:"Query processing", c:["normalise"]},
+      {c:["q-text"]},
+      {c:["normalise"]},
       {c:["understand"]},
       {c:["rewrite"]},
-      {lane:"Constraint handling", c:["prefilter"], r:["routing"]},
-      {lane:"Candidate retrieval", c:["lexical","textvec","textimagevec"], r:["degradation"]},
-      {lane:"Candidate generation", c:["union"]},
-      {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
+      {c:["prefilter"], r:["routing"]},
+      {c:["lexical","textvec","textimagevec"], r:["degradation"]},
+      {c:["union"]},
+      {c:["sufficiency"], nextLabel:"sufficient"},
       {l:["relax","zerofallback"], c:["prune"]},
-      {lane:"Fusion", c:["fusion"]},
-      {lane:"Reranking", c:["crossenc"]},
-      {lane:"Final ranking", c:["business"]},
+      {c:["fusion"]},
+      {c:["crossenc"]},
+      {c:["business"]},
       {c:["freshness"]},
       {c:["diversity"]},
       {c:["dedup"]},
-      {lane:"Results", c:["assembly"], r:["behavioural"]}
+      {c:["assembly"], r:["behavioural"]}
     ],
     extra:BRANCHES
   },
@@ -2006,28 +2001,28 @@ const TPL = {
     target:"~600 ms p95, plus conditional work",
     desc:"Everything on the menu. <b>Do not read this as “execute every box”</b> — a simple navigational query should fire two legs and skip the VLM; image-to-image retrieval should fire only when an image is supplied. The dashed control plane decides which parts run.",
     rows:[
-      {lane:"Query inputs", l:["q-image"], c:["q-text"], r:["session"]},
-      {lane:"Query processing", c:["normalise"]},
+      {l:["q-image"], c:["q-text"], r:["session"]},
+      {c:["normalise"]},
       {c:["understand"], r:["confidence"]},
       {c:["rewrite"]},
       {c:["expand"]},
-      {lane:"Constraint handling", c:["prefilter"], r:["routing"]},
-      {lane:"Candidate retrieval", c:["lexical","textvec","textimagevec","imageimagevec","sparse","multivec","late"], r:["budget","degradation"]},
-      {lane:"Candidate generation", c:["union"]},
-      {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
+      {c:["prefilter"], r:["routing"]},
+      {c:["lexical","textvec","textimagevec","imageimagevec","sparse","multivec","late"], r:["budget","degradation"]},
+      {c:["union"]},
+      {c:["sufficiency"], nextLabel:"sufficient"},
       {l:["relax","zerofallback"], c:["prune"]},
-      {lane:"Fusion", c:["fusion"], r:["fusionpolicy"]},
-      {lane:"Reranking", c:["semrerank"]},
+      {c:["fusion"], r:["fusionpolicy"]},
+      {c:["semrerank"]},
       {c:["latererank"]},
       {c:["crossenc"]},
       {c:["vlmrerank"]},
       {c:["ltr"]},
-      {lane:"Final ranking", c:["business"]},
+      {c:["business"]},
       {c:["freshness"]},
       {c:["personalisation"]},
       {c:["diversity"]},
       {c:["dedup"]},
-      {lane:"Results", c:["assembly"], r:["behavioural"]}
+      {c:["assembly"], r:["behavioural"]}
     ],
     extra:BRANCHES  /* control, data and training wires are generated from REL — see relEdges() */
   }
@@ -2258,22 +2253,34 @@ function isOff(id){ return state.off[state.tpl].has(id); }
 function isOn(id){ return !isOff(id); }
 function lockedFor(id){ return S[id].tier==="core"; }
 
-function activeSourceIds(componentIds=tplStages(state.tpl).filter(isOn)){
+function sourceIdsForConsumers(componentIds){
   const consumers = new Set(componentIds);
   return Object.keys(DATA_SOURCES).filter(sourceId=>
     (SERVING_REL[sourceId]||[]).some(componentId=>consumers.has(componentId)));
 }
 
-function activeConsumers(sourceId){
+function templateConsumers(sourceId){
   const present = new Set(tplStages(state.tpl));
-  return (SERVING_REL[sourceId]||[]).filter(id=>present.has(id) && isOn(id));
+  return (SERVING_REL[sourceId]||[]).filter(id=>present.has(id));
+}
+
+function activeConsumers(sourceId){
+  return templateConsumers(sourceId).filter(isOn);
+}
+
+function activeSourceIds(){
+  return sourceIdsForConsumers(tplStages(state.tpl).filter(isOn));
+}
+
+function templateSourceIds(){
+  return sourceIdsForConsumers(tplStages(state.tpl));
 }
 
 function sourceIdsFor(componentIds){
   const position = new Map(componentIds.map((id,index)=>[id,index]));
-  const firstConsumer = sourceId=>Math.min(...activeConsumers(sourceId)
+  const firstConsumer = sourceId=>Math.min(...templateConsumers(sourceId)
     .filter(id=>position.has(id)).map(id=>position.get(id)));
-  return activeSourceIds(componentIds).sort((a,b)=>firstConsumer(a)-firstConsumer(b));
+  return sourceIdsForConsumers(componentIds).sort((a,b)=>firstConsumer(a)-firstConsumer(b));
 }
 
 function setOff(id,off){
@@ -2370,7 +2377,7 @@ function renderBudget(){
 }
 
 function renderServingToggle(){
-  const count = activeSourceIds().length;
+  const count = templateSourceIds().length;
   const button = $("#servingToggle");
   button.setAttribute("aria-pressed",String(state.showServing));
   button.setAttribute("aria-label",(state.showServing?"Hide":"Show")+" serving dependencies");
@@ -2407,19 +2414,24 @@ function nodeEl(id, newIds){
 
 function dataSourceEl(id){
   const source = DATA_SOURCES[id];
-  const consumers = activeConsumers(id);
+  const consumers = templateConsumers(id);
+  const sourceOn = consumers.some(isOn);
   const el = document.createElement("button");
   el.className = "data-source-node " + source.tier;
   el.dataset.sourceId = id;
+  el.dataset.on = sourceOn ? "1" : "0";
+  if(!sourceOn) el.classList.add("off");
   if(state.sel===id) el.classList.add("selected");
-  el.setAttribute("aria-label",source.name+", "+TIER_LABEL[source.intro]+", data plane. Serves "+
+  el.setAttribute("aria-label",source.name+", "+TIER_LABEL[source.intro]+", data plane"+
+    (sourceOn?"":"; inactive because all served components are disabled")+". Serves "+
     consumers.map(componentId=>S[componentId].name).join(", "));
   el.innerHTML =
     '<div class="nm">'+source.name+'</div>'+
     '<div class="sb">'+source.sub+'</div>'+
     '<div class="meta"><span class="tierchip '+source.tier+'">'+TIER_LABEL[source.intro]+'</span>'+
       '<span class="data-plane-chip">data plane</span></div>'+
-    '<div class="source-serves"><b>Serves</b> '+consumers.map(cid=>S[cid].name).join(" · ")+'</div>';
+    '<div class="source-serves"><b>Serves</b> '+consumers.map(cid=>S[cid].name).join(" · ")+'</div>'+
+    '<span class="offmark"></span>';
   el.addEventListener("click", ()=> openSourceDrawer(id));
   return el;
 }
@@ -2440,8 +2452,7 @@ function renderCanvas(){
   TPL[t].rows.forEach((r,i)=>{
     const row = document.createElement("div");
     row.className = "row"; row.dataset.row = i;
-    const rowSourceIds = state.showServing ? sourceIdsFor((r.c||[]).filter(isOn)) : [];
-    if(r.lane) row.insertAdjacentHTML("beforeend", '<span class="lane">'+r.lane+'</span>');
+    const rowSourceIds = state.showServing ? sourceIdsFor(r.c||[]) : [];
     (state.showServing ? ["d","l","c","r"] : ["l","c","r"]).forEach(k=>{
       const cell = document.createElement("div");
       cell.className = "cell " + (k==="d"?"data":k==="l"?"left":k==="c"?"center":"right");
@@ -2678,7 +2689,7 @@ function setFocus(kind, id){
 
 function applyFocus(){
   const hits = new Set(focusMatches());
-  const sourceHits = new Set(activeSourceIds(Array.from(hits)));
+  const sourceHits = new Set(sourceIdsForConsumers(Array.from(hits)));
   // nothing matches: leave the diagram alone rather than dimming everything,
   // which reads as a broken page. The focus panel explains why.
   const dim = state.focus && hits.size > 0;
