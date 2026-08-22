@@ -642,7 +642,7 @@ table.mini .met{color:var(--accent)}
     <h2 style="font-size:20px;margin-bottom:8px">Build order</h2>
     <p class="build-intro">
       Ordered by value delivered per unit of cost, with the trigger condition that says <em>now</em> —
-      not a schedule. Steps 1&ndash;6 are Template&nbsp;2. Most systems should stop there and spend the
+      not a schedule. Steps 1&ndash;7 are Template&nbsp;2. Most systems should stop there and spend the
       remaining effort on data quality, the evaluation set, and the index, which is where the returns
       usually are. Click any component to open its detail.
     </p>
@@ -952,9 +952,9 @@ def({
 
 def({
   id:"prefilter", name:"Metadata pre-filter", group:"Constraint handling", tier:"core", intro:1,
-  sub:"compile constraints into one predicate", lat:[1,5], cx:2, caps:["constraints"],
+  sub:"compile constraints and mandatory policy", lat:[1,5], cx:2, caps:["constraints"],
   handles:["sleeps6","price","geo"],
-  purpose:"Compile extracted constraints into a filter predicate that is pushed down into every retriever, so each leg searches only the eligible subset of the corpus.",
+  purpose:"Compile extracted query constraints and mandatory system predicates — authorization, eligibility, compliance, safety and legal suppression — into a filter pushed down into every retriever.",
   decisions:[{
     q:"Pre-filter or post-filter?",
     opts:["Pre-filter, pushed into the index","Post-filter the top-k"],
@@ -966,8 +966,9 @@ def({
     def:"Native filtered ANN, verified by benchmark",
     why:"Many vector stores advertise filtering but implement filter-then-truncate. Benchmark recall at your real selectivity, not at 50%."
   }],
-  contract:{in:"constraints[] (+ confidence)", out:"{ hard_predicate, soft_boosts[] } pushed into every leg"},
+  contract:{in:"constraints[] (+ confidence) + mandatory_policy_predicates[]", out:"{ hard_predicate, soft_boosts[] } pushed into every leg"},
   dials:[{n:"Selectivity to benchmark at",v:"your p90 real selectivity",note:"Not 50%. Get it from query logs."}],
+  notes:["Mandatory system predicates are never relaxable. Keep their source distinct from extracted query constraints so recovery cannot broaden authorization, eligibility, compliance, safety or legal boundaries."],
   failures:[
     {f:"Post-filtering in disguise",s:"Selective queries return near-empty, broad queries look fine",m:"recall@k bucketed by filter selectivity"},
     {f:"Over-constrained predicate",s:"Zero results with no recovery",m:"zero-result rate by constraint count"}]
@@ -1036,7 +1037,7 @@ def({
 
 /* ---------- retrieval control ---------- */
 def({
-  id:"routing", name:"Retrieval routing", group:"Candidate retrieval", tier:"optional", control:true, intro:3,
+  id:"routing", name:"Retrieval routing", group:"Candidate retrieval", tier:"recommended", control:true, intro:2,
   sub:"which legs and gated rerankers fire", lat:[0,3], cx:4, caps:["adaptive"],
   purpose:"The control plane's core decision: which retrieval legs and gated rerankers to activate for this query, based on intent, constraint shape, whether an image was supplied, and where similar queries historically fail.",
   decisions:[{
@@ -1046,7 +1047,10 @@ def({
     why:"Routing failures are invisible — a rule that never fires the image leg looks exactly like a corpus problem. Start with rules you can read, and log every decision."
   }],
   contract:{in:"intent, constraints, has_image", out:"{ legs_to_fire[], rerankers_to_fire[], route_id } (logged)"},
-  notes:["Routing errors may appear as relevance regressions rather than request failures. Log the selected route and activated stages for each query so routing decisions can be diagnosed."],
+  notes:[
+    "Use inspectable static intent rules in the Recommended template. Learned or budget-aware routing is a later optimisation in the same component, not a separate request path.",
+    "Routing errors may appear as relevance regressions rather than request failures. Log the selected route and activated stages for each query so routing decisions can be diagnosed."
+  ],
   failures:[{f:"A leg or gated reranker is never routed to",s:"Looks like a corpus, index or model-quality problem",m:"route distribution; per-stage fire rate"}]
 });
 
@@ -1224,7 +1228,7 @@ def({
   },{
     q:"Where does exact deduplication happen?",
     opts:["Here, by content hash","At final ranking","Both"],
-    def:"Exact-hash collapse here; near-duplicate collapse at the end",
+    def:"Exact-hash collapse here; add near-duplicate collapse at final ranking when enabled",
     why:"Exact collapse is cheap and shrinks everything downstream, including the expensive rerank. Near-duplicate detection is expensive and only needs to be right for the page you show."
   }],
   contract:{in:"per-leg ranked lists", out:"Candidate{ doc_id, per_leg{rank, raw}, evidence, filter_state }"},
@@ -1294,9 +1298,9 @@ def({
 
 /* ---------- reranking ---------- */
 def({
-  id:"semrerank", name:"Semantic rerank", group:"Reranking", tier:"recommended", intro:2,
-  sub:"bi-encoder score refresh, cheap tier", lat:[5,20], cx:2, model:true,
-  purpose:"The cheap first tier of the rerank funnel: refresh scores with a bi-encoder over the fused shortlist, narrowing the set the expensive tier has to see.",
+  id:"semrerank", name:"Semantic rerank", group:"Reranking", tier:"optional", intro:3,
+  sub:"optional bi-encoder budget-protection tier", lat:[5,20], cx:2, model:true,
+  purpose:"An optional first tier of the rerank funnel: refresh scores with a bi-encoder over the fused shortlist only when doing so can narrow the set the expensive cross-encoder has to see.",
   decisions:[{
     q:"Is this tier needed at all?",
     opts:["Always run it","Skip when fusion output is already calibrated"],
@@ -1305,6 +1309,7 @@ def({
   }],
   contract:{in:"fused top ~200–400", out:"re-scored top ~100–200"},
   dials:[{n:"Input depth",v:"200–400"},{n:"Output depth",v:"100–200"}],
+  notes:["Treat this as a measured budget intervention, not a default cascade tier. Keep it only when it materially reduces cross-encoder work without erasing relevant candidates."],
   failures:[{f:"Reorders almost nothing",s:"Pure added latency",m:"rank churn between stages"}]
 });
 
@@ -1405,9 +1410,9 @@ def({
 
 /* ---------- final ranking ---------- */
 def({
-  id:"business", name:"Business ranking", group:"Final ranking", tier:"core", intro:1,
-  sub:"availability, quality tier, policy", lat:[1,5], cx:2,
-  purpose:"Apply the rules the business owns: availability, quality tiers, promotion, suppression, compliance. Deterministic, auditable, and outside any learned model.",
+  id:"business", name:"Business ranking", group:"Final ranking", tier:"recommended", intro:2,
+  sub:"quality tiers, promotions, soft policy", lat:[1,5], cx:2,
+  purpose:"Apply soft, auditable preferences the business owns — quality tiers, capped promotions and other non-mandatory boosts — after relevance ranking.",
   decisions:[{
     q:"Rules or model?",
     opts:["Hand-written rules","Folded into LTR features","Hard rules outside, soft signals inside"],
@@ -1469,7 +1474,7 @@ def({
 });
 
 def({
-  id:"dedup", name:"Deduplication", group:"Final ranking", tier:"core", intro:1,
+  id:"dedup", name:"Deduplication", group:"Final ranking", tier:"recommended", intro:2,
   sub:"near-duplicate collapse", lat:[2,10], cx:2,
   purpose:"Collapse near-identical documents so the page shows distinct options, keeping the highest-ranked representative.",
   decisions:[{
@@ -1493,21 +1498,25 @@ def({
     def:"Results plus relaxation, degradation and route state",
     why:"The UI cannot say “showing broader results” unless the pipeline tells it. This is a schema contract, not a nicety — it is the only defence against silent relaxation."
   }],
-  contract:{in:"final ranking", out:"{ results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id, timings }"},
+  contract:{in:"final ranking", out:"{ results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id?, timings }"},
   dials:[{n:"Page size",v:"20"},{n:"Hydration",v:"batch, never per-result"}],
-  notes:["Pagination should use a stable cursor or ranking snapshot. Offset pagination over a ranking that can change through freshness, personalisation or index updates can produce skipped or repeated results."],
+  notes:[
+    "Revalidate mandatory eligibility and policy predicates before returning results. This is defence in depth; it does not make post-filtering an acceptable retrieval strategy.",
+    "When routing or degradation is absent, return an empty degraded_legs[] and omit route_id rather than inventing control state.",
+    "Pagination should use a stable cursor or ranking snapshot. Offset pagination over a ranking that can change through freshness, personalisation or index updates can produce skipped or repeated results."
+  ],
   failures:[{f:"Hydration is the hidden latency",s:"Fast search, slow response",m:"per-stage latency attribution"}]
 });
 
 /* ---------- cross-cutting control ---------- */
 def({
-  id:"degradation", name:"Degradation controller", group:"Reranking", tier:"optional", control:true, intro:3,
+  id:"degradation", name:"Degradation controller", group:"Reranking", tier:"recommended", control:true, intro:2,
   sub:"deadlines, partial results", lat:[0,2], cx:3,
   purpose:"Give every leg and rerank tier an independent deadline, and proceed with whatever returned instead of failing the request.",
   decisions:[{
     q:"What is the degradation order?",
     opts:["Whatever times out first","A fixed, pre-agreed order"],
-    def:"Fixed order: VLM, then rerank depth, then the slowest retrieval leg",
+    def:"Fixed order: optional verification, then rerank depth, then the slowest nonessential retrieval leg",
     why:"Degrading in an undefined order means your fast responses are also your least predictable ones. Decide the order while calm, not during an incident."
   }],
   contract:{in:"stage deadlines", out:"partial results + degraded_legs[] on the response"},
@@ -1519,7 +1528,7 @@ def({
 });
 
 def({
-  id:"behavioural", name:"Behavioural signals", group:"Results", tier:"optional", control:true, intro:3,
+  id:"behavioural", name:"Behavioural signals", group:"Results", tier:"recommended", control:true, intro:2,
   sub:"clicks, saves, enquiries, reformulations", lat:[0,0], cx:3, caps:["learning"],
   purpose:"The offline loop: capture clicks, saves, enquiries and reformulations, turn them into labels, and feed the trained components. Not in the request path.",
   decisions:[{
@@ -1749,7 +1758,7 @@ const EXAMPLES = {
   normalise:"<code>$300</code> has to survive as a currency token the price parser can read, and <code>2 hours</code> has to stay two tokens the geo parser can see. Over-eager punctuation stripping destroys both.",
   expand:"Expanding <code>cabin</code> to cottage, chalet and lodge is safe recall. Expanding <code>quiet</code> to secluded or remote is drift — it changes what the user asked for.",
   session:"If the previous turn was “cabins in the mountains”, <code>within 2 hours of the city</code> must <em>replace</em> that geo constraint, not stack with it. Stacked, the two are unsatisfiable.",
-  prefilter:"Compiles <code>sleeps &gt;= 6 AND price &lt;= 300</code> as hard predicates. <code>within 2 hours</code> should become a soft boost, not a filter, because its confidence is low.",
+  prefilter:"Compiles <code>sleeps &gt;= 6 AND price &lt;= 300</code> with mandatory authorization and availability predicates. <code>within 2 hours</code> should become a soft boost because its confidence is low; system policy remains hard and non-relaxable.",
   sufficiency:"With all four constraints applied as hard filters this corpus might return three candidates — above zero, well below n_min. That gap is exactly what the relaxation ladder exists for.",
   zerofallback:"Nothing survives even a relaxed filter: fall back to “waterfront cabins” semantically, and offer “try up to $350” or “try within 3 hours” as explicit next steps.",
   routing:"<code>wood fireplace</code> is a visual attribute, so this query should fire the image leg. A query like “booking reference 4471” should fire only the lexical leg.",
@@ -1765,13 +1774,13 @@ const EXAMPLES = {
   semrerank:"Cheaply drops listings that matched only on the word “cabin” before the expensive tier has to look at them.",
   crossenc:"Can tell that “the cabin sits on a quiet bay” is a match for <code>quiet</code>, while “quiet neighbours are appreciated” is a house rule, not a property.",
   ltr:"Blends the cross-encoder relevance score with enquiry rate, photo quality and cancellation history into the order actually shown.",
-  business:"A cabin that is unavailable for the requested dates must not rank first, no matter how perfectly it matches all six facets.",
+  business:"Among eligible cabins, a capped quality-tier or promotion boost may adjust the order without allowing a weak match to swamp relevance.",
   freshness:"A listing updated last week is far more likely to have accurate pricing against the <code>under $300</code> constraint than one last touched in 2019.",
   personalisation:"If this user has repeatedly saved coastal properties, nudge waterfront listings up — while keeping unpersonalised slots so they can still discover the lake cabins.",
   diversity:"Stops the top ten filling with ten near-identical cabins from the same operator on the same lake.",
   dedup:"The same cabin listed by two different agencies should collapse into one result, keeping the better-ranked copy.",
   assembly:"Hydrate the <em>matched</em> image as the thumbnail. If the fireplace photo is why this listing ranked, showing the driveway photo wastes the match.",
-  degradation:"Under load, drop the VLM fireplace check first. Returning waterfront cabins in 300 ms beats returning verified fireplaces in 2 s.",
+  degradation:"In the Recommended path, reduce cross-encoder depth or drop the nonessential image leg before missing the deadline. In Full, drop the VLM fireplace check first.",
   behavioural:"A user who saves a listing with no fireplace is telling you that constraint was soft. That signal is only capturable if you logged the impression alongside the query."
 };
 Object.keys(EXAMPLES).forEach(k=>{ if(S[k]) S[k].example = EXAMPLES[k]; });
@@ -1791,7 +1800,7 @@ const DIALS = {
             {n:"Audit log",v:"applied_rules[] per result"}],
   personalisation:[{n:"Personalised slots",v:"2–3 of the top 10"},{n:"Holdout",v:"permanent control group"}],
   dedup:[{n:"Near-dup threshold",v:"tune on a labelled duplicate set"},{n:"Collapse UI",v:"show “N similar” rather than hiding"}],
-  degradation:[{n:"Per-leg deadline",v:"60–80% of the leg's p99"},{n:"Degradation order",v:"VLM → rerank depth → slowest leg"}],
+  degradation:[{n:"Per-leg deadline",v:"60–80% of the leg's p99"},{n:"Degradation order",v:"optional verification → rerank depth → slowest nonessential leg"}],
   behavioural:[{n:"Impression logging",v:"every result shown, with position"},
                {n:"Join window",v:"query → interaction, ~30 min",note:"Without position, the log cannot be debiased later."}]
 };
@@ -1821,7 +1830,7 @@ const TPL = {
     name:"Core",
     tagline:"The irreducible hybrid path",
     target:"~150 ms p95",
-    desc:"The smallest pipeline that is <b>genuinely hybrid</b>: one lexical leg, one dense leg, a filter pushed down into both, fixed RRF over their ranks, and business rules on top. Ship it, and build the evaluation harness around it.",
+    desc:"The smallest pipeline that is <b>genuinely hybrid</b>: mandatory constraints pushed into one lexical and one dense leg, explicit candidate union, fixed RRF over their ranks, and results assembly. Ship it, and build the evaluation harness around it.",
     rows:[
       {lane:"Query inputs", c:["q-text"]},
       {lane:"Query processing", c:["normalise"]},
@@ -1830,8 +1839,6 @@ const TPL = {
       {lane:"Candidate retrieval", c:["lexical","textvec"]},
       {lane:"Candidate generation", c:["union"]},
       {lane:"Fusion", c:["fusion"]},
-      {lane:"Final ranking", c:["business"]},
-      {c:["dedup"]},
       {lane:"Results", c:["assembly"]}
     ],
     extra:[]
@@ -1840,25 +1847,24 @@ const TPL = {
     name:"Core + recommended",
     tagline:"The production target",
     target:"~400 ms p95",
-    desc:"The <b>default answer</b>. Builds on the Core fused ranking with rewriting, cross-modal image retrieval, a bounded relaxation loop, candidate pruning, a rerank cascade, and freshness and diversity. Architect against this one.",
+    desc:"The <b>default answer</b>. Adds rewriting, static routing, cross-modal image retrieval, bounded recovery, candidate pruning, cross-encoder reranking, operational deadlines, auditable final-ranking controls, and feedback instrumentation. Architect against this one.",
     rows:[
       {lane:"Query inputs", c:["q-text"]},
       {lane:"Query processing", c:["normalise"]},
       {c:["understand"]},
       {c:["rewrite"]},
-      {lane:"Constraint handling", c:["prefilter"]},
-      {lane:"Candidate retrieval", c:["lexical","textvec","imagevec"]},
+      {lane:"Constraint handling", c:["prefilter"], r:["routing"]},
+      {lane:"Candidate retrieval", c:["lexical","textvec","imagevec"], r:["degradation"]},
       {lane:"Candidate generation", c:["union"]},
       {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
       {l:["relax","zerofallback"], c:["prune"]},
       {lane:"Fusion", c:["fusion"]},
-      {lane:"Reranking", c:["semrerank"]},
-      {c:["crossenc"]},
+      {lane:"Reranking", c:["crossenc"]},
       {lane:"Final ranking", c:["business"]},
       {c:["freshness"]},
       {c:["diversity"]},
       {c:["dedup"]},
-      {lane:"Results", c:["assembly"]}
+      {lane:"Results", c:["assembly"], r:["behavioural"]}
     ],
     extra:BRANCHES
   },
@@ -1951,51 +1957,55 @@ const STEPS = [
    build:"A labelled set of 200–500 queries with graded relevance, pooled across legs so recall is measurable rather than assumed. Deterministic replay. A probe suite of ~30 queries with known rank-1 answers.",
    trigger:"Before anything else.",
    buys:"Every later decision becomes measurable instead of arguable. Without it, all the tradeoffs below are opinions."},
-  {n:1, t:1, title:"Template 1 spine, fixed RRF, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","fusion","business","dedup","assembly"],
-   build:"Normalise, understand, pre-filter, two retrieval legs, candidate union, fixed RRF, business ranking, dedup, assembly.",
+  {n:1, t:1, title:"Template 1 spine, fixed RRF, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","fusion","assembly"],
+   build:"Normalise, understand, enforce query and mandatory policy predicates, run two retrieval legs, collate candidates, apply fixed RRF, and assemble results.",
    trigger:"—",
    buys:"A working hybrid baseline with an explicit relevance ordering and honest numbers."},
-  {n:2, t:2, title:"Candidate pruning and cross-encoder rerank", stages:["prune","semrerank","crossenc"],
-   build:"Cap the unioned candidates with per-leg limits and calibrated floors, then apply semantic and joint query-document scoring over the fused shortlist.",
+  {n:2, t:2, title:"Instrumentation and degradation deadlines", stages:["degradation","behavioural"],
+   build:"Propagate per-stage deadlines, define a tested degradation order, and capture position-aware impressions and interactions before production traffic arrives.",
+   trigger:"Before first production traffic.",
+   buys:"Predictable partial results under failure and the feedback data that later learning cannot reconstruct retroactively."},
+  {n:3, t:2, title:"Candidate pruning and cross-encoder rerank", stages:["prune","crossenc"],
+   build:"Cap the unioned candidates with per-leg limits and calibrated floors, then apply joint query-document scoring over the fused shortlist.",
    trigger:"nDCG@10 plateaus while recall@200 is materially higher — retrieval is fine, ranking is the bottleneck.",
    buys:"Usually the largest single relevance jump available anywhere in the list."},
-  {n:3, t:2, title:"Sufficiency, bounded relaxation, zero-result fallback", stages:["sufficiency","relax","zerofallback"],
+  {n:4, t:2, title:"Sufficiency, bounded relaxation, zero-result fallback", stages:["sufficiency","relax","zerofallback"],
    build:"A quality-floor sufficiency check, an ordered ladder capped at 2 passes, and a distinct recovery retrieval mode.",
    trigger:"Zero-result rate above ~5% of queries.",
    buys:"Recovers the queries you are currently losing entirely."},
-  {n:4, t:2, title:"Image vector retrieval", stages:["imagevec"],
-   build:"Text-to-image ANN over document image embeddings, max rollup, down-weighted.",
+  {n:5, t:2, title:"Image retrieval with static routing", stages:["imagevec","routing"],
+   build:"Add down-weighted text-to-image ANN with max rollup, then use inspectable intent rules to fire it only for queries with visual meaning.",
    trigger:"Users search for attributes only visible in images.",
-   buys:"Unlocks a modality you have already indexed and are currently ignoring."},
-  {n:5, t:2, title:"Freshness and diversity", stages:["freshness","diversity"],
-   build:"Recency decay per intent class and per-attribute capping after relevance reranking.",
-   trigger:"The top-10 looks repetitive or stale.",
-   buys:"Perceived quality, cheaply."},
-  {n:6, t:2, title:"Query rewriting", stages:["rewrite"],
+   buys:"Unlocks an indexed modality without paying for it on abstract or strictly navigational queries."},
+  {n:6, t:2, title:"Auditable final-ranking controls", stages:["business","freshness","diversity","dedup"],
+   build:"Apply capped soft business preferences, intent-aware recency, per-attribute diversity, and near-duplicate collapse after relevance ranking.",
+   trigger:"The top-10 is repetitive or stale, duplicates crowd the page, or explicit business preferences need an auditable home.",
+   buys:"More useful result pages without moving mandatory policy out of Core filtering."},
+  {n:7, t:2, title:"Query rewriting", stages:["rewrite"],
    build:"Spelling, synonym canonicalisation, and the constraint-stripped query for the dense legs.",
    trigger:"Spelling and synonym failures show up in the reformulation rate.",
    buys:"Tail recovery, and the asymmetric-query trick that costs nothing."},
-  {n:7, t:3, title:"Behavioural instrumentation", stages:["behavioural"],
-   build:"Clicks, saves, enquiries, reformulations — captured and joined to the query that produced them.",
-   trigger:"As soon as you have traffic.",
-   buys:"Nothing immediately. It is the gating dependency for every learned component below, and it cannot be collected retroactively."},
-  {n:8, t:3, title:"Routing and budget allocation", stages:["routing","budget","degradation"],
-   build:"Per-query leg selection, per-leg k under a latency budget, and a defined degradation order.",
+  {n:8, t:3, title:"Candidate budget allocation", stages:["budget"],
+   build:"Add per-leg k allocation to the existing static route, then predict allocation only after measured contribution justifies it.",
    trigger:"Latency-bound with a heterogeneous query mix.",
-   buys:"Headroom — spend quality where it changes the answer, skip it where it does not."},
-  {n:9, t:3, title:"Passage-level or late-interaction placement", stages:["multivec","late","latererank"],
+   buys:"Headroom — spend retrieval depth where it changes the answer rather than adding more legs globally."},
+  {n:9, t:3, title:"Optional semantic pre-rerank", stages:["semrerank"],
+   build:"Insert a bi-encoder score refresh only when it safely narrows the shortlist seen by the cross-encoder.",
+   trigger:"Cross-encoder depth is the latency bottleneck and the semantic tier materially reduces it without lowering shortlist recall.",
+   buys:"A cheaper rerank funnel when the measured cascade earns its extra stage."},
+  {n:10, t:3, title:"Passage-level or late-interaction placement", stages:["multivec","late","latererank"],
    build:"Choose passage retrieval or full-index late-interaction retrieval when candidate recall is weak; choose late-interaction reranking when shortlist recall is already high but multi-facet ordering is weak.",
    trigger:"Multi-faceted queries over long documents, sliced into recall-at-shortlist and final-ranking failures.",
    buys:"Puts token-level evidence at the stage where the measured failure occurs, without paying for MaxSim twice by default."},
-  {n:10, t:3, title:"Query-dependent fusion", stages:["fusionpolicy"],
+  {n:11, t:3, title:"Query-dependent fusion", stages:["fusionpolicy"],
    build:"A policy layer choosing strategy and leg weights per query class.",
    trigger:"One global weighting is provably wrong for a whole query class.",
    buys:"Per-class gains that a single fusion setting cannot deliver."},
-  {n:11, t:3, title:"VLM rerank", stages:["vlmrerank","q-image"],
+  {n:12, t:3, title:"VLM rerank", stages:["vlmrerank","q-image"],
    build:"A vision-language model over the top 10–20, gated on visual intent, cached hard.",
    trigger:"Visual intent demonstrably drives conversion.",
    buys:"Verification of fine visual claims. High cost, narrow gate."},
-  {n:12, t:3, title:"LTR, learned fusion policy, personalisation", stages:["ltr","fusionpolicy","personalisation","expand","sparse","session","confidence"],
+  {n:13, t:3, title:"LTR, learned fusion policy, personalisation", stages:["ltr","fusionpolicy","personalisation","expand","sparse","session","confidence"],
    build:"Trained ranking over the full feature vector, a trained per-query Fusion policy, and per-user adjustment.",
    trigger:"Tens of thousands of labelled or behavioural judgements exist.",
    buys:"Compounding gains, with permanent maintenance and a position-bias problem to solve."}
@@ -2566,7 +2576,7 @@ function renderBuild(){
       '<div class="grid" style="grid-template-columns:1fr"><div><div class="lb">Build</div>'+s.build+'</div></div>'+
       (chips ? '<div class="chips">'+chips+'</div>' : "") +
       '</div></div>';
-    return s.n===7 ? '<div class="divider">Steps 1–6 above are Template 2 — the production target. Everything below is Template 3 territory.</div>'+html : html;
+    return s.n===8 ? '<div class="divider">Steps 1–7 above are Template 2 — the production target. Everything below is Template 3 territory.</div>'+html : html;
   }).join("");
   $$("#steps .ref[data-goto]").forEach(b=> b.addEventListener("click",()=>{
     const id = b.dataset.goto;
