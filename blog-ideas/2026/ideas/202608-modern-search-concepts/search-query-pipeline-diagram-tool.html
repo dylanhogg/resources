@@ -259,14 +259,16 @@ a{color:var(--accent)}
 .row .cell.center > .node{flex:1 1 154px}
 .row .cell.left{justify-content:flex-end}
 .row .cell.right{justify-content:flex-start}
-.row.has-data-sources{
-  grid-template-columns:minmax(0,232px) minmax(0,1fr) minmax(0,176px);
+.canvas.with-data-sources .row{
+  grid-template-columns:minmax(0,206px) minmax(0,154px) 24px minmax(0,1fr) minmax(0,176px);
   width:calc(100% + 106px);margin-left:-106px
 }
-.row.has-data-sources.no-right{grid-template-columns:minmax(0,232px) minmax(0,1fr)}
-.row.has-data-sources .cell:empty{display:none}
-.row.has-data-sources .lane{left:218px}
-.row.has-data-sources .cell.data-source-cell{align-self:stretch;justify-content:flex-start}
+.canvas.with-data-sources .cell.data{grid-column:1;align-self:stretch;justify-content:flex-start}
+.canvas.with-data-sources .cell.left{grid-column:2}
+.canvas.with-data-sources .cell.center{grid-column:4}
+.canvas.with-data-sources .cell.right{grid-column:5}
+.canvas.with-data-sources .cell:empty{display:none}
+.canvas.with-data-sources .lane{left:374px}
 .lane{
   position:absolute;left:-114px;top:-9px;font-size:9.5px;font-weight:700;letter-spacing:.08em;
   text-transform:uppercase;color:var(--text-3);writing-mode:vertical-rl;transform:rotate(180deg);
@@ -371,7 +373,7 @@ a{color:var(--accent)}
   font-size:10px;font-weight:600;color:var(--text-3);background:var(--bg);
   padding:1px 6px;border-radius:5px;white-space:nowrap;pointer-events:none
 }
-.elabel.loop{color:var(--wire-loop);transform:translate(0,-50%)}
+.elabel.loop{color:var(--wire-loop);transform:translate(-50%,-50%)}
 
 /* ---------- hover preview ---------- */
 .hovercard{
@@ -561,6 +563,15 @@ table.mini .met{color:var(--accent)}
 @media (max-width:900px){
   .ctxbar{position:static}
   .side{top:0}
+  .canvas.with-data-sources .row{grid-template-columns:1fr;width:100%;margin-left:0}
+  .canvas.with-data-sources .cell.data,
+  .canvas.with-data-sources .cell.left,
+  .canvas.with-data-sources .cell.center,
+  .canvas.with-data-sources .cell.right{grid-column:1}
+  .canvas.with-data-sources .lane{display:none}
+  .canvas.with-data-sources .data-source-column{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%
+  }
 }
 @media (max-width:700px){
   .hdr{position:static;padding:10px 14px;gap:10px}
@@ -579,10 +590,7 @@ table.mini .met{color:var(--accent)}
   .row .cell:empty{display:none}
   .row .cell.center > .node{flex:1 1 100%}
   .node{max-width:none;width:100%}
-  .row.has-data-sources{grid-template-columns:1fr;width:100%;margin-left:0}
-  .row.has-data-sources.no-right{grid-template-columns:1fr}
-  .row.has-data-sources .lane{left:auto}
-  .data-source-column{width:100%;gap:9px}
+  .canvas.with-data-sources .data-source-column{display:flex;width:100%;gap:9px}
   .data-source-node{width:100%;max-width:none;padding:17px 12px 12px}
   .wires{display:none}
   .row:not(:last-child)::after{
@@ -2427,28 +2435,23 @@ function renderCanvas(){
 
   $("#tplDesc").innerHTML = "<b>"+TPL[t].tagline+".</b> " + TPL[t].desc;
   rowsEl.innerHTML = "";
+  canvas.classList.toggle("with-data-sources",state.showServing);
 
   TPL[t].rows.forEach((r,i)=>{
     const row = document.createElement("div");
     row.className = "row"; row.dataset.row = i;
     const rowSourceIds = state.showServing ? sourceIdsFor((r.c||[]).filter(isOn)) : [];
-    if(rowSourceIds.length){
-      row.classList.add("has-data-sources");
-      if(!(r.r||[]).length) row.classList.add("no-right");
-    }
     if(r.lane) row.insertAdjacentHTML("beforeend", '<span class="lane">'+r.lane+'</span>');
-    ["l","c","r"].forEach(k=>{
+    (state.showServing ? ["d","l","c","r"] : ["l","c","r"]).forEach(k=>{
       const cell = document.createElement("div");
-      cell.className = "cell " + (k==="l"?"left":k==="c"?"center":"right");
+      cell.className = "cell " + (k==="d"?"data":k==="l"?"left":k==="c"?"center":"right");
       if(k==="c") cell.dataset.cellRow = i;
-      const ids = r[k]||[];
-      if(k==="l" && rowSourceIds.length){
-        cell.classList.add("data-source-cell");
+      const ids = k==="d" ? [] : (r[k]||[]);
+      if(k==="d" && rowSourceIds.length){
         const column = document.createElement("div");
         column.className = "data-source-column";
         rowSourceIds.forEach(id=>column.appendChild(dataSourceEl(id)));
         cell.appendChild(column);
-        ids.forEach(id=>cell.appendChild(nodeEl(id,newIds)));
       } else {
         ids.forEach(id=>cell.appendChild(nodeEl(id,newIds)));
       }
@@ -2558,7 +2561,6 @@ function drawWires(){
     }).join("") + '</defs>';
 
   let paths = "", labels = [];
-  const sourceColumnRect = state.showServing ? rectOf(".data-source-column") : null;
   edgeList().forEach((e,edgeIndex)=>{
     const a = nodeRect(e.from), b = nodeRect(e.to);
     if(!a||!b) return;
@@ -2604,21 +2606,19 @@ function drawWires(){
       d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
     } else if(e.kind==="loop" || (spine && runsUp)){
       stroke="var(--wire-loop)"; marker="loop";
-      const gx = 62;
-      const sx=a.x, sy=a.cy, tx=b.x, ty=b.cy;
-      const crossesSourceColumn = sourceColumnRect &&
-        ty < sourceColumnRect.y && sy > sourceColumnRect.y+sourceColumnRect.h;
-      if(crossesSourceColumn){
-        const above=sourceColumnRect.y-9, below=sourceColumnRect.y+sourceColumnRect.h+9;
-        const bypass=sourceColumnRect.x+sourceColumnRect.w+18;
-        d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+(below+10)+" "+gx+","+(below+10)+
-            " Q"+gx+","+below+" "+(gx+10)+","+below+
-            " L"+(bypass-10)+","+below+" Q"+bypass+","+below+" "+bypass+","+(below-10)+
-            " L"+bypass+","+(above+10)+" Q"+bypass+","+above+" "+(bypass-10)+","+above+
-            " L"+(gx+10)+","+above+" Q"+gx+","+above+" "+gx+","+(above-10)+
-            " C"+gx+","+ty+" "+gx+","+ty+" "+tx+","+ty;
-        lx=gx+9; ly=(sy+below)/2;
+      const besideMain = state.showServing && a.x+a.w < b.x;
+      if(besideMain){
+        const sx=a.x+a.w, sy=a.cy, tx=b.x;
+        const isFallback=e.from==="zerofallback";
+        const ty=b.cy+(isFallback?7:-7);
+        const gutterX=Math.min(tx-18,sx+(isFallback?40:32));
+        const bendY=ty+24;
+        d = "M"+sx+","+sy+" C"+gutterX+","+sy+" "+gutterX+","+bendY+" "+tx+","+bendY+
+            " C"+tx+","+bendY+" "+tx+","+ty+" "+tx+","+ty;
+        lx=a.cx; ly=(sy+bendY)/2;
       } else {
+        const gx = 62;
+        const sx=a.x, sy=a.cy, tx=b.x, ty=b.cy;
         d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+ty+" "+tx+","+ty;
         lx = gx+9; ly = (sy+ty)/2;
       }
