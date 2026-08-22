@@ -46,7 +46,7 @@ usually a peer or collaborator, not an audience being sold to.
 ## Avoid
 
 - Absolute or salesy framing ("obviously", "clearly the best", "the only way").
-- Dismissing alternatives without a reason.
-- False humility that buries a real recommendation, or bravado that hides real
+- Avoid dismissing alternatives without a reason.
+- Avoid false humility that buries a real recommendation, or bravado that hides real
   uncertainty — aim for the honest middle.
-- Filler, hype, and throat-clearing preamble.
+- Avoid filler, hype, and throat-clearing preamble.
