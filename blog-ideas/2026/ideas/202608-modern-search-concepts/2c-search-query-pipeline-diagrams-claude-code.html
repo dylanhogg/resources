@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -314,10 +314,13 @@ a{color:var(--accent)}
 }
 .hovercard .hc-group{text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
 .hovercard .hc-desc{margin:0;font-size:12px;line-height:1.5;color:var(--text)}
-.hovercard .hc-ex{
+.hovercard .hc-ex,.hovercard .hc-notes{
   margin-top:10px;padding-top:9px;border-top:1px solid var(--border);
   font-size:11.5px;line-height:1.5;color:var(--text-2)
 }
+.hovercard .hc-notes ul{list-style:none;margin:0;padding:0}
+.hovercard .hc-notes li{margin-top:7px}
+.hovercard .hc-notes li:first-child{margin-top:0}
 .hovercard .hc-lb{
   display:block;font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
   color:var(--text-3);margin-bottom:4px
@@ -388,12 +391,12 @@ table.mini .met{color:var(--accent)}
 .dial .dv{font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap}
 .dial .dnote{font-size:11px;color:var(--text-3);flex-basis:100%;margin-top:2px}
 .notes{list-style:none;margin:0;padding:0}
-.note{
-  font-size:12px;color:var(--text-2);background:var(--warn-bg);border:1px solid transparent;
-  border-left:3px solid var(--warn);border-radius:0 8px 8px 0;padding:9px 11px;margin-top:10px
+.notes .note{
+  font-size:12px;color:var(--text);background:var(--surface);
+  border-left:2px solid var(--accent);border-radius:0 6px 6px 0;padding:6px 9px;margin-top:9px
 }
 .notes .note:first-child{margin-top:0}
-.note b{color:var(--text)}
+.notes .note b{color:var(--accent)}
 .exline{font-size:12px;color:var(--text-2);margin-top:8px}
 .exline code{font-family:var(--mono);font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text)}
 .reflink{
@@ -2348,7 +2351,9 @@ function showHover(el, id){
       '<span class="hc-pill">p95 '+latency+'</span>'+
       '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span></div>'+
     '<p class="hc-desc">'+s.purpose+'</p>'+
-    (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "");
+    (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
+    (s.notes && s.notes.length ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+
+      s.notes.map(n=>'<li>'+n+'</li>').join("")+'</ul></div>' : "");
   hoverCard.hidden = false;          // must be visible before it can be measured
   const r = el.getBoundingClientRect();
   const cw = hoverCard.offsetWidth, ch = hoverCard.offsetHeight, gap = 12, pad = 8;
