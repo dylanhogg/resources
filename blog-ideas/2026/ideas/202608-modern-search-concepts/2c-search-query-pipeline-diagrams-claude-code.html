@@ -18,7 +18,8 @@
   --rec-bg:#dcfce7; --rec-line:#15803d; --rec-text:#12351f;
   --opt-bg:#ede9fe; --opt-line:#6d28d9; --opt-text:#2b1a52;
   --ctrl-bg:#e8ecf2; --ctrl-line:#64748b; --ctrl-text:#27303f;
-  --wire:#94a1b3; --wire-loop:#c2704a; --wire-ctrl:#8b93a5; --wire-train:#0f766e;
+  --wire:#94a1b3; --wire-loop:#c2704a; --wire-ctrl:#8b93a5; --wire-train:#0f766e; --wire-data:#68778d;
+  --data-bg:#f7f9fc; --data-line:#7b8798; --data-text:#344054;
   --warn:#b45309; --warn-bg:#fef3c7;
   --ok:#15803d;
   --shadow:0 1px 2px rgba(16,23,37,.06),0 4px 12px rgba(16,23,37,.06);
@@ -36,7 +37,8 @@
       --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
       --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
       --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-      --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf;
+      --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf; --wire-data:#91a0b5;
+      --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
       --warn:#e0a94a; --warn-bg:#332a17;
       --ok:#4ea96e;
       --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
@@ -52,7 +54,8 @@
   --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
   --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
   --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-  --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf;
+  --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf; --wire-data:#91a0b5;
+  --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
   --warn:#e0a94a; --warn-bg:#332a17;
   --ok:#4ea96e;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
@@ -222,6 +225,26 @@ a{color:var(--accent)}
   padding:7px 10px;font-size:12px;font-weight:500;width:100%;color:var(--text-2)
 }
 .btn-ghost:hover{background:var(--surface-2);color:var(--text)}
+.dep-toggle{
+  width:100%;display:flex;align-items:center;gap:9px;margin-top:12px;padding:9px 10px;
+  border:1px solid var(--border);border-radius:9px;background:var(--surface);text-align:left
+}
+.dep-toggle:hover{border-color:var(--border-strong);background:var(--surface-2)}
+.dep-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dep-toggle .dep-copy{display:flex;flex-direction:column;min-width:0}
+.dep-toggle .dep-name{font-size:11.5px;font-weight:600;color:var(--text)}
+.dep-toggle .dep-count{font-size:10.5px;color:var(--text-3)}
+.dep-toggle .dep-sw{
+  width:30px;height:18px;margin-left:auto;border-radius:20px;background:var(--surface-3);
+  position:relative;flex:none;transition:background .15s
+}
+.dep-toggle .dep-sw::after{
+  content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;
+  background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.28);transition:transform .15s
+}
+.dep-toggle[aria-pressed="true"]{border-color:var(--data-line);background:var(--data-bg)}
+.dep-toggle[aria-pressed="true"] .dep-sw{background:var(--data-line)}
+.dep-toggle[aria-pressed="true"] .dep-sw::after{transform:translateX(12px)}
 
 /* ---------- canvas ---------- */
 .canvas{position:relative;padding-left:118px}
@@ -236,6 +259,9 @@ a{color:var(--accent)}
 .row .cell.center > .node{flex:1 1 154px}
 .row .cell.left{justify-content:flex-end}
 .row .cell.right{justify-content:flex-start}
+.row .cell.with-serving{display:block}
+.node-cluster{display:flex;gap:11px;flex-wrap:wrap;justify-content:center;min-width:0}
+.node-cluster > .node{flex:1 1 154px}
 .lane{
   position:absolute;left:-114px;top:-9px;font-size:9.5px;font-weight:700;letter-spacing:.08em;
   text-transform:uppercase;color:var(--text-3);writing-mode:vertical-rl;transform:rotate(180deg);
@@ -279,6 +305,47 @@ a{color:var(--accent)}
 }
 .wires path.hover-connected{stroke-width:2.2!important;opacity:1!important}
 .node[data-id="assembly"]{text-align:left}
+
+/* ---------- serving dependencies ---------- */
+.serving-layer{
+  position:relative;width:fit-content;max-width:100%;margin:17px auto 0;
+  padding:30px 10px 10px;border:1px dashed var(--data-line);
+  border-radius:11px;background:color-mix(in srgb,var(--data-bg) 88%,transparent)
+}
+.serving-layer::before{
+  content:"Serving data plane";position:absolute;top:8px;left:11px;font-size:9px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--data-line)
+}
+.serving-layer .source-count{
+  position:absolute;top:7px;right:10px;font-size:9.5px;color:var(--text-3)
+}
+.source-grid{
+  display:grid;grid-template-columns:repeat(var(--source-cols,1),minmax(0,210px));
+  justify-content:center;width:fit-content;max-width:100%;gap:8px
+}
+.source-card{
+  position:relative;display:flex;flex-direction:column;align-items:stretch;
+  width:100%;min-width:0;max-width:210px;padding:8px 9px;
+  border:1px solid var(--data-line);border-radius:8px;background:var(--data-bg);color:var(--data-text);
+  text-align:left;box-shadow:0 1px 2px rgba(16,23,37,.05);
+  transition:transform .12s,box-shadow .12s,opacity .18s,filter .18s
+}
+.source-card:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(16,23,37,.10)}
+.source-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.source-card .nm{font-size:11.5px;font-weight:600;line-height:1.3}
+.source-card .sb{font-size:10px;line-height:1.35;color:var(--text-3);margin-top:2px}
+.source-card .source-serves{font-size:9.5px;line-height:1.35;color:var(--data-line);margin-top:6px}
+.source-card .source-serves b{font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.serving-layer[data-source-count="3"] .source-card:last-child{
+  grid-column:1/-1;justify-self:center;width:210px
+}
+.source-card.selected{outline:2px solid var(--accent);outline-offset:2px}
+.source-card.dimmed{opacity:.22}
+.source-card.hl{outline:2px solid var(--warn);outline-offset:2px}
+.source-card.hover-connected{
+  opacity:.9;transform:translateY(-1px);
+  box-shadow:0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)
+}
 .tierchip{
   font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
   padding:1px 6px;border-radius:20px;border:1px solid currentColor;opacity:.75
@@ -357,6 +424,7 @@ a{color:var(--accent)}
 .tag.recommended{background:var(--rec-bg);color:var(--rec-text);border:1px solid var(--rec-line)}
 .tag.optional{background:var(--opt-bg);color:var(--opt-text);border:1px solid var(--opt-line)}
 .tag.ctl{background:var(--ctrl-bg);color:var(--ctrl-text);border:1px dashed var(--ctrl-line)}
+.tag.data{background:var(--data-bg);color:var(--data-text);border:1px dashed var(--data-line)}
 .tag.grp{background:var(--surface-2);color:var(--text-3);border:1px solid var(--border)}
 .dh h2{font-size:17px;margin-bottom:5px;padding-right:26px}
 .dh .purpose{font-size:12.5px;color:var(--text-2)}
@@ -511,7 +579,12 @@ table.mini .met{color:var(--accent)}
   .row .cell{justify-content:center!important}
   .row .cell:empty{display:none}
   .row .cell.center > .node{flex:1 1 100%}
+  .node-cluster{display:grid;grid-template-columns:1fr;width:100%}
   .node{max-width:none;width:100%}
+  .serving-layer{margin-top:10px;padding:30px 9px 9px}
+  .source-grid{display:grid;grid-template-columns:1fr;width:100%}
+  .source-card{width:100%;min-width:0;max-width:none}
+  .serving-layer[data-source-count="3"] .source-card:last-child{grid-column:auto;width:100%}
   .wires{display:none}
   .row:not(:last-child)::after{
     content:"";position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);
@@ -535,7 +608,7 @@ table.mini .met{color:var(--accent)}
 <header class="hdr">
   <div class="brand">
     <h1>Query Search Pipeline Explorer</h1>
-    <span class="sub">Progressive reference templates &middot; assumes indexed data &middot; hybrid text &amp; image retrieval &middot; logical architecture, not frameworks</span>
+    <span class="sub">Progressive reference templates &middot; optional serving-data layer &middot; hybrid text &amp; image retrieval &middot; logical architecture, not frameworks</span>
   </div>
   <div class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-pipe" aria-controls="view-pipe" aria-selected="true" data-view="pipe">Pipelines</button>
@@ -615,12 +688,17 @@ table.mini .met{color:var(--accent)}
         <div class="legendrow" style="gap:7px 12px;margin-top:9px">
           <span><i class="wkey" style="border-top:2px dashed var(--wire-ctrl)"></i>steers &mdash; request time</span>
           <span><i class="wkey" style="border-top:2px dashed var(--wire-train)"></i>trains &mdash; offline</span>
+          <span><i class="wkey" style="border-top:2px dotted var(--wire-data)"></i>serves &mdash; external data</span>
         </div>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
           Control-plane components steer a stage rather than transforming candidates.
           A <em>trains</em> wire is not a request-time path: it means the target's model is
-          fitted from that data.
+          fitted from that data. Serving sources are logical indexes or stores, not prescribed products or deployments.
         </p>
+        <button class="dep-toggle" id="servingToggle" aria-pressed="false" aria-controls="rows" aria-label="Show serving dependencies">
+          <span class="dep-copy"><span class="dep-name">Serving dependencies</span><span class="dep-count" id="servingCount"></span></span>
+          <span class="dep-sw" aria-hidden="true"></span>
+        </button>
       </div>
 
       <div class="panel complist">
@@ -692,8 +770,8 @@ table.mini .met{color:var(--accent)}
           <p>Open any node for its purpose, decisions, defaults, inputs and outputs, failure modes, tuning dials, dependencies, implementation notes, and supporting references.</p>
         </article>
         <article class="about-card">
-          <h4>Request-time and offline relationships</h4>
-          <p>Connections show how data and candidates flow, while distinct control and training wires separate request-time steering from offline learning and feedback.</p>
+          <h4>Request-time, serving, and offline relationships</h4>
+          <p>Connections show how data and candidates flow. Expand the serving-data layer to expose required logical indexes and stores; distinct control and training wires separate request-time steering from offline learning.</p>
         </article>
         <article class="about-card">
           <h4>Evidence-gated build order</h4>
@@ -741,8 +819,9 @@ table.mini .met{color:var(--accent)}
 
     <div class="about-note">
       <b>Interpretation guardrail.</b> This is a logical architecture explorer, not a vendor recommendation,
-      deployment topology, capacity model, or guaranteed latency calculator. The estimates are comparative prompts;
-      benchmark the selected design against your own traffic, index, hardware, models, and quality targets.
+      ingestion or index-building pipeline, deployment topology, capacity model, or guaranteed latency calculator.
+      One service may host several logical indexes. The estimates are comparative prompts; benchmark the selected
+      design against your own traffic, index, hardware, models, and quality targets.
     </div>
   </main>
 </section>
@@ -1948,6 +2027,91 @@ const TPL = {
 };
 
 /* =======================================================================
+   SERVING DATA — logical indexes and stores, not products or deployments.
+   SERVING_REL is the single source of truth for diagram wires and drawers.
+   ======================================================================= */
+const DATA_SOURCES = {
+  "ds-text":{
+    id:"ds-text", name:"Text & metadata inverted index", sub:"analysed fields, postings, filters",
+    purpose:"Serve exact, rare-term and field-aware retrieval over analysed text while enforcing metadata and mandatory policy predicates inside the search operation.",
+    representation:"Analysed text fields, postings, term statistics, stored match evidence, metadata columns or doc values.",
+    filtering:"The compiled hard predicate must be executable before or during retrieval, including authorization and policy clauses.",
+    updates:"Keep query-time analysis compatible with index-time analysis; define refresh and deletion visibility targets.",
+    implementation:"An inverted-index search service or equivalent sparse retrieval engine. This label does not require a separate product or deployment.",
+    notes:["Lexical and learned-sparse representations may share an engine or cluster, but remain distinct logical indexes with different analysis and update requirements."]
+  },
+  "ds-doc-ann":{
+    id:"ds-doc-ann", name:"Document-embedding ANN index", sub:"one or more text vectors per document",
+    purpose:"Serve approximate nearest-neighbour retrieval over document-level text embeddings for paraphrase and semantic intent.",
+    representation:"Document identifiers, compatible text embeddings, ANN graph or quantized partitions, and filterable metadata.",
+    filtering:"Filtered ANN must preserve recall at production selectivity; post-filtering a truncated top-k is not sufficient.",
+    updates:"Version embeddings and encoders together, measure index freshness, and re-check ANN recall after index changes.",
+    implementation:"A vector-capable search service, vector database, or custom ANN service. The logical dependency is the index, not the product category.",
+    notes:["A document-vector index cannot automatically serve passage or token-level retrieval; those representations have different granularity and cost."]
+  },
+  "ds-image-ann":{
+    id:"ds-image-ann", name:"Image-embedding ANN index", sub:"shared cross-modal image space",
+    purpose:"Serve both text-to-image and image-to-image retrieval over document-image embeddings in a compatible dual-tower space.",
+    representation:"Per-image identifiers, parent document identifiers, image-tower embeddings, compatible metadata predicates, and document roll-up evidence.",
+    filtering:"Apply the same mandatory predicate used by the text legs before or during ANN retrieval.",
+    updates:"Track image additions, removals, encoder versions and document roll-ups without breaking text/image embedding compatibility.",
+    implementation:"One logical image-vector index normally shared by the two visual retrieval legs; separate routing does not imply duplicate infrastructure.",
+    notes:["The shared dependency is intentionally drawn once even when both visual retrieval legs are enabled."]
+  },
+  "ds-sparse":{
+    id:"ds-sparse", name:"Learned-sparse postings index", sub:"model-weighted vocabulary terms",
+    purpose:"Serve learned sparse retrieval over model-expanded query and document terms while retaining sparse matching evidence.",
+    representation:"Vocabulary term identifiers and learned weights stored in a sparse postings representation.",
+    filtering:"Support the same predicate pushdown and field eligibility rules as the other first-stage retrievers.",
+    updates:"Re-index documents when the sparse encoder or vocabulary changes; bound expansion to control storage and query cost.",
+    implementation:"Often hosted by an inverted-index engine, potentially alongside lexical search, but maintained as a distinct logical representation.",
+    notes:["Sharing an engine does not make lexical and learned-sparse index construction, storage or evaluation interchangeable."]
+  },
+  "ds-passage-ann":{
+    id:"ds-passage-ann", name:"Passage-embedding ANN index", sub:"chunk vectors with parent roll-up",
+    purpose:"Serve passage-level semantic retrieval and roll matching chunks back to their parent documents.",
+    representation:"Passage identifiers, parent document identifiers, passage embeddings, offsets and filterable parent metadata.",
+    filtering:"Propagate document eligibility to passages before retrieval; do not retrieve ineligible chunks and remove them afterwards.",
+    updates:"Keep chunking, offsets, parent mappings and embeddings consistent as documents change.",
+    implementation:"A passage-granularity ANN collection or index, logically separate from a single-vector-per-document index.",
+    notes:["Index size and update fan-out scale with passages rather than documents."]
+  },
+  "ds-token":{
+    id:"ds-token", name:"Token-vector MaxSim index", sub:"compressed token-level representations",
+    purpose:"Serve full-index late-interaction retrieval where query tokens independently match token-level document evidence.",
+    representation:"Compressed token vectors, centroids or cells, residuals, document mappings and predicate-aware candidate structures.",
+    filtering:"Eligibility must participate in token-level candidate generation or a verified allow-list; post-filtering is unsafe for selective predicates.",
+    updates:"Plan explicitly for compression, memory residency, corpus growth and re-indexing when token encoders change.",
+    implementation:"A dedicated late-interaction index. An ordinary document or passage ANN index cannot serve MaxSim retrieval.",
+    notes:["This is the largest hidden infrastructure commitment on the Full surface and should be justified by measured candidate-recall failures."]
+  },
+  "ds-doc-store":{
+    id:"ds-doc-store", name:"Document / source store", sub:"fields, images, snippets, paging state",
+    purpose:"Hydrate ranked document identifiers into the response fields, images, snippets, highlights and stable pagination metadata returned to the user.",
+    representation:"Canonical document fields, display metadata, media references, policy state and version or ranking-snapshot identifiers.",
+    filtering:"Revalidate mandatory eligibility and policy state during assembly as defence in depth.",
+    updates:"Define consistency between searchable indexes and hydrated content so deleted, suppressed or stale records are not returned.",
+    implementation:"A document store, source index, content service or equivalent hydration layer; it need not be a separate database.",
+    notes:["This dependency serves presentation rather than candidate retrieval, so it appears beside Results assembly."]
+  }
+};
+
+const SERVING_REL = {
+  "ds-text":["lexical"],
+  "ds-doc-ann":["textvec"],
+  "ds-image-ann":["textimagevec","imageimagevec"],
+  "ds-sparse":["sparse"],
+  "ds-passage-ann":["multivec"],
+  "ds-token":["late"],
+  "ds-doc-store":["assembly"]
+};
+
+const RSERVING = {};
+Object.keys(SERVING_REL).forEach(sourceId=> SERVING_REL[sourceId].forEach(componentId=>{
+  (RSERVING[componentId] = RSERVING[componentId] || []).push(sourceId);
+}));
+
+/* =======================================================================
    COMPONENT RELATIONSHIPS — the single source of truth.
    The template-3 control wires AND the drawer's dependency sections are
    both generated from this, so the diagram and the detail can never drift.
@@ -2062,7 +2226,10 @@ const STEPS = [
 /* =======================================================================
    STATE
    ======================================================================= */
-const state = { view:"pipe", tpl:1, prevTpl:null, off:{1:new Set(),2:new Set(),3:new Set()}, sel:null, focus:null };
+const state = {
+  view:"pipe", tpl:1, prevTpl:null, showServing:false,
+  off:{1:new Set(),2:new Set(),3:new Set()}, sel:null, focus:null
+};
 
 const $  = (s,r)=> (r||document).querySelector(s);
 const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
@@ -2076,6 +2243,26 @@ function tplStages(t){
 function isOff(id){ return state.off[state.tpl].has(id); }
 function isOn(id){ return !isOff(id); }
 function lockedFor(id){ return S[id].tier==="core"; }
+
+function activeSourceIds(componentIds=tplStages(state.tpl).filter(isOn)){
+  const consumers = new Set(componentIds);
+  return Object.keys(DATA_SOURCES).filter(sourceId=>
+    (SERVING_REL[sourceId]||[]).some(componentId=>consumers.has(componentId)));
+}
+
+function activeConsumers(sourceId){
+  const present = new Set(tplStages(state.tpl));
+  return (SERVING_REL[sourceId]||[]).filter(id=>present.has(id) && isOn(id));
+}
+
+function sourceIdsForRow(rowIndex, componentIds){
+  return activeSourceIds(componentIds).filter(sourceId=>{
+    const consumers = new Set(activeConsumers(sourceId));
+    const hostRow = TPL[state.tpl].rows.findIndex(row=>
+      (row.c||[]).some(componentId=>consumers.has(componentId)));
+    return hostRow===rowIndex;
+  });
+}
 
 function setOff(id,off){
   const set = state.off[state.tpl];
@@ -2170,6 +2357,15 @@ function renderBudget(){
   syncFocusUI();
 }
 
+function renderServingToggle(){
+  const count = activeSourceIds().length;
+  const button = $("#servingToggle");
+  button.setAttribute("aria-pressed",String(state.showServing));
+  button.setAttribute("aria-label",(state.showServing?"Hide":"Show")+" serving dependencies");
+  $("#servingCount").textContent = count+" logical "+(count===1?"source":"sources")+
+    (state.showServing?" shown":" · collapsed");
+}
+
 /* =======================================================================
    CANVAS RENDER
    ======================================================================= */
@@ -2197,6 +2393,35 @@ function nodeEl(id, newIds){
   return el;
 }
 
+function sourceEl(id){
+  const source = DATA_SOURCES[id];
+  const consumers = activeConsumers(id);
+  const el = document.createElement("button");
+  el.className = "source-card";
+  el.dataset.sourceId = id;
+  if(state.sel===id) el.classList.add("selected");
+  el.innerHTML =
+    '<div class="nm">'+source.name+'</div>'+
+    '<div class="sb">'+source.sub+'</div>'+
+    '<div class="source-serves"><b>Serves</b> '+consumers.map(cid=>S[cid].name).join(" · ")+'</div>';
+  el.addEventListener("click", ()=> openSourceDrawer(id));
+  return el;
+}
+
+function servingLayerEl(sourceIds){
+  const layer = document.createElement("section");
+  layer.className = "serving-layer";
+  layer.dataset.sourceCount = sourceIds.length;
+  const columns = sourceIds.length===1 ? 1 : sourceIds.length<=4 ? 2 : 3;
+  layer.style.setProperty("--source-cols",columns);
+  layer.setAttribute("aria-label", "Serving data dependencies");
+  layer.innerHTML = '<span class="source-count">'+sourceIds.length+
+    ' logical '+(sourceIds.length===1?"source":"sources")+'</span><div class="source-grid"></div>';
+  const grid = $(".source-grid",layer);
+  sourceIds.forEach(id=>grid.appendChild(sourceEl(id)));
+  return layer;
+}
+
 function renderCanvas(){
   const t = state.tpl;
   const prev = t>1 ? new Set(tplStages(t-1)) : new Set();
@@ -2217,7 +2442,19 @@ function renderCanvas(){
       const cell = document.createElement("div");
       cell.className = "cell " + (k==="l"?"left":k==="c"?"center":"right");
       if(k==="c") cell.dataset.cellRow = i;
-      (r[k]||[]).forEach(id=> cell.appendChild(nodeEl(id,newIds)));
+      const ids = r[k]||[];
+      const sourceIds = k==="c" && state.showServing
+        ? sourceIdsForRow(i,ids.filter(isOn)) : [];
+      if(sourceIds.length){
+        cell.classList.add("with-serving");
+        const cluster = document.createElement("div");
+        cluster.className = "node-cluster";
+        ids.forEach(id=>cluster.appendChild(nodeEl(id,newIds)));
+        cell.appendChild(cluster);
+        cell.appendChild(servingLayerEl(sourceIds));
+      } else {
+        ids.forEach(id=>cell.appendChild(nodeEl(id,newIds)));
+      }
       row.appendChild(cell);
     });
     rowsEl.appendChild(row);
@@ -2236,6 +2473,7 @@ function rectOf(sel){
 }
 function nodeRect(id){
   if(String(id).startsWith("row:")) return rectOf('[data-cell-row="'+id.slice(4)+'"]');
+  if(DATA_SOURCES[id]) return rectOf('.source-card[data-source-id="'+id+'"]');
   return rectOf('.node[data-id="'+id+'"]');
 }
 
@@ -2279,7 +2517,9 @@ function edgeList(){
                        .filter(g=>g.ids.length);
   for(let i=0;i<groups.length-1;i++){
     const a=groups[i], b=groups[i+1];
-    a.ids.forEach(from=> b.ids.forEach(to=>{
+    const hasHostedSources = state.showServing && sourceIdsForRow(a.row,a.ids).length;
+    const fromIds = hasHostedSources ? ["row:"+a.row] : a.ids;
+    fromIds.forEach(from=> b.ids.forEach(to=>{
       const label = (a.ids.length===1 && b.ids.length===1) ? a.label : null;
       edges.push({from,to,label,kind:"flow"});
     }));
@@ -2289,6 +2529,12 @@ function edgeList(){
     const okTo   = String(to).startsWith("row:")   || isOn(to);
     if(okFrom && okTo) edges.push({from,to,label,kind});
   });
+  if(state.showServing){
+    activeSourceIds().forEach(sourceId=>{
+      activeConsumers(sourceId).forEach(componentId=>
+        edges.push({from:sourceId,to:componentId,label:null,kind:"serves"}));
+    });
+  }
   return edges;
 }
 
@@ -2300,7 +2546,7 @@ function drawWires(){
   $$(".elabel").forEach(e=>e.remove());
 
   let defs = '<defs>' +
-    ['flow:var(--wire)','loop:var(--wire-loop)','ctrl:var(--wire-ctrl)','train:var(--wire-train)'].map(d=>{
+    ['flow:var(--wire)','loop:var(--wire-loop)','ctrl:var(--wire-ctrl)','train:var(--wire-train)','data:var(--wire-data)'].map(d=>{
       const [k,c]=d.split(":");
       return '<marker id="ah-'+k+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
              '<path d="M0,0 L8,4 L0,8 z" style="fill:'+c+'"/></marker>';
@@ -2319,7 +2565,12 @@ function drawWires(){
     const spine  = e.kind==="flow" || e.kind==="branch";
     const runsUp = b.y < a.y - 24;
 
-    if(e.kind==="ctrl" || e.kind==="train"){
+    if(e.kind==="serves"){
+      stroke="var(--wire-data)"; dash='stroke-dasharray="2 5" stroke-linecap="round"'; marker="data";
+      const sx=a.cx, sy=a.y, tx=b.cx, ty=b.y+b.h;
+      const dy = Math.max(18,(sy-ty)*0.52);
+      d = "M"+sx+","+sy+" C"+sx+","+(sy-dy)+" "+tx+","+(ty+dy)+" "+tx+","+ty;
+    } else if(e.kind==="ctrl" || e.kind==="train"){
       const train = e.kind==="train";
       stroke = train ? "var(--wire-train)" : "var(--wire-ctrl)";
       dash   = train ? 'stroke-dasharray="7 5"' : 'stroke-dasharray="3 4"';
@@ -2352,7 +2603,7 @@ function drawWires(){
       } else { lx = (sx+tx)/2; ly = (sy+ty)/2; }
     }
     paths += '<path data-edge-index="'+edgeIndex+'" d="'+d+'" style="fill:none;stroke:'+stroke+'" stroke-width="1.4" '+dash+
-             ' marker-end="url(#ah-'+marker+')" opacity="'+(e.kind==="ctrl"?".8":"1")+'"/>';
+             ' marker-end="url(#ah-'+marker+')" opacity="'+(e.kind==="ctrl"?".8":e.kind==="serves"?".72":"1")+'"/>';
     if(e.label && lx!=null) labels.push({x:lx,y:ly,text:e.label,loop:e.kind==="loop"});
   });
   wires.innerHTML = defs + paths;
@@ -2398,6 +2649,7 @@ function setFocus(kind, id){
 
 function applyFocus(){
   const hits = new Set(focusMatches());
+  const sourceHits = new Set(activeSourceIds(Array.from(hits)));
   // nothing matches: leave the diagram alone rather than dimming everything,
   // which reads as a broken page. The focus panel explains why.
   const dim = state.focus && hits.size > 0;
@@ -2405,6 +2657,11 @@ function applyFocus(){
     n.classList.remove("hl","dimmed");
     if(!dim) return;
     n.classList.add(hits.has(n.dataset.id) ? "hl" : "dimmed");
+  });
+  $$(".source-card").forEach(card=>{
+    card.classList.remove("hl","dimmed");
+    if(!dim) return;
+    card.classList.add(sourceHits.has(card.dataset.sourceId) ? "hl" : "dimmed");
   });
 }
 
@@ -2433,13 +2690,20 @@ function syncFocusUI(){
    DETAIL DRAWER
    ======================================================================= */
 const drawer = $("#drawer"), scrim = $("#scrim");
+const drawerSect = (title,body)=> '<div class="sect"><h4>'+title+'</h4>'+body+'</div>';
+
+function selectEntity(id){
+  state.sel = id;
+  $$(".node").forEach(n=>n.classList.toggle("selected",n.dataset.id===id));
+  $$(".source-card").forEach(card=>
+    card.classList.toggle("selected",card.dataset.sourceId===id));
+}
 
 function openDrawer(id){
   const s = S[id];
   if(!s) return;
   hideHover();
-  state.sel = id;
-  $$(".node").forEach(n=> n.classList.toggle("selected", n.dataset.id===id));
+  selectEntity(id);
 
   $("#dTags").innerHTML =
     '<span class="tag '+s.tier+'">'+s.tier+'</span>' +
@@ -2457,7 +2721,7 @@ function openDrawer(id){
     '<button class="enable-btn" id="dToggle" data-on="'+(on?1:0)+'"'+(locked?" disabled title=\"Core components cannot be switched off\"":"")+'>'+
       (locked ? "core · always on" : (on ? "✓ enabled" : "disabled — enable")) + '</button>';
 
-  const sect = (t,b)=> '<div class="sect"><h4>'+t+'</h4>'+b+'</div>';
+  const sect = drawerSect;
   let h = "";
 
   if(s.decisions) h += sect("What you are choosing", s.decisions.map(d=>
@@ -2507,12 +2771,19 @@ function openDrawer(id){
   REL_KINDS.forEach(k=>{ h += relRow(k, fwd[k]||[], "fwd"); });
   REL_KINDS.forEach(k=>{ h += relRow(k, rev[k]||[], "rev"); });
 
+  const sources = RSERVING[id] || [];
+  if(sources.length) h += sect("Served by",
+    '<p class="relnote">External logical indexes or stores required to serve this component. They exist whether or not the diagram layer is expanded.</p>'+
+    '<div class="reflist">'+sources.map(sourceId=>
+      '<button class="ref" data-source="'+sourceId+'">'+DATA_SOURCES[sourceId].name+'</button>').join("")+'</div>');
+
   const usedIn = [1,2,3].filter(t=>tplStages(t).includes(id));
   h += sect("Appears in", '<div class="reflist">'+usedIn.map(t=>
         '<button class="ref" data-tpl="'+t+'">Template '+t+' · '+TPL[t].name+'</button>').join("")+'</div>');
 
   $("#dBody").innerHTML = h;
   $$("#dBody .ref[data-goto]").forEach(b=> b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
+  $$("#dBody .ref[data-source]").forEach(b=> b.addEventListener("click",()=> openSourceDrawer(b.dataset.source)));
   $$("#dBody .ref[data-tpl]").forEach(b=> b.addEventListener("click",()=>{ setTpl(+b.dataset.tpl); openDrawer(id); }));
   const tg = $("#dToggle");
   if(tg && !locked) tg.addEventListener("click", ()=>{ setOff(id, isOn(id)); renderAll(); openDrawer(id); });
@@ -2520,9 +2791,61 @@ function openDrawer(id){
   drawer.classList.add("open"); scrim.classList.add("open");
   drawer.setAttribute("aria-modal","false");
 }
+
+function openSourceDrawer(id){
+  const source = DATA_SOURCES[id];
+  if(!source) return;
+  hideHover();
+  selectEntity(id);
+
+  $("#dTags").innerHTML =
+    '<span class="tag data">serving data</span><span class="tag grp">logical dependency</span>';
+  $("#dTitle").textContent = source.name;
+  $("#dPurpose").textContent = source.purpose;
+
+  const consumers = SERVING_REL[id] || [];
+  const active = activeConsumers(id);
+  $("#dChips").innerHTML =
+    '<span class="chip">Logical source</span>'+
+    '<span class="chip">Active consumers <b>'+active.length+'</b></span>'+
+    '<span class="chip">Defined consumers <b>'+consumers.length+'</b></span>';
+
+  const contract = '<div class="iobox"><span class="k">representation  </span>'+source.representation+
+    '\n<span class="k">filtering       </span>'+source.filtering+
+    '\n<span class="k">updates         </span>'+source.updates+'</div>';
+  const present = new Set(tplStages(state.tpl));
+  const serves = '<p class="relnote">Components that query or hydrate from this logical source.</p>'+
+    '<div class="reflist">'+consumers.map(componentId=>{
+      const unavailable = !present.has(componentId), off = present.has(componentId) && isOff(componentId);
+      const suffix = unavailable ? " · not in this template" : off ? " · off" : "";
+      return '<button class="ref'+(unavailable||off?' isoff':'')+'" data-goto="'+componentId+'">'+
+        S[componentId].name+suffix+'</button>';
+    }).join("")+'</div>';
+  const notes = source.notes && source.notes.length
+    ? drawerSect("Notes",'<ul class="notes">'+source.notes.map(note=>'<li class="note">'+note+'</li>').join("")+'</ul>') : "";
+  const templates = [1,2,3].filter(t=>
+    consumers.some(componentId=>tplStages(t).includes(componentId)));
+
+  $("#dBody").innerHTML =
+    drawerSect("Serving contract",contract)+
+    drawerSect("Implementation boundary",'<p class="relnote">'+source.implementation+'</p>')+
+    notes+
+    drawerSect("Serves",serves)+
+    drawerSect("Appears with",'<div class="reflist">'+templates.map(t=>
+      '<button class="ref" data-source-tpl="'+t+'">Template '+t+' · '+TPL[t].name+'</button>').join("")+'</div>');
+
+  $$("#dBody .ref[data-goto]").forEach(b=>b.addEventListener("click",()=>openDrawer(b.dataset.goto)));
+  $$("#dBody .ref[data-source-tpl]").forEach(b=>b.addEventListener("click",()=>{
+    setTpl(+b.dataset.sourceTpl); openSourceDrawer(id);
+  }));
+  drawer.classList.add("open"); scrim.classList.add("open");
+  drawer.setAttribute("aria-modal","false");
+}
+
 function closeDrawer(){
   drawer.classList.remove("open"); scrim.classList.remove("open");
-  state.sel = null; $$(".node").forEach(n=>n.classList.remove("selected"));
+  state.sel = null;
+  $$(".node,.source-card").forEach(el=>el.classList.remove("selected"));
 }
 
 /* =======================================================================
@@ -2558,6 +2881,8 @@ function showHoverConnections(id){
   });
   $$(".node",rowsEl).forEach(node=>
     node.classList.toggle("hover-connected", connected.has(node.dataset.id)));
+  $$(".source-card",rowsEl).forEach(card=>
+    card.classList.toggle("hover-connected", connected.has(card.dataset.sourceId)));
   $$("path[data-edge-index]",wires).forEach(path=>
     path.classList.toggle("hover-connected", connectedEdges.has(+path.dataset.edgeIndex)));
 }
@@ -2573,17 +2898,29 @@ function hideHover(){
 }
 
 function showHover(el, id){
-  const s = S[id];
-  if(!s || drawer.classList.contains("open")) return;
+  const source = DATA_SOURCES[id];
+  if(source){
+    if(drawer.classList.contains("open")) return;
+    const consumers = activeConsumers(id);
+    hoverCard.innerHTML =
+      '<div class="hc-top"><span class="hc-pill hc-group">Serving data</span>'+
+        '<span class="hc-pill">'+consumers.length+' active '+(consumers.length===1?"consumer":"consumers")+'</span></div>'+
+      '<p class="hc-desc">'+source.purpose+'</p>'+
+      '<div class="hc-notes"><span class="hc-lb">Serves</span><ul><li>'+
+        consumers.map(componentId=>S[componentId].name).join(" · ")+'</li></ul></div>';
+  } else {
+    const s = S[id];
+    if(!s || drawer.classList.contains("open")) return;
   const latency = s.lat[0]===s.lat[1] ? s.lat[0]+" ms" : s.lat[0]+"–"+s.lat[1]+" ms";
-  hoverCard.innerHTML =
-    '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
-      '<span class="hc-pill">p95 '+latency+'</span>'+
-      '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span></div>'+
-    '<p class="hc-desc">'+s.purpose+'</p>'+
-    (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
-    (s.notes && s.notes.length ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+
-      s.notes.map(n=>'<li>'+n+'</li>').join("")+'</ul></div>' : "");
+    hoverCard.innerHTML =
+      '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
+        '<span class="hc-pill">p95 '+latency+'</span>'+
+        '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span></div>'+
+      '<p class="hc-desc">'+s.purpose+'</p>'+
+      (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
+      (s.notes && s.notes.length ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+
+        s.notes.map(n=>'<li>'+n+'</li>').join("")+'</ul></div>' : "");
+  }
   hoverCard.hidden = false;          // must be visible before it can be measured
   const r = el.getBoundingClientRect();
   const cw = hoverCard.offsetWidth, ch = hoverCard.offsetHeight, gap = 12, pad = 8;
@@ -2597,15 +2934,16 @@ function showHover(el, id){
 
 rowsEl.addEventListener("mouseover", e=>{
   if(!finePointer() || drawer.classList.contains("open")) return;
-  const el = e.target.closest(".node");
-  if(!el || el.dataset.id === hoverId) return;
+  const el = e.target.closest(".node,.source-card");
+  const id = el && (el.dataset.id || el.dataset.sourceId);
+  if(!el || id === hoverId) return;
   hideHover();
-  hoverId = el.dataset.id;
+  hoverId = id;
   showHoverConnections(hoverId);
-  hoverTimer = setTimeout(()=> showHover(el, el.dataset.id), 250);
+  hoverTimer = setTimeout(()=> showHover(el, id), 250);
 });
 rowsEl.addEventListener("mouseout", e=>{
-  const el = e.target.closest(".node");
+  const el = e.target.closest(".node,.source-card");
   if(!el || el.contains(e.relatedTarget)) return;
   hideHover();
 });
@@ -2676,7 +3014,9 @@ function renderBuild(){
 /* =======================================================================
    WIRING
    ======================================================================= */
-function renderAll(){ hideHover(); renderCanvas(); renderBudget(); renderCompList(); }
+function renderAll(){
+  hideHover(); renderCanvas(); renderBudget(); renderCompList(); renderServingToggle();
+}
 
 function setTpl(t){
   if(state.tpl===t){ renderAll(); return; }
@@ -2696,6 +3036,10 @@ function setView(v){
 $$(".seg button").forEach(b=> b.addEventListener("click",()=> setTpl(+b.dataset.tpl)));
 $$(".tabs button").forEach(b=> b.addEventListener("click",()=> setView(b.dataset.view)));
 $("#resetBtn").addEventListener("click", ()=>{ state.off[state.tpl] = new Set(); renderAll(); });
+$("#servingToggle").addEventListener("click",()=>{
+  state.showServing = !state.showServing;
+  renderAll();
+});
 $("#dClose").addEventListener("click", closeDrawer);
 scrim.addEventListener("click", closeDrawer);
 document.addEventListener("keydown", e=>{
