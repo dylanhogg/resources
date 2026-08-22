@@ -893,17 +893,17 @@ def({
 /* ---------- retrieval control ---------- */
 def({
   id:"routing", name:"Retrieval routing", group:"Candidate retrieval", tier:"optional", control:true, intro:3,
-  sub:"which legs fire, for this query", lat:[0,3], cx:4, caps:["adaptive"],
-  purpose:"The control plane's core decision: which retrieval legs to activate for this specific query, based on intent, constraint shape, and whether an image was supplied.",
+  sub:"which legs and gated rerankers fire", lat:[0,3], cx:4, caps:["adaptive"],
+  purpose:"The control plane's core decision: which retrieval legs and gated rerankers to activate for this query, based on intent, constraint shape, whether an image was supplied, and where similar queries historically fail.",
   decisions:[{
     q:"What drives the routing decision?",
     opts:["Static rules on intent class","Learned classifier","LLM planner"],
     def:"Static rules on intent class",
     why:"Routing failures are invisible — a rule that never fires the image leg looks exactly like a corpus problem. Start with rules you can read, and log every decision."
   }],
-  contract:{in:"intent, constraints, has_image", out:"legs_to_fire[] + route_id (logged)"},
+  contract:{in:"intent, constraints, has_image", out:"{ legs_to_fire[], rerankers_to_fire[], route_id } (logged)"},
   callout:"A control-plane bug fails <b>silently, as a quality regression</b>, not as an error. Log the route on every query or you will never find it.",
-  failures:[{f:"A leg is never routed to",s:"Looks like a corpus or index problem",m:"route distribution; per-leg fire rate"}]
+  failures:[{f:"A leg or gated reranker is never routed to",s:"Looks like a corpus, index or model-quality problem",m:"route distribution; per-stage fire rate"}]
 });
 
 def({
@@ -999,6 +999,17 @@ def({
   example:"<code>wood fireplace</code> is visible in photos and frequently absent from the description. This leg is the only one that can find it."
 });
 
+const LATE_MODE_OVERLAP = Object.freeze({
+  f:"Both late-interaction modes enabled",
+  s:"Ideally mutually exclusive: MaxSim is paid for at retrieval and again over the shortlist, with little incremental gain",
+  m:"co-fire rate; ablate recall, nDCG and latency with each mode alone"
+});
+const RETRIEVAL_REPRESENTATION_OVERLAP = Object.freeze({
+  f:"Passage and late-interaction retrieval both enabled",
+  s:"Two expensive legs solve the same multi-facet evidence problem but contribute few unique relevant documents",
+  m:"unique relevant-document contribution per leg; recall gained per millisecond"
+});
+
 def({
   id:"multivec", name:"Multi-vector / passage retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
   sub:"chunk hits rolled up to documents", lat:[15,50], cx:4, model:true, parallel:"retrieval",
@@ -1018,6 +1029,7 @@ def({
   contract:{in:"dense_query + predicate + k", out:"ranked [doc_id, best_passage_score, passage_ids[]]"},
   callout:"Passage retrieval and late interaction attack the <b>same problem</b> — one vector cannot represent six facets — from opposite ends. One splits the document, the other splits the representation. Running both is usually redundant spend.",
   failures:[
+    RETRIEVAL_REPRESENTATION_OVERLAP,
     {f:"Document-wide evidence lost",s:"Documents whose facets are spread across sections rank below narrow ones",m:"nDCG on multi-facet queries specifically"},
     {f:"Chunk boundary splits the answer",s:"Erratic results that move when chunking changes",m:"stability across chunking configurations"}]
 });
@@ -1026,17 +1038,27 @@ def({
   id:"late", name:"Late-interaction retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
   sub:"ColBERT-style token-level MaxSim", lat:[30,90], cx:5, model:true, parallel:"retrieval",
   caps:["multifacet","paraphrase"], handles:["quiet","waterfront","fireplace"],
-  purpose:"Keep one embedding per token and score with MaxSim, so each query facet can find its own evidence anywhere in the document instead of competing inside a single averaged vector.",
+  purpose:"Run MaxSim over a full token-level index, so each query facet can retrieve its own evidence anywhere in the corpus instead of competing inside one averaged document vector.",
   decisions:[{
-    q:"Retriever or reranker?",
-    opts:["First-stage retriever over a full index","Reranker over a fused shortlist"],
-    def:"Reranker over the shortlist",
-    why:"You get most of the quality without the 10–100× index blow-up. Promote it to first-stage retrieval only when you have measured recall you cannot get any other way and accepted the storage cost."
+    q:"How is the token index served?",
+    opts:["Full-precision token vectors","Residual-compressed token vectors","Centroid-first retrieval with residual refinement"],
+    def:"Compressed, centroid-first retrieval",
+    why:"This is a first-stage retriever, so query cost and memory residency matter as much as MaxSim quality. ColBERTv2-style compression and PLAID-style candidate generation make the placement viable."
+  },{
+    q:"How is the metadata predicate applied?",
+    opts:["Predicate-aware token retrieval","Pre-computed allow-list","Post-filter the top-k"],
+    def:"Predicate-aware retrieval or a verified allow-list",
+    why:"Post-filtering repeats the same selective-query recall failure as any other ANN leg. Benchmark the implementation at production filter selectivity."
   }],
-  contract:{in:"query token embeddings + candidate set", out:"ranked [doc_id, maxsim_score, per-token evidence]"},
-  dials:[{n:"Index size multiplier",v:"10–100×",note:"The reason most teams deploy it as a reranker."},{n:"Shortlist depth",v:"100–500 if used as a reranker"}],
-  callout:"This is the leg that directly answers the six-facet problem. It is also the most expensive commitment on the menu — decide deliberately, not by accretion.",
-  failures:[{f:"Index cost underestimated",s:"Storage and memory blow the infrastructure budget",m:"index size and query cost per corpus doubling"}]
+  contract:{in:"query token embeddings + predicate + k", out:"ranked [doc_id, maxsim_score, per-token evidence]"},
+  dials:[{n:"Index size multiplier",v:"10–100× uncompressed",note:"Measure the compressed representation you will actually serve."},{n:"k_late",v:"100–300"},{n:"Candidate cells / probes",v:"tuned against exact MaxSim recall"}],
+  callout:"This placement can recover documents that the other legs never found, but it requires a dedicated token-level index — the assumed document/passage vector index is <b>not</b> that index. Multi-vector passage retrieval attacks the same problem from the chunk side; running both is usually redundant spend.",
+  failures:[
+    LATE_MODE_OVERLAP,
+    RETRIEVAL_REPRESENTATION_OVERLAP,
+    {f:"Token index treated as already available",s:"Storage, memory and indexing cost arrives after the architecture has committed",m:"compressed index bytes per token; memory residency and cost per corpus doubling"},
+    {f:"Metadata predicate applied after retrieval",s:"Selective queries return too few candidates unless k is made prohibitively large",m:"recall@k bucketed by filter selectivity"},
+    {f:"Index cost underestimated",s:"Storage and memory blow the infrastructure budget",m:"index size and query cost per corpus doubling"}]
 });
 
 /* ---------- candidate generation ---------- */
@@ -1125,6 +1147,32 @@ def({
   contract:{in:"fused top ~200–400", out:"re-scored top ~100–200"},
   dials:[{n:"Input depth",v:"200–400"},{n:"Output depth",v:"100–200"}],
   failures:[{f:"Reorders almost nothing",s:"Pure added latency",m:"rank churn between stages"}]
+});
+
+def({
+  id:"latererank", name:"Late-interaction rerank", group:"Reranking", tier:"optional", intro:3,
+  sub:"MaxSim over a fused shortlist", lat:[20,80], cx:3, model:true,
+  caps:["multifacet","paraphrase","precision"], handles:["quiet","waterfront","fireplace"],
+  purpose:"Apply token-level MaxSim after fusion and pruning, using a bounded shortlist rather than searching a full token index. This improves multi-facet ordering at much lower infrastructure cost, but cannot recover a document the retrieval legs missed.",
+  decisions:[{
+    q:"When is reranking the right placement?",
+    opts:["Candidate recall is already high","Ordinary retrieval misses relevant documents","The failure location is not measured"],
+    def:"When recall at the rerank input is high and final ordering is weak",
+    why:"A reranker can only reorder its input. If relevant documents are absent from the shortlist, use passage retrieval or full-index late-interaction retrieval instead."
+  },{
+    q:"How are document token embeddings served?",
+    opts:["Stored compressed representations","Cached after first use","Encode every document per request"],
+    def:"Stored compressed representations",
+    why:"Encoding every shortlisted document in the request path turns a bounded MaxSim stage into an encoding bottleneck and makes latency depend on document length."
+  }],
+  contract:{in:"fused shortlist + query token embeddings", out:"shortlist with maxsim_score and per-token evidence appended"},
+  dials:[{n:"Input depth",v:"100–200"},{n:"Output depth",v:"50–100"},{n:"Document representation",v:"stored and compressed"}],
+  callout:"This is a <b>ranking</b> intervention, not a recall intervention. Treat it and full-index late-interaction retrieval as ideally mutually exclusive placements of the same signal; enable both only when an ablation proves the second MaxSim pass earns its latency.",
+  failures:[
+    LATE_MODE_OVERLAP,
+    {f:"Expected to repair retrieval recall",s:"Relevant documents remain absent because they never entered the shortlist",m:"recall at rerank input, measured separately from final nDCG"},
+    {f:"Unablated rerank cascade",s:"Semantic, MaxSim and cross-encoder stages repeatedly reorder the same candidates",m:"incremental nDCG and rank churn per stage; latency per candidate"},
+    {f:"Documents encoded on every request",s:"Latency scales with shortlist size and document length",m:"encoding vs MaxSim latency; cache-hit rate"}]
 });
 
 def({
@@ -1427,6 +1475,14 @@ const REFS = {
     {t:"ColPali: Efficient Document Retrieval with Vision Language Models", s:"Faysse et al., 2024", u:A("2407.01449"),
      w:"Late interaction over document <em>images</em> — squarely relevant to a corpus with an image set per document."}
   ],
+  latererank:[
+    {t:"ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction", s:"Khattab & Zaharia, 2020", u:A("2004.12832"),
+     w:"Defines MaxSim and evaluates late interaction as both retrieval and reranking over candidate sets."},
+    {t:"ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction", s:"Santhanam et al., 2021", u:A("2112.01488"),
+     w:"Residual compression makes stored document token representations practical for a bounded rerank stage."},
+    {t:"Pretrained Transformers for Text Ranking: BERT and Beyond", s:"Lin et al., 2020", u:A("2010.06467"),
+     w:"Places late interaction within the broader ranking-cascade design space and clarifies what it trades against cross-encoding."}
+  ],
   union:[
     {t:"Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods", s:"Cormack et al., SIGIR 2009", u:D("10.1145/1571941.1572114"),
      w:"Section 2 explains why the per-leg score normalisation this stage would otherwise need is so fragile."}
@@ -1526,7 +1582,8 @@ const EXAMPLES = {
   sparse:"Expands <code>cabin</code> toward cottage and lodge in a sparse space, so a listing that never uses the word “cabin” is still reachable — and you can see exactly which term matched.",
   textvec:"One vector has to represent quiet, waterfront, fireplace, capacity, price and distance simultaneously. It cannot, and this is the clearest illustration of why.",
   multivec:"<code>quiet</code> is evidenced in the reviews section and <code>wood fireplace</code> in the amenities list — two different passages of the same listing, which document-level embedding averages away.",
-  late:"Each of the six facets finds its own evidence independently rather than competing inside one averaged vector. This query is the canonical argument for the leg.",
+  late:"Each facet retrieves its own evidence from the full token index. A listing can enter the candidate set because <code>quiet</code>, <code>waterfront</code> and <code>wood fireplace</code> all find distinct token-level matches.",
+  latererank:"The ordinary legs already retrieved the right cabins, but averaged scores muddled their order. MaxSim lets <code>quiet</code>, <code>waterfront</code> and <code>wood fireplace</code> find separate evidence within each shortlisted listing.",
   union:"A listing found by the lexical leg at rank 40 (it has the <code>waterfront</code> tag) and by the image leg at rank 2 (its fireplace photo matched) must merge into one candidate carrying both ranks.",
   prune:"If the image leg returned 200 candidates and the lexical leg 150, cap both before the cross-encoder is asked to score 350 documents.",
   fusion:"The lexical leg ranks the <code>waterfront</code> tag match first; the image leg ranks the fireplace photo first. RRF lets both surface without ever comparing a BM25 score to a cosine.",
@@ -1647,6 +1704,7 @@ const TPL = {
       {l:["relax","zerofallback"], c:["prune"]},
       {lane:"Fusion", c:["fusion"], r:["fusionpolicy"]},
       {lane:"Reranking", c:["semrerank"]},
+      {c:["latererank"]},
       {c:["crossenc"]},
       {c:["vlmrerank"]},
       {c:["ltr"]},
@@ -1680,9 +1738,9 @@ const REL = {
   "q-image":    { steers:["routing"] },
   session:      { steers:["understand","rewrite","routing","personalisation"] },
   confidence:   { steers:["prefilter","relax"] },
-  routing:      { steers:LEGS.concat(["budget"]) },
+  routing:      { steers:LEGS.concat(["budget","latererank"]) },
   budget:       { steers:LEGS },
-  degradation:  { steers:LEGS.concat(["crossenc","vlmrerank"]) },
+  degradation:  { steers:LEGS.concat(["latererank","crossenc","vlmrerank"]) },
   fusionpolicy: { steers:["fusion"] },
   assembly:     { feeds:["behavioural"] },
   behavioural:  { trains:["fusionpolicy","personalisation","ltr"] }
@@ -1753,10 +1811,10 @@ const STEPS = [
    build:"Per-query leg selection, per-leg k under a latency budget, and a defined degradation order.",
    trigger:"Latency-bound with a heterogeneous query mix.",
    buys:"Headroom — spend quality where it changes the answer, skip it where it does not."},
-  {n:10, t:3, title:"Passage-level OR late interaction", stages:["multivec","late"],
-   build:"Chunk-and-roll-up, or token-level MaxSim. Pick one deliberately.",
-   trigger:"Multi-faceted queries over long documents; rerank cannot fix what retrieval never found.",
-   buys:"Fixes the one failure the rerank cascade structurally cannot."},
+  {n:10, t:3, title:"Passage-level or late-interaction placement", stages:["multivec","late","latererank"],
+   build:"Choose passage retrieval or full-index late-interaction retrieval when candidate recall is weak; choose late-interaction reranking when shortlist recall is already high but multi-facet ordering is weak.",
+   trigger:"Multi-faceted queries over long documents, sliced into recall-at-shortlist and final-ranking failures.",
+   buys:"Puts token-level evidence at the stage where the measured failure occurs, without paying for MaxSim twice by default."},
   {n:11, t:3, title:"Query-dependent / modality-weighted fusion", stages:["fusionpolicy"],
    build:"A policy layer choosing strategy and leg weights per query class.",
    trigger:"One global weighting is provably wrong for a whole query class.",
