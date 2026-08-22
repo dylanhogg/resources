@@ -821,15 +821,15 @@ def({
 
 def({
   id:"q-image", name:"Image query", group:"Query inputs", tier:"optional", io:true, intro:3,
-  sub:"uploaded or reference image", lat:[0,0], cx:2, caps:["visualsim"],
-  purpose:"An uploaded or reference image, encoded with the image tower and used for image-to-image retrieval. Also a strong routing signal: its presence tells the pipeline this query is visual.",
+  sub:"validated upload or image reference", lat:[0,0], cx:2,
+  purpose:"Accept, validate and normalise an uploaded or reference image for downstream encoding. Its presence is also a strong routing signal that the request contains visual intent.",
   decisions:[{
     q:"How does an image query combine with the text query?",
     opts:["Image replaces the text query","Image as an extra retrieval leg","Image as a rerank signal only"],
     def:"Extra retrieval leg, text still drives constraints",
     why:"Users who upload an image nearly always still mean the typed constraints. Dropping the text loses the filters entirely."
   }],
-  contract:{in:"uploaded bytes or a reference doc_id", out:"image embedding + routing hint visual=true"},
+  contract:{in:"uploaded bytes or a reference doc_id", out:"{ validated_image_or_ref, routing_hint: visual=true }"},
   notes:["An image query is both a retrieval input and an explicit routing signal that the request contains visual intent. Pass that signal to the router as well as the image-to-image retrieval leg so it can influence which retrieval and reranking stages run."],
   failures:[{f:"Image dominates and constraints are dropped",s:"Visually similar results that violate stated filters",m:"filter-violation rate on image-bearing queries"}]
 });
@@ -883,11 +883,11 @@ def({
 def({
   id:"rewrite", name:"Query rewriting", group:"Query processing", tier:"recommended", intro:2,
   sub:"spelling, synonyms, constraint-stripped query", lat:[5,25], cx:2, model:true,
-  purpose:"Produce the query text each retrieval leg should actually see: spelling corrected, synonyms canonicalised, and — critically — a constraint-stripped variant for the dense legs.",
+  purpose:"Produce the query text each retrieval leg should actually see: spelling corrected, synonyms canonicalised, and — critically — a constraint-stripped variant for Text vector retrieval and Text-to-image vector retrieval.",
   decisions:[{
     q:"Do all legs get the same query text?",
-    opts:["Same text everywhere","Full text to lexical, constraint-stripped to dense"],
-    def:"Asymmetric: full text lexically, constraint-stripped to the dense and text-to-image legs",
+    opts:["Same text everywhere","Full text to lexical; constraint-stripped to text-vector and text-to-image"],
+    def:"Asymmetric: full text lexically, constraint-stripped to the text-vector and text-to-image legs",
     why:"Numbers are real lexical signal but pollute an embedding — “sleeps 6” drags the vector toward documents that talk about numbers. This asymmetry is easy to miss and usually worth points of nDCG."
   },{
     q:"What generates the rewrite?",
@@ -1299,7 +1299,7 @@ def({
   purpose:"Score the unioned candidate set into one ordering using the retained per-leg ranks. One stage with a strategy slot — not a chain of stages.",
   decisions:[{
     q:"Which fusion strategy?",
-    opts:["Reciprocal Rank Fusion (rank-based)","Weighted score fusion (needs calibration)","Modality-weighted (text vs image)","Learned fusion (needs training data)"],
+    opts:["Reciprocal Rank Fusion (rank-based)","Weighted score fusion (needs calibration)","Leg-weighted fusion (separate text-to-image and image-to-image weights)","Learned fusion (needs training data)"],
     def:"RRF with k ≈ 60",
     why:"RRF needs no cross-leg score calibration for ranking, which is precisely the problem you have. Weighted score fusion is better only once you have per-corpus calibration and an eval set to tune against."
   },{
@@ -1833,7 +1833,8 @@ Object.keys(EXAMPLES).forEach(k=>{ if(S[k]) S[k].example = EXAMPLES[k]; });
 const DIALS = {
   "q-text":[{n:"Max query length",v:"~256 chars",note:"Longer inputs are usually pasted text, and want a different pipeline."},
             {n:"UI filters",v:"kept separate",note:"Never merge them into extracted constraints."}],
-  "q-image":[{n:"Max upload size",v:"resize before encoding"},{n:"Rollup",v:"max over document images"}],
+  "q-image":[{n:"Max upload size",v:"reject early; resize before encoding"},
+             {n:"Decode policy",v:"allow-listed formats, capped resolution"}],
   session:[{n:"Context window",v:"last 2–3 turns"},{n:"Reset heuristic",v:"on intent-class change",note:"The single most important dial here."}],
   confidence:[{n:"Hard-constraint threshold",v:"tuned per field type"},{n:"UI filter confidence",v:"1.0, always hard"}],
   zerofallback:[{n:"Suggestions returned",v:"3–5"},{n:"Semantic-only depth",v:"k of a normal leg"}],
