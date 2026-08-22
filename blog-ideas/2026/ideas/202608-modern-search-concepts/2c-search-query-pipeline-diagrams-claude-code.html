@@ -781,6 +781,7 @@ const CAPS = [
   {id:"paraphrase", label:"Paraphrase"},
   {id:"vocab",      label:"Vocabulary mismatch"},
   {id:"crossmodal", label:"Cross-modal"},
+  {id:"visualsim",  label:"Visual similarity"},
   {id:"visual",     label:"Fine visual detail"},
   {id:"multifacet", label:"Multi-facet queries"},
   {id:"longdoc",    label:"Long documents"},
@@ -820,7 +821,7 @@ def({
 
 def({
   id:"q-image", name:"Image query", group:"Query inputs", tier:"optional", io:true, intro:3,
-  sub:"uploaded or reference image", lat:[0,0], cx:2, caps:["crossmodal"],
+  sub:"uploaded or reference image", lat:[0,0], cx:2, caps:["visualsim"],
   purpose:"An uploaded or reference image, encoded with the image tower and used for image-to-image retrieval. Also a strong routing signal: its presence tells the pipeline this query is visual.",
   decisions:[{
     q:"How does an image query combine with the text query?",
@@ -829,7 +830,7 @@ def({
     why:"Users who upload an image nearly always still mean the typed constraints. Dropping the text loses the filters entirely."
   }],
   contract:{in:"uploaded bytes or a reference doc_id", out:"image embedding + routing hint visual=true"},
-  notes:["An image query is both a retrieval input and an explicit routing signal that the request contains visual intent. Pass that signal to the router as well as the image-retrieval leg so it can influence which retrieval and reranking stages run."],
+  notes:["An image query is both a retrieval input and an explicit routing signal that the request contains visual intent. Pass that signal to the router as well as the image-to-image retrieval leg so it can influence which retrieval and reranking stages run."],
   failures:[{f:"Image dominates and constraints are dropped",s:"Visually similar results that violate stated filters",m:"filter-violation rate on image-bearing queries"}]
 });
 
@@ -886,7 +887,7 @@ def({
   decisions:[{
     q:"Do all legs get the same query text?",
     opts:["Same text everywhere","Full text to lexical, constraint-stripped to dense"],
-    def:"Asymmetric: full text lexically, constraint-stripped to the dense and image legs",
+    def:"Asymmetric: full text lexically, constraint-stripped to the dense and text-to-image legs",
     why:"Numbers are real lexical signal but pollute an embedding — “sleeps 6” drags the vector toward documents that talk about numbers. This asymmetry is easy to miss and usually worth points of nDCG."
   },{
     q:"What generates the rewrite?",
@@ -1050,7 +1051,7 @@ def({
     q:"What drives the routing decision?",
     opts:["Static rules on intent class","Learned classifier","LLM planner"],
     def:"Static rules on intent class",
-    why:"Routing failures are invisible — a rule that never fires the image leg looks exactly like a corpus problem. Start with rules you can read, and log every decision."
+    why:"Routing failures are invisible — a rule that never fires the right visual leg looks exactly like a corpus problem. Start with rules you can read, and log every decision."
   }],
   contract:{in:"intent, constraints, has_image", out:"{ legs_to_fire[], rerankers_to_fire[], route_id } (logged)"},
   notes:[
@@ -1131,29 +1132,60 @@ def({
 });
 
 def({
-  id:"imagevec", name:"Image vector retrieval", group:"Candidate retrieval", tier:"recommended", intro:2,
-  sub:"text-to-image and image-to-image ANN", lat:[10,40], cx:3, model:true, parallel:"retrieval",
+  id:"textimagevec", name:"Text-to-image vector retrieval", group:"Candidate retrieval", tier:"recommended", intro:2,
+  sub:"text-tower ANN over image embeddings", lat:[10,40], cx:3, model:true,
+  modelKey:"visual-dual-tower", modelLabel:"Visual dual-tower retrieval", parallel:"retrieval",
   caps:["crossmodal"], handles:["fireplace","waterfront"],
-  purpose:"Search the document image embeddings. Driven by the text query through the image model's text tower, so it is useful even with no image input — this is where attributes that never appear in the text get found.",
+  purpose:"Search document image embeddings with the constraint-stripped text query encoded by the model's text tower. This finds visual attributes that never appear in document text, without requiring an uploaded image.",
   decisions:[{
     q:"How do per-image scores roll up to a document?",
     opts:["Max over images","Mean over images","Mean of top-2"],
     def:"Max",
     why:"One strongly matching image is the signal. Averaging over thirty photos of the same room buries it, and rewards documents that simply have more images — a popularity proxy, not relevance."
   },{
-    q:"How is the image leg weighted against text legs?",
+    q:"How is the text-to-image leg weighted against text-document legs?",
     opts:["Equal weight","Down-weighted","Query-dependent"],
     def:"Down-weighted to start",
-    why:"Cross-modal similarity is noisier than text-to-text, and image legs return confident-looking garbage for abstract queries that have no visual referent."
+    why:"Cross-modal similarity is noisier than text-to-text, and text-to-image retrieval returns confident-looking garbage for abstract queries that have no visual referent."
   }],
-  contract:{in:"query embedding (text tower) + predicate + k", out:"ranked [doc_id, score, matched_image_ids]"},
-  dials:[{n:"k_img",v:"100–200"},{n:"Rollup",v:"max"},{n:"Leg weight",v:"0.5–0.8 of a text leg"}],
+  contract:{in:"dense_query encoded by text tower + predicate + k_t2i", out:"ranked [doc_id, t2i_score, matched_image_ids]"},
+  dials:[{n:"k_t2i",v:"100–200"},{n:"Rollup",v:"max"},{n:"Leg weight",v:"0.5–0.8 of a text-document leg"}],
   notes:[
     "Text-driven image retrieval requires text and image embeddings that are compatible within a shared embedding space. Verify this before designing the retrieval leg around text-to-image similarity.",
-    "If the image vectors cannot be reached from a text query, treat this as an optional image-to-image retrieval leg and run it only when the user supplies an image."
+    "This logical leg normally shares its dual-tower model, document-image embeddings and ANN index with Image-to-image vector retrieval. Separate routing and ranking do not require duplicate infrastructure."
   ],
   failures:[{f:"Fires on abstract queries",s:"Visually similar, semantically wrong results",m:"per-leg precision@10, abstract vs concrete queries"}],
-  example:"<code>wood fireplace</code> is visible in photos and frequently absent from the description. This leg is the only one that can find it."
+  example:"<code>wood fireplace</code> is visible in photos and frequently absent from the description. For this text-only query, this is the only leg that can find it."
+});
+
+def({
+  id:"imageimagevec", name:"Image-to-image vector retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
+  sub:"image-tower ANN over image embeddings", lat:[10,40], cx:2, model:true,
+  modelKey:"visual-dual-tower", modelLabel:"Visual dual-tower retrieval", parallel:"retrieval",
+  caps:["visualsim"],
+  purpose:"Search document image embeddings with an uploaded or reference image encoded by the model's image tower. It is a separate, image-bearing query leg, while typed text continues to supply meaning and constraints.",
+  decisions:[{
+    q:"How does image similarity combine with the text legs?",
+    opts:["Replace text retrieval","Run as an extra retrieval leg","Use only as a rerank signal"],
+    def:"Run as an extra retrieval leg",
+    why:"The image supplies visual similarity; typed text still carries constraints and intent that the image cannot express. Replacing the text legs silently discards both."
+  },{
+    q:"How do per-image scores roll up to a document?",
+    opts:["Max over images","Mean over images","Mean of top-2"],
+    def:"Max",
+    why:"One strongly similar document image is useful evidence. Averaging across every image buries that match and rewards documents merely for having more images."
+  }],
+  contract:{in:"image_query_embedding + predicate + k_i2i", out:"ranked [doc_id, i2i_score, matched_image_ids]"},
+  dials:[{n:"k_i2i",v:"100–200"},{n:"Rollup",v:"max"},{n:"Leg weight",v:"tune separately from text-to-image"}],
+  notes:[
+    "Run this leg only when an Image query is present. Its route, candidate depth, deadline, calibration and fusion weight remain independent from Text-to-image vector retrieval.",
+    "The default implementation shares the visual dual-tower model, document-image embeddings and ANN index with Text-to-image vector retrieval; the split is logical, not an instruction to duplicate infrastructure."
+  ],
+  failures:[
+    {f:"Background or photographic style dominates",s:"Results look alike but depict the wrong subject or attributes",m:"precision@10 on labelled image-bearing queries, sliced by query-image type"},
+    {f:"Typed constraints are dropped",s:"Visually similar results violate capacity, price or policy requirements",m:"filter-violation rate on image-bearing queries"}
+  ],
+  example:"The user uploads a cabin-interior photo they like. This leg retrieves visually similar listings, while <code>sleeps 6</code> and <code>under $300</code> remain enforced by the predicate."
 });
 
 const LATE_MODE_OVERLAP = Object.freeze({
@@ -1277,10 +1309,10 @@ def({
     why:"Results are insensitive between roughly 20 and 100. Time spent here is time not spent on the rerank depth, which actually moves nDCG."
   }],
   contract:{in:"unioned candidates carrying per-leg ranks", out:"single fused ranking + fused_score, per-leg ranks retained"},
-  dials:[{n:"RRF k",v:"60"},{n:"Leg weights",v:"lexical/dense 1.0; image 0.5–0.8 initially"}],
+  dials:[{n:"RRF k",v:"60"},{n:"Leg weights",v:"lexical/dense 1.0; text-to-image 0.5–0.8; image-to-image tuned separately"}],
   notes:[
     "When only one retrieval leg is active, or only one survives its deadline, Fusion is an identity operation: preserve that leg's order and continue rather than treating the request as a fusion failure.",
-    "Use equal weights for the Core lexical and dense legs. A fixed conservative image-leg weight belongs in this stage; selecting weights or strategy per query belongs to Fusion policy."
+    "Use equal weights for the Core lexical and dense legs. A fixed conservative text-to-image weight belongs in this stage; image-to-image needs its own calibration. Selecting either weight or strategy per query belongs to Fusion policy."
   ],
   failures:[
     {f:"RRF flattens a signal that is strong in only one leg",s:"Exact-match queries no longer rank 1",m:"exact-match probe suite as a hard gate"},
@@ -1299,7 +1331,7 @@ def({
     why:"Query-dependent fusion is not a sibling of RRF, it is the policy layer above it. Building it as a parallel strategy produces a system where nobody can say which fusion actually ran."
   }],
   contract:{in:"query class + leg statistics", out:"{ strategy, weights[] } (logged per query)"},
-  example:"For <code>wood fireplace</code> the image leg should dominate. For <code>quiet</code> it should be nearly muted. One global weighting cannot serve both."
+  example:"For the text facet <code>wood fireplace</code>, text-to-image retrieval should dominate. An uploaded cabin photo activates image-to-image retrieval with its own weight; for <code>quiet</code>, both visual legs should be nearly muted."
 });
 
 /* ---------- reranking ---------- */
@@ -1645,10 +1677,17 @@ const REFS = {
      w:"The corrective to leaderboard-chasing: dense retrievers generalise far less than in-domain numbers suggest."},
     {t:"Hierarchical Navigable Small World graphs (HNSW)", s:"Malkov & Yashunin, 2016", u:A("1603.09320")}
   ],
-  imagevec:[
+  textimagevec:[
     {t:"CLIP: Learning Transferable Visual Models From Natural Language Supervision", s:"Radford et al., 2021", u:A("2103.00020"),
-     w:"Establishes the shared space that makes a text-driven image leg possible at all."},
-    {t:"Sigmoid Loss for Language Image Pre-Training (SigLIP)", s:"Zhai et al., 2023", u:A("2303.15343")}
+     w:"Establishes the shared text-image space that makes this cross-modal retrieval leg possible."},
+    {t:"Sigmoid Loss for Language Image Pre-Training (SigLIP)", s:"Zhai et al., 2023", u:A("2303.15343"),
+     w:"A dual-tower alternative whose compatible text and image embeddings support the same logical leg."}
+  ],
+  imageimagevec:[
+    {t:"CLIP: Learning Transferable Visual Models From Natural Language Supervision", s:"Radford et al., 2021", u:A("2103.00020"),
+     w:"Its image tower places query and document images in the shared space used for image-to-image similarity."},
+    {t:"Sigmoid Loss for Language Image Pre-Training (SigLIP)", s:"Zhai et al., 2023", u:A("2303.15343"),
+     w:"Supports a shared dual-tower implementation without requiring a second document-image index."}
   ],
   multivec:[
     {t:"Late Chunking: Contextual Chunk Embeddings Using Long-Context Models", s:"Günther et al., 2024", u:A("2409.04701"),
@@ -1767,16 +1806,16 @@ const EXAMPLES = {
   prefilter:"Compiles <code>sleeps &gt;= 6 AND price &lt;= 300</code> with mandatory authorization and availability predicates. <code>within 2 hours</code> should become a soft boost because its confidence is low; system policy remains hard and non-relaxable.",
   sufficiency:"With all four constraints applied as hard filters this corpus might return three candidates — above zero, well below n_min. That gap is exactly what the relaxation ladder exists for.",
   zerofallback:"Nothing survives even a relaxed filter: fall back to “waterfront cabins” semantically, and offer “try up to $350” or “try within 3 hours” as explicit next steps.",
-  routing:"<code>wood fireplace</code> is a visual attribute, so this query should fire the image leg. A query like “booking reference 4471” should fire only the lexical leg.",
-  budget:"Six legs are available and the budget is 400 ms. For this query, spend the depth on the image leg — the fireplace evidence is there — and skip late interaction.",
+  routing:"<code>wood fireplace</code> is a visual text attribute, so this query should fire text-to-image retrieval. Image-to-image retrieval fires only when an image is supplied; “booking reference 4471” should fire only the lexical leg.",
+  budget:"Seven legs are available and the budget is 400 ms. Spend text-query depth on text-to-image retrieval when the fireplace evidence is in photos; reserve image-to-image depth for routes that actually contain an image.",
   sparse:"Expands <code>cabin</code> toward cottage and lodge in a sparse space, so a listing that never uses the word “cabin” is still reachable — and you can see exactly which term matched.",
   textvec:"One vector has to represent quiet, waterfront, fireplace, capacity, price and distance simultaneously. It cannot, and this is the clearest illustration of why.",
   multivec:"<code>quiet</code> is evidenced in the reviews section and <code>wood fireplace</code> in the amenities list — two different passages of the same listing, which document-level embedding averages away.",
   late:"Each facet retrieves its own evidence from the full token index. A listing can enter the candidate set because <code>quiet</code>, <code>waterfront</code> and <code>wood fireplace</code> all find distinct token-level matches.",
   latererank:"The ordinary legs already retrieved the right cabins, but averaged scores muddled their order. MaxSim lets <code>quiet</code>, <code>waterfront</code> and <code>wood fireplace</code> find separate evidence within each shortlisted listing.",
-  union:"A listing found by the lexical leg at rank 40 (it has the <code>waterfront</code> tag) and by the image leg at rank 2 (its fireplace photo matched) must merge into one candidate carrying both ranks.",
-  prune:"If the image leg returned 200 candidates and the lexical leg 150, cap both before the cross-encoder is asked to score 350 documents.",
-  fusion:"The lexical leg ranks the <code>waterfront</code> tag match first; the image leg ranks the fireplace photo first. RRF lets both surface without ever comparing a BM25 score to a cosine.",
+  union:"A listing found by the lexical leg at rank 40 and text-to-image retrieval at rank 2 must merge into one candidate carrying both ranks. On image-bearing queries, preserve the independent image-to-image rank too.",
+  prune:"If text-to-image retrieval returned 200 candidates and the lexical leg 150, cap both independently before reranking; image-to-image gets its own cap when that route is active.",
+  fusion:"The lexical leg ranks the <code>waterfront</code> tag match first; text-to-image retrieval ranks the fireplace photo first. RRF lets both surface without comparing BM25 to cosine, while image-to-image contributes a separately weighted rank only on image-bearing queries.",
   semrerank:"Cheaply drops listings that matched only on the word “cabin” before the expensive tier has to look at them.",
   crossenc:"Can tell that “the cabin sits on a quiet bay” is a match for <code>quiet</code>, while “quiet neighbours are appreciated” is a house rule, not a property.",
   ltr:"Blends the cross-encoder relevance score with enquiry rate, photo quality and cancellation history into the order actually shown.",
@@ -1786,7 +1825,7 @@ const EXAMPLES = {
   diversity:"Stops the top ten filling with ten near-identical cabins from the same operator on the same lake.",
   dedup:"The same cabin listed by two different agencies should collapse into one result, keeping the better-ranked copy.",
   assembly:"Hydrate the <em>matched</em> image as the thumbnail. If the fireplace photo is why this listing ranked, showing the driveway photo wastes the match.",
-  degradation:"In the Recommended path, reduce cross-encoder depth or drop the nonessential image leg before missing the deadline. In Full, drop the VLM fireplace check first.",
+  degradation:"In the Recommended path, reduce cross-encoder depth or drop text-to-image retrieval before missing the deadline. In Full, drop the VLM check first, then whichever visual retrieval leg contributes least for that route.",
   behavioural:"A user who saves a listing with no fireplace is telling you that constraint was soft. That signal is only capturable if you logged the impression alongside the query."
 };
 Object.keys(EXAMPLES).forEach(k=>{ if(S[k]) S[k].example = EXAMPLES[k]; });
@@ -1853,14 +1892,14 @@ const TPL = {
     name:"Core + recommended",
     tagline:"The production target",
     target:"~400 ms p95",
-    desc:"The <b>default answer</b>. Adds rewriting, static routing, cross-modal image retrieval, bounded recovery, candidate pruning, cross-encoder reranking, operational deadlines, auditable final-ranking controls, and feedback instrumentation. Architect against this one.",
+    desc:"The <b>default answer</b>. Adds rewriting, static routing, cross-modal text-to-image retrieval, bounded recovery, candidate pruning, cross-encoder reranking, operational deadlines, auditable final-ranking controls, and feedback instrumentation. Architect against this one.",
     rows:[
       {lane:"Query inputs", c:["q-text"]},
       {lane:"Query processing", c:["normalise"]},
       {c:["understand"]},
       {c:["rewrite"]},
       {lane:"Constraint handling", c:["prefilter"], r:["routing"]},
-      {lane:"Candidate retrieval", c:["lexical","textvec","imagevec"], r:["degradation"]},
+      {lane:"Candidate retrieval", c:["lexical","textvec","textimagevec"], r:["degradation"]},
       {lane:"Candidate generation", c:["union"]},
       {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
       {l:["relax","zerofallback"], c:["prune"]},
@@ -1878,7 +1917,7 @@ const TPL = {
     name:"Full surface",
     tagline:"The menu, not the target",
     target:"~600 ms p95, plus conditional work",
-    desc:"Everything on the menu. <b>Do not read this as “execute every box”</b> — a simple navigational query should fire two legs, skip fusion policy, and never see a VLM. The dashed control plane decides which parts run.",
+    desc:"Everything on the menu. <b>Do not read this as “execute every box”</b> — a simple navigational query should fire two legs and skip the VLM; image-to-image retrieval should fire only when an image is supplied. The dashed control plane decides which parts run.",
     rows:[
       {lane:"Query inputs", l:["q-image"], c:["q-text"], r:["session"]},
       {lane:"Query processing", c:["normalise"]},
@@ -1886,7 +1925,7 @@ const TPL = {
       {c:["rewrite"]},
       {c:["expand"]},
       {lane:"Constraint handling", c:["prefilter"], r:["routing"]},
-      {lane:"Candidate retrieval", c:["lexical","textvec","imagevec","sparse","multivec","late"], r:["budget","degradation"]},
+      {lane:"Candidate retrieval", c:["lexical","textvec","textimagevec","imageimagevec","sparse","multivec","late"], r:["budget","degradation"]},
       {lane:"Candidate generation", c:["union"]},
       {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
       {l:["relax","zerofallback"], c:["prune"]},
@@ -1903,9 +1942,7 @@ const TPL = {
       {c:["dedup"]},
       {lane:"Results", c:["assembly"], r:["behavioural"]}
     ],
-    extra:BRANCHES.concat([
-      ["q-image","imagevec","image tower","branch"]
-    ])  /* control and training wires are generated from REL — see relEdges() */
+    extra:BRANCHES  /* control, data and training wires are generated from REL — see relEdges() */
   }
 };
 
@@ -1920,10 +1957,10 @@ const TPL = {
             Learning-to-Rank at query time, they are what it is trained on.
    feeds  : plain data flow between stages that is not part of the spine.
    ======================================================================= */
-const LEGS = ["lexical","sparse","textvec","imagevec","multivec","late"];
+const LEGS = ["lexical","sparse","textvec","textimagevec","imageimagevec","multivec","late"];
 
 const REL = {
-  "q-image":    { steers:["routing"] },
+  "q-image":    { steers:["routing"], feeds:["imageimagevec"] },
   session:      { steers:["understand","rewrite","routing","personalisation"] },
   confidence:   { steers:["prefilter","relax"] },
   routing:      { steers:LEGS.concat(["budget","latererank"]) },
@@ -1952,7 +1989,7 @@ Object.keys(REL).forEach(from=> REL_KINDS.forEach(kind=>
   })));
 
 /* components that cannot exist without a parent */
-const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency" };
+const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency", imageimagevec:"q-image" };
 
 /* =======================================================================
    BUILD ORDER
@@ -1979,7 +2016,7 @@ const STEPS = [
    build:"A quality-floor sufficiency check, an ordered ladder capped at 2 passes, and a distinct recovery retrieval mode.",
    trigger:"Zero-result rate above ~5% of queries.",
    buys:"Recovers the queries you are currently losing entirely."},
-  {n:5, t:2, title:"Image retrieval with static routing", stages:["imagevec","routing"],
+  {n:5, t:2, title:"Text-to-image retrieval with static routing", stages:["textimagevec","routing"],
    build:"Add down-weighted text-to-image ANN with max rollup, then use inspectable intent rules to fire it only for queries with visual meaning.",
    trigger:"Users search for attributes only visible in images.",
    buys:"Unlocks an indexed modality without paying for it on abstract or strictly navigational queries."},
@@ -2007,11 +2044,15 @@ const STEPS = [
    build:"A policy layer choosing strategy and leg weights per query class.",
    trigger:"One global weighting is provably wrong for a whole query class.",
    buys:"Per-class gains that a single fusion setting cannot deliver."},
-  {n:12, t:3, title:"VLM rerank", stages:["vlmrerank","q-image"],
+  {n:12, t:3, title:"Image-query and image-to-image retrieval", stages:["q-image","imageimagevec"],
+   build:"Encode uploaded or reference images with the image tower, query the shared document-image index as an independent leg, retain typed constraints, and fuse its rank separately.",
+   trigger:"Users need query-by-example or regularly supply reference images.",
+   buys:"Visual similarity search without conflating an image-bearing query with text-to-image retrieval."},
+  {n:13, t:3, title:"VLM rerank", stages:["vlmrerank"],
    build:"A vision-language model over the top 10–20, gated on visual intent, cached hard.",
    trigger:"Visual intent demonstrably drives conversion.",
    buys:"Verification of fine visual claims. High cost, narrow gate."},
-  {n:13, t:3, title:"LTR, learned fusion policy, personalisation", stages:["ltr","fusionpolicy","personalisation","expand","sparse","session","confidence"],
+  {n:14, t:3, title:"LTR, learned fusion policy, personalisation", stages:["ltr","fusionpolicy","personalisation","expand","sparse","session","confidence"],
    build:"Trained ranking over the full feature vector, a trained per-query Fusion policy, and per-user adjustment.",
    trigger:"Tens of thousands of labelled or behavioural judgements exist.",
    buys:"Compounding gains, with permanent maintenance and a position-bias problem to solve."}
@@ -2058,15 +2099,18 @@ const MAX_CX = Object.values(S).reduce((a,s)=>a+(s.cx||0),0);
 function budget(){
   const ids = tplStages(state.tpl).filter(isOn);
   const per = {}, cond = [];
-  let lo=0, hi=0, cxSum=0, models=0;
-  const modelNames=[], caps=new Set();
+  let lo=0, hi=0, cxSum=0;
+  const modelMap=new Map(), caps=new Set();
   const parallel = {};
 
   ids.forEach(id=>{
     const s = S[id];
     cxSum += s.cx||0;
     (s.caps||[]).forEach(c=>caps.add(c));
-    if(s.model){ models++; modelNames.push(s.name); }
+    if(s.model){
+      const key = s.modelKey || id;
+      if(!modelMap.has(key)) modelMap.set(key, s.modelLabel || s.name);
+    }
     const [a,b] = s.lat||[0,0];
     if(s.conditional){ if(b>0) cond.push({name:s.name, lat:s.lat}); return; }
     if(s.parallel){ // legs run concurrently: the group costs its slowest member
@@ -2083,7 +2127,8 @@ function budget(){
     const ph = PHASES.find(p=>p.groups.includes(g.group));
     if(ph) per[ph.id] = (per[ph.id]||0) + g.hi;
   });
-  return {lo:Math.round(lo), hi:Math.round(hi), per, cond, cx:cxSum, models, modelNames,
+  return {lo:Math.round(lo), hi:Math.round(hi), per, cond, cx:cxSum,
+          models:modelMap.size, modelNames:Array.from(modelMap.values()),
           caps, count:ids.length, off:tplStages(state.tpl).filter(isOff).length};
 }
 
