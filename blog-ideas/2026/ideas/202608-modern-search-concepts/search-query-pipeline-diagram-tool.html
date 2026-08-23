@@ -281,6 +281,9 @@ a{color:var(--accent)}
 .row .cell{display:flex;gap:11px;flex-wrap:wrap;min-width:0}
 .row .cell.center{justify-content:center;column-gap:17px;row-gap:14px}
 .row .cell.center > .node{flex:1 1 154px}
+.row.parallel-row .cell.center{
+  box-sizing:border-box;padding:16px 88px 16px 20px
+}
 .row .cell.left{
   justify-content:flex-end;
   transform:translateX(max(-80px,calc(50cqw - 277px - var(--left-spine-gap))))
@@ -403,6 +406,12 @@ a{color:var(--accent)}
 }
 .elabel.loop{color:var(--wire-loop);transform:translate(-50%,-50%)}
 .elabel.branch{padding-inline:4px}
+.elabel.bus,.elabel.port{
+  border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow);
+  font-size:9px;letter-spacing:.035em;text-transform:uppercase
+}
+.elabel.bus{color:var(--text-2)}
+.elabel.port{color:var(--ctrl-text);border-style:dashed;border-color:var(--ctrl-line)}
 
 /* ---------- hover preview ---------- */
 .hovercard{
@@ -600,6 +609,7 @@ table.mini .met{color:var(--accent)}
   .canvas.with-data-sources .cell.center,
   .canvas.with-data-sources .cell.right{grid-column:1}
   .canvas.with-data-sources .cell.left{transform:none}
+  .row.parallel-row .cell.center{padding-inline:54px}
   .canvas.with-data-sources .data-source-column{
     display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%
   }
@@ -620,6 +630,7 @@ table.mini .met{color:var(--accent)}
   .row .cell.left > .node{width:100%;min-width:0;max-width:none}
   .row .cell:empty{display:none}
   .row .cell.center > .node{flex:1 1 100%}
+  .row.parallel-row .cell.center{padding:0}
   .node{max-width:none;width:100%}
   .canvas.with-data-sources .data-source-column{display:flex;width:100%;gap:9px}
   .data-source-node{width:100%;max-width:none;padding:17px 12px 12px}
@@ -2906,7 +2917,10 @@ function renderCanvas(){
 
   TPL[t].rows.forEach((r,i)=>{
     const row = document.createElement("div");
-    row.className = "row"; row.dataset.row = i;
+    const parallel = (r.c||[]).some(id=>S[id].parallel);
+    row.className = "row" + (parallel ? " parallel-row" : "");
+    if(parallel) row.dataset.parallelGroup = S[(r.c||[]).find(id=>S[id].parallel)].parallel;
+    row.dataset.row = i;
     const rowSourceIds = state.showServing ? sourceIdsFor(r.c||[]) : [];
     (state.showServing ? ["d","l","c","r"] : ["l","c","r"]).forEach(k=>{
       const cell = document.createElement("div");
@@ -2937,17 +2951,20 @@ function rectOf(sel){
   return {x:r.left-cr.left, y:r.top-cr.top, w:r.width, h:r.height,
           cx:r.left-cr.left+r.width/2, cy:r.top-cr.top+r.height/2};
 }
-function rowComponentRect(rowIndex){
-  const nodes = $$('.row[data-row="'+rowIndex+'"] .cell.center .node',canvas);
-  if(!nodes.length) return null;
-  const cr = canvas.getBoundingClientRect();
-  const rects = nodes.map(node=>node.getBoundingClientRect());
-  const left = Math.min(...rects.map(r=>r.left)), top = Math.min(...rects.map(r=>r.top));
-  const right = Math.max(...rects.map(r=>r.right)), bottom = Math.max(...rects.map(r=>r.bottom));
-  return {x:left-cr.left,y:top-cr.top,w:right-left,h:bottom-top,
-          cx:(left+right)/2-cr.left,cy:(top+bottom)/2-cr.top};
-}
+const PARALLEL_GROUPS = Object.freeze({
+  retrieval:Object.freeze({
+    label:"parallel retrieval",
+    ingressLabel:"retrieval fan-out",
+    egressLabel:"candidate fan-in",
+    controlPorts:Object.freeze({
+      routing:"gates legs",
+      budget:"allocates k",
+      degradation:"cuts or skips"
+    })
+  })
+});
 const RENDER_TARGET_TYPES = Object.freeze(["node","group","source"]);
+let parallelLayoutCache = new Map();
 
 function makeRenderTarget(type,id,members,rowIndex){
   if(!RENDER_TARGET_TYPES.includes(type)) throw new Error("Unknown render target type: "+type);
@@ -2958,29 +2975,114 @@ function makeRenderTarget(type,id,members,rowIndex){
 function nodeRenderTarget(id){
   return makeRenderTarget(DATA_SOURCES[id] ? "source" : "node",id,[id]);
 }
-function groupRenderTarget(id,rowIndex,members){
-  return makeRenderTarget("group",id,members,rowIndex);
+function groupRenderTarget(id,rowIndex,members,portId=null){
+  const target=makeRenderTarget("group",id,members,rowIndex);
+  target.portId=portId;
+  return target;
 }
 function renderTargetIds(target){ return target.members||[target.id]; }
+function parallelGroupName(target){ return target.id.replace(/^parallel:/,""); }
+function parallelGroupLayout(target){
+  const key=[target.id,target.rowIndex,...target.members].join("|");
+  if(parallelLayoutCache.has(key)) return parallelLayoutCache.get(key);
+
+  const cards=target.members.map(id=>({id,rect:rectOf('.node[data-id="'+id+'"]')}))
+    .filter(card=>card.rect).sort((a,b)=>a.rect.y-b.rect.y || a.rect.x-b.rect.x);
+  if(!cards.length) return null;
+  const groupName=parallelGroupName(target);
+  const allCards=$$('.row[data-row="'+target.rowIndex+'"] .cell.center .node',canvas)
+    .filter(node=>S[node.dataset.id].parallel===groupName)
+    .map(node=>({id:node.dataset.id,rect:rectOf(node)}));
+
+  const visualRows=[];
+  cards.forEach(card=>{
+    let row=visualRows.find(candidate=>Math.abs(candidate.top-card.rect.y)<4);
+    if(!row){ row={top:card.rect.y,cards:[]}; visualRows.push(row); }
+    row.cards.push(card);
+  });
+  visualRows.forEach(row=>{
+    row.cards.sort((a,b)=>a.rect.x-b.rect.x);
+    row.top=Math.min(...row.cards.map(card=>card.rect.y));
+    row.bottom=Math.max(...row.cards.map(card=>card.rect.y+card.rect.h));
+    row.inY=row.top-6;
+    row.outY=row.bottom+6;
+  });
+
+  const rects=allCards.map(card=>card.rect);
+  const left=Math.min(...rects.map(rect=>rect.x));
+  const top=Math.min(...rects.map(rect=>rect.y));
+  const right=Math.max(...rects.map(rect=>rect.x+rect.w));
+  const bottom=Math.max(...rects.map(rect=>rect.y+rect.h));
+  const bounds={x:left,y:top,w:right-left,h:bottom-top,cx:(left+right)/2,cy:(top+bottom)/2};
+  const layout={
+    name:groupName,
+    spec:PARALLEL_GROUPS[groupName],
+    bounds,
+    rows:visualRows,
+    inletX:left-12,
+    outletX:right+12
+  };
+  parallelLayoutCache.set(key,layout);
+  return layout;
+}
 function renderTargetRect(target){
-  if(target.type==="group") return rowComponentRect(target.rowIndex);
+  if(target.type==="group") return parallelGroupLayout(target)?.bounds||null;
   if(target.type==="source") return rectOf('.data-source-node[data-source-id="'+target.id+'"]');
   return rectOf('.node[data-id="'+target.id+'"]');
 }
-function renderEdge(logicalEdges,toTarget){
+function renderEdge(logicalEdges,toTarget=null,fromTarget=null,geometry="curve",caption=null){
   const logical = Array.isArray(logicalEdges) ? logicalEdges : [logicalEdges];
   const first = logical[0];
   if(!first) throw new Error("Render edge requires at least one logical relationship");
-  if(logical.some(edge=>edge.from!==first.from || edge.kind!==first.kind)){
-    throw new Error("A collapsed render edge must share one source and relationship kind");
+  const from=fromTarget||nodeRenderTarget(first.from);
+  const to=toTarget||nodeRenderTarget(first.to);
+  if(logical.some(edge=>edge.kind!==first.kind ||
+      !renderTargetIds(from).includes(edge.from) || !renderTargetIds(to).includes(edge.to))){
+    throw new Error("Collapsed render-edge endpoints do not match their render targets");
   }
   return {
-    from:nodeRenderTarget(first.from),
-    to:toTarget||nodeRenderTarget(first.to),
+    from,to,
     kind:first.kind,
     label:first.label||null,
+    caption,
+    geometry,
     logical
   };
+}
+
+function parallelFlowRenderEdges(templateId,flowEdges){
+  const consumed=new Set(), collapsed=[];
+  TPL[templateId].rows.forEach((row,rowIndex)=>{
+    const parallelNames=[...new Set((row.c||[]).map(id=>S[id].parallel).filter(Boolean))];
+    parallelNames.forEach(parallel=>{
+      const members=(row.c||[]).filter(id=>S[id].parallel===parallel && isOn(id));
+      if(members.length<2) return;
+      const target=groupRenderTarget("parallel:"+parallel,rowIndex,members);
+
+      const incoming=new Map(), outgoing=new Map();
+      flowEdges.forEach(edge=>{
+        if(members.includes(edge.to) && !members.includes(edge.from)){
+          if(!incoming.has(edge.from)) incoming.set(edge.from,[]);
+          incoming.get(edge.from).push(edge);
+        }
+        if(members.includes(edge.from) && !members.includes(edge.to)){
+          if(!outgoing.has(edge.to)) outgoing.set(edge.to,[]);
+          outgoing.get(edge.to).push(edge);
+        }
+      });
+      incoming.forEach(edges=>{
+        if(edges.length<2) return;
+        edges.forEach(edge=>consumed.add(edge));
+        collapsed.push(renderEdge(edges,target,null,"parallel-in"));
+      });
+      outgoing.forEach(edges=>{
+        if(edges.length<2) return;
+        edges.forEach(edge=>consumed.add(edge));
+        collapsed.push(renderEdge(edges,nodeRenderTarget(edges[0].to),target,"parallel-out"));
+      });
+    });
+  });
+  return flowEdges.filter(edge=>!consumed.has(edge)).map(edge=>renderEdge(edge)).concat(collapsed);
 }
 
 /* Several logical relationships may share one group-level drawn path. Keeping
@@ -3005,11 +3107,14 @@ function componentRenderEdges(templateId,logicalEdges){
       byParallel.get(key).push(edge);
     });
     byParallel.forEach((members,parallel)=>{
-      if(!parallel.startsWith("@") && members.length>=3){
+      if(!parallel.startsWith("@") && members.length>=2){
         const rowIndex=rows.findIndex(row=>(row.c||[]).includes(members[0].to));
         if(rowIndex>=0){
+          const spec=PARALLEL_GROUPS[parallel];
+          const portId=spec?.controlPorts[edges[0].from] ? edges[0].from : null;
           rendered.push(renderEdge(members,
-            groupRenderTarget("parallel:"+parallel,rowIndex,members.map(edge=>edge.to))));
+            groupRenderTarget("parallel:"+parallel,rowIndex,members.map(edge=>edge.to),portId),
+            null,"curve",portId ? spec.controlPorts[portId] : null));
           return;
         }
       }
@@ -3027,7 +3132,9 @@ function edgeList(){
   const components = logical.filter(edge=>RELATION_TYPES[edge.kind].componentRelation);
   const direct = logical.filter(edge=>!RELATION_TYPES[edge.kind].componentRelation && edge.kind!=="serves");
   const serving = logical.filter(edge=>edge.kind==="serves");
-  return direct.map(edge=>renderEdge(edge))
+  const flow=direct.filter(edge=>edge.kind==="flow");
+  const otherDirect=direct.filter(edge=>edge.kind!=="flow");
+  return parallelFlowRenderEdges(state.tpl,flow).concat(otherDirect.map(edge=>renderEdge(edge)))
     .concat(componentRenderEdges(state.tpl,components),serving.map(edge=>renderEdge(edge)));
 }
 
@@ -3043,7 +3150,113 @@ function escapeAttribute(value){
 function relationshipAriaLabel(edge){
   const relation=RELATION_TYPES[edge.kind];
   return relation.aria+" from "+renderTargetName(edge.from)+" to "+renderTargetName(edge.to)+
-    (edge.label ? "; outcome: "+edge.label : "");
+    (edge.label ? "; outcome: "+edge.label : "")+
+    (edge.caption ? "; group port: "+edge.caption : "");
+}
+
+function wirePathMarkup(edge,edgeIndex,d,style,{marker=true,semantic=true,part="primary"}={}){
+  const dash=style.dash ? ' stroke-dasharray="'+style.dash+'"' : "";
+  const linecap=style.linecap!=="butt" ? ' stroke-linecap="'+style.linecap+'"' : "";
+  const identity=semantic
+    ? ' data-edge-kind="'+edge.kind+'" data-logical-count="'+edge.logical.length+'" role="img" aria-label="'+
+      escapeAttribute(relationshipAriaLabel(edge))+'"'
+    : ' aria-hidden="true"';
+  return '<path data-edge-index="'+edgeIndex+'" data-edge-part="'+part+'"'+identity+' d="'+d+
+    '" style="fill:none;stroke:'+style.color+'" stroke-width="'+style.width+'"'+dash+linecap+
+    (marker ? ' marker-end="url(#ah-'+style.marker+')"' : "")+' opacity="'+style.opacity+'"/>';
+}
+
+function parallelFlowGeometry(edge,a,b){
+  const target=edge.geometry==="parallel-in" ? edge.to : edge.from;
+  const layout=parallelGroupLayout(target);
+  if(!layout) return null;
+  const first=layout.rows[0], last=layout.rows[layout.rows.length-1];
+
+  if(edge.geometry==="parallel-in"){
+    const dy=Math.max(18,(first.inY-(a.y+a.h))*.55);
+    const scaffold=[
+      'M'+a.cx+','+(a.y+a.h)+' C'+a.cx+','+(a.y+a.h+dy)+' '+layout.inletX+','+(first.inY-dy)+' '+layout.inletX+','+first.inY,
+      'M'+layout.inletX+','+first.inY+' V'+last.inY,
+      ...layout.rows.map(row=>'M'+layout.inletX+','+row.inY+' H'+row.cards[row.cards.length-1].rect.cx)
+    ].join(' ');
+    const directional=layout.rows.flatMap(row=>row.cards.map(card=>
+      'M'+card.rect.cx+','+row.inY+' V'+card.rect.y)).join(' ');
+    return {
+      scaffold,directional,
+      label:{text:layout.spec?.ingressLabel||layout.spec?.label||layout.name,
+        point:{x:Math.min(layout.bounds.cx,layout.inletX+70),y:first.inY-12}}
+    };
+  }
+
+  const scaffold=[
+    ...layout.rows.flatMap(row=>row.cards.map(card=>
+      'M'+card.rect.cx+','+(card.rect.y+card.rect.h)+' V'+row.outY)),
+    ...layout.rows.map(row=>'M'+row.cards[0].rect.cx+','+row.outY+' H'+layout.outletX),
+    'M'+layout.outletX+','+first.outY+' V'+last.outY
+  ].join(' ');
+  const dy=Math.max(18,(b.y-last.outY)*.55);
+  const directional='M'+layout.outletX+','+last.outY+' C'+layout.outletX+','+(last.outY+dy)+
+    ' '+b.cx+','+(b.y-dy)+' '+b.cx+','+b.y;
+  return {
+    scaffold,directional,
+    label:{text:layout.spec?.egressLabel||layout.spec?.label||layout.name,
+      point:{x:Math.max(layout.bounds.cx,layout.outletX-70),y:last.outY+12}}
+  };
+}
+
+function groupControlGeometry(edge,sourceRect){
+  const layout=parallelGroupLayout(edge.to);
+  if(!layout) return null;
+  const ids=Object.keys(layout.spec?.controlPorts||{});
+  const slot=Math.max(1,ids.indexOf(edge.to.portId)+1)/(ids.length+1);
+  const bounds=layout.bounds;
+  let side,port,source;
+
+  if(sourceRect.y+sourceRect.h<=bounds.y){
+    side="top";
+    port={x:bounds.x+bounds.w*slot,y:bounds.y-14};
+    source={x:sourceRect.cx,y:sourceRect.y+sourceRect.h};
+  } else if(sourceRect.y>=bounds.y+bounds.h){
+    side="bottom";
+    port={x:bounds.x+bounds.w*slot,y:bounds.y+bounds.h+14};
+    source={x:sourceRect.cx,y:sourceRect.y};
+  } else if(sourceRect.cx>=bounds.cx){
+    side="right";
+    port={x:bounds.x+bounds.w+28,y:bounds.y+bounds.h*slot};
+    source={x:sourceRect.x,y:sourceRect.cy};
+  } else {
+    side="left";
+    port={x:bounds.x-28,y:bounds.y+bounds.h*slot};
+    source={x:sourceRect.x+sourceRect.w,y:sourceRect.cy};
+  }
+
+  const vertical=side==="top"||side==="bottom";
+  const span=vertical ? Math.abs(port.y-source.y) : Math.abs(port.x-source.x);
+  const bend=Math.max(18,span*.5);
+  const sign=(side==="top"||side==="left") ? 1 : -1;
+  const d=vertical
+    ? 'M'+source.x+','+source.y+' C'+source.x+','+(source.y+bend*sign)+' '+port.x+','+(port.y-bend*sign)+' '+port.x+','+port.y
+    : 'M'+source.x+','+source.y+' C'+(source.x+bend*sign)+','+source.y+' '+(port.x-bend*sign)+','+port.y+' '+port.x+','+port.y;
+  return {d,side};
+}
+
+function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,parallel="retrieval"){
+  const rowIndex=TPL[state.tpl].rows.findIndex(row=>(row.c||[]).some(id=>S[id].parallel===parallel));
+  if(rowIndex<0) return null;
+  const members=(TPL[state.tpl].rows[rowIndex].c||[])
+    .filter(id=>S[id].parallel===parallel && isOn(id));
+  if(members.length<2) return null;
+  const layout=parallelGroupLayout(groupRenderTarget("parallel:"+parallel,rowIndex,members));
+  if(!layout || sourceRect.y<layout.bounds.y+layout.bounds.h ||
+     targetRect.y+targetRect.h>layout.bounds.y) return null;
+
+  const laneX=layout.bounds.x-34-(sourceId==="zerofallback" ? 18 : 0);
+  const lowerY=layout.bounds.y+layout.bounds.h+22;
+  const upperY=layout.bounds.y-22;
+  const sx=sourceRect.x+sourceRect.w, sy=sourceRect.cy;
+  const tx=targetRect.x, ty=targetRect.cy;
+  return 'M'+sx+','+sy+' C'+laneX+','+sy+' '+laneX+','+lowerY+' '+laneX+','+lowerY+
+    ' L'+laneX+','+upperY+' C'+laneX+','+ty+' '+laneX+','+ty+' '+tx+','+ty;
 }
 
 function drawWires(){
@@ -3052,6 +3265,7 @@ function drawWires(){
   wires.setAttribute("width",W); wires.setAttribute("height",H);
   wires.setAttribute("viewBox","0 0 "+W+" "+H);
   $$(".elabel").forEach(e=>e.remove());
+  parallelLayoutCache = new Map();
 
   const markerColors = new Map();
   Object.values(RELATION_TYPES).forEach(relation=>{
@@ -3067,6 +3281,26 @@ function drawWires(){
     if(!a||!b) return;
     const relation = RELATION_TYPES[e.kind];
     let d, style=relation;
+
+    if(e.geometry==="parallel-in" || e.geometry==="parallel-out"){
+      const geometry=parallelFlowGeometry(e,a,b);
+      if(!geometry) return;
+      paths+=wirePathMarkup(e,edgeIndex,geometry.scaffold,relation,
+        {marker:false,semantic:false,part:"bus"});
+      paths+=wirePathMarkup(e,edgeIndex,geometry.directional,relation,
+        {marker:true,semantic:true,part:e.geometry});
+      labels.push({...geometry.label,bus:true});
+      return;
+    }
+
+    if(e.to.type==="group" && e.to.portId){
+      const geometry=groupControlGeometry(e,a);
+      if(!geometry) return;
+      paths+=wirePathMarkup(e,edgeIndex,geometry.d,relation);
+      labels.push({edgeIndex,text:e.caption,
+        position:geometry.side==="right"||geometry.side==="left" ? .52 : .35,port:true});
+      return;
+    }
 
     // An explicit kind routes itself. The geometric "runs upward" test is only a
     // fallback for spine edges, which carry no routing of their own — and it needs a
@@ -3100,8 +3334,11 @@ function drawWires(){
       d = "M"+sx+","+sy+" C"+(sx-dx)+","+sy+" "+(tx+dx)+","+ty+" "+tx+","+ty;
     } else if(relation.route==="loop" || (spine && runsUp)){
       style=RELATION_TYPES.loop;
+      const aroundGroup=recoveryGeometryAroundParallelGroup(a,b,renderTargetIds(e.from)[0]);
       const besideMain = a.x+a.w < b.x;
-      if(besideMain){
+      if(aroundGroup){
+        d=aroundGroup;
+      } else if(besideMain){
         const sx=a.x+a.w, sy=a.cy, tx=b.x;
         const isFallback=renderTargetIds(e.from).includes("zerofallback");
         const ty=b.cy+(isFallback?7:-7);
@@ -3117,21 +3354,18 @@ function drawWires(){
       const dy = Math.max(12,(ty-sy)*0.55);
       d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
     }
-    const dash = style.dash ? ' stroke-dasharray="'+style.dash+'"' : "";
-    const linecap = style.linecap!=="butt" ? ' stroke-linecap="'+style.linecap+'"' : "";
-    paths += '<path data-edge-index="'+edgeIndex+'" data-edge-kind="'+e.kind+'" data-logical-count="'+e.logical.length+'" d="'+d+
-             '" style="fill:none;stroke:'+style.color+'" stroke-width="'+style.width+'"'+dash+linecap+
-             ' marker-end="url(#ah-'+style.marker+')" opacity="'+style.opacity+'" role="img" aria-label="'+
-             escapeAttribute(relationshipAriaLabel(e))+'"/>';
+    paths += wirePathMarkup(e,edgeIndex,d,style);
     if(e.label) labels.push({edgeIndex,text:e.label,loop:e.kind==="loop",branch:e.kind==="branch"});
   });
   wires.innerHTML = defs + paths;
   labels.forEach(l=>{
-    const path = wires.querySelector('path[data-edge-index="'+l.edgeIndex+'"]');
-    if(!path) return;
-    const point = path.getPointAtLength(path.getTotalLength()*.5);
+    const path = l.edgeIndex==null ? null :
+      wires.querySelector('path[data-edge-index="'+l.edgeIndex+'"][data-edge-kind]');
+    if(!l.point && !path) return;
+    const point = l.point || path.getPointAtLength(path.getTotalLength()*(l.position||.5));
     const el = document.createElement("span");
-    el.className = "elabel" + (l.loop?" loop":"") + (l.branch?" branch":"");
+    el.className = "elabel" + (l.loop?" loop":"") + (l.branch?" branch":"")+
+      (l.bus?" bus":"")+(l.port?" port":"");
     el.style.left = point.x+"px"; el.style.top = point.y+"px"; el.textContent = l.text;
     canvas.appendChild(el);
   });

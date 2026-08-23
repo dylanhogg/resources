@@ -166,6 +166,39 @@ Add descriptive accessibility text such as “request-time steering from Retriev
 
 ## Phase 3 — Fix parallel retrieval geometry
 
+**Status: Complete — 2026-08-23**
+
+Implemented in `search-query-pipeline-diagram-tool.html`:
+
+- Promoted parallel retrieval to a measured, first-class layout object with explicit bounds, visual rows, active members, fan-out and fan-in lanes, and named controller ports.
+- Replaced the predecessor-to-every-leg and every-leg-to-union curves with one semantic fan-out edge and one semantic fan-in edge. Each uses a shared bus plus short branches to the enabled retrieval cards.
+- Kept all represented logical endpoints on the two collapsed render edges. Decorative bus scaffolding shares the same hover identity but is hidden from the dependency inventory and accessibility tree.
+- Added visible “retrieval fan-out” and “candidate fan-in” captions so the concurrent execution model does not depend on interpreting geometry alone.
+- Terminated group-wide steering at labelled ports: Retrieval routing → “gates legs”, Candidate budget allocation → “allocates k”, and Degradation controller → “cuts or skips”.
+- Made controller ports choose the top, bottom, left, or right side from the controller's measured position, so the same model works when controls move around the group.
+- Reserved a small routing rail around the retrieval cards and recalculated buses from the cards' actual wrapped rows. Showing data sources, changing template, resizing, or disabling legs therefore causes a fresh layout rather than reusing stale coordinates.
+- Preserved individual `serves` connectors to their actual retrieval consumers.
+- Routed the two recovery returns through separate lanes outside the measured retrieval group, preventing recovery paths from crossing retrieval cards.
+
+Verification:
+
+- Phase 0 logical inventories remain unchanged: Core 9/12, Core + recommended 31/35, and Full 76/84 with sources hidden/shown.
+- The clearer collapsed geometry intentionally reduces semantic SVG paths to Core 7/10, Core + recommended 23/27, and Full 46/54 with sources hidden/shown. Summing `data-logical-count` still produces the Phase 0 inventories exactly.
+- Latency and complexity remain unchanged across all six template/source combinations.
+- Full was verified with a two-column/four-row retrieval wrap when sources are hidden and a one-column/seven-row wrap when sources are shown; both produce two buses with no invalid coordinates.
+- Disabling five optional retrieval legs leaves branches only to Lexical and Text vector retrieval while retaining valid fan-in/fan-out and controller geometry.
+- Sampled fan-out, fan-in, branch, and recovery geometry has no interior intersections with retrieval cards in either source-visibility state.
+- All semantic paths retain descriptive accessibility labels. The decorative bus paths are `aria-hidden`, and controller labels are included in their relationship descriptions.
+- Light- and dark-theme browser inspection showed the buses, arrowheads, captions, and controller ports remain readable with no browser errors.
+
+Discoveries and decisions:
+
+- Source visibility changes the retrieval group's wrapping more dramatically than expected, so calculating only a bounding rectangle is insufficient. Grouping cards by measured top coordinate provides stable per-row buses without assuming a column count.
+- Disabled cards must remain part of the group's outer bounds even though they receive no active branch. This keeps the routing rails outside every visible card and prevents fan-in curves from cutting through disabled placeholders.
+- The old recovery curves clipped the Learned sparse card only in the source-hidden Full layout. Dedicated, slightly offset recovery lanes fixed the collision and keep the two retry meanings visually separable.
+- Controller cards can be above, beside, or below the group depending on layout. Choosing a port side from relative geometry is simpler and more robust than template-specific coordinates.
+- The bus scaffolding is deliberately decorative rather than a new logical dependency type. The underlying endpoint fixture, drawers, metrics, and data-source semantics therefore remain unchanged.
+
 Replace the current all-to-all flow curves with explicit fan-out/fan-in geometry:
 
 ```text
