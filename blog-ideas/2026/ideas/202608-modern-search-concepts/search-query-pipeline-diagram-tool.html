@@ -102,6 +102,7 @@ a{color:var(--accent)}
 }
 .seg{display:inline-flex;background:var(--surface-2);padding:3px;border-radius:9px;border:1px solid var(--border)}
 .seg button{
+  position:relative;
   border:0;background:transparent;padding:7px 16px;border-radius:7px;font-size:13px;
   font-weight:500;color:var(--text-2);display:flex;align-items:center;gap:8px;white-space:nowrap
 }
@@ -111,9 +112,27 @@ a{color:var(--accent)}
 }
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
 .seg button[aria-pressed="true"] .n{background:var(--accent);color:#fff}
+.tpl-tip{
+  position:absolute;top:calc(100% + 9px);left:50%;z-index:50;width:340px;max-width:calc(100vw - 40px);
+  padding:10px 12px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);
+  box-shadow:var(--shadow-lg);color:var(--text-2);font-size:12px;font-weight:400;line-height:1.45;
+  text-align:left;white-space:normal;pointer-events:none;visibility:hidden;opacity:0;
+  transform:translate(-50%,-3px);transition:opacity .12s,transform .12s,visibility .12s
+}
+.tpl-tip b{color:var(--text);font-weight:650}
+.tpl-tip::before{
+  content:"";position:absolute;top:-5px;left:50%;width:9px;height:9px;background:var(--surface);
+  border-left:1px solid var(--border-strong);border-top:1px solid var(--border-strong);transform:translateX(-50%) rotate(45deg)
+}
+.seg button[data-tpl="1"] .tpl-tip{left:0;transform:translateY(-3px)}
+.seg button[data-tpl="1"] .tpl-tip::before{left:25px}
+.seg button[data-tpl="3"] .tpl-tip{left:auto;right:0;transform:translateY(-3px)}
+.seg button[data-tpl="3"] .tpl-tip::before{left:auto;right:25px;transform:rotate(45deg)}
+.seg button:hover .tpl-tip,.seg button:focus-visible .tpl-tip{visibility:visible;opacity:1}
+.seg button[data-tpl="2"]:hover .tpl-tip,.seg button[data-tpl="2"]:focus-visible .tpl-tip{transform:translate(-50%,0)}
+.seg button[data-tpl="1"]:hover .tpl-tip,.seg button[data-tpl="1"]:focus-visible .tpl-tip,
+.seg button[data-tpl="3"]:hover .tpl-tip,.seg button[data-tpl="3"]:focus-visible .tpl-tip{transform:translateY(0)}
 .ctx-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.ctx-desc{font-size:12.5px;color:var(--text-2);max-width:56ch}
-.ctx-desc b{color:var(--text);font-weight:600}
 .pill{
   display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;
   padding:4px 9px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-2)
@@ -575,7 +594,6 @@ table.mini .met{color:var(--accent)}
   .ctxbar{padding:12px 14px}
   .seg{display:flex;flex-wrap:wrap;width:100%}
   .seg button{flex:1 1 100%;justify-content:flex-start}
-  .ctx-desc{max-width:none}
   .app{grid-template-columns:1fr}
   .stage-area{order:1;padding:18px 14px 40px}
   .side{order:2;border-bottom:0;border-top:1px solid var(--border)}
@@ -630,7 +648,6 @@ table.mini .met{color:var(--accent)}
         <button data-tpl="2" aria-pressed="false"><span class="n">2</span>Core + recommended</button>
         <button data-tpl="3" aria-pressed="false"><span class="n">3</span>Full surface</button>
       </div>
-      <p class="ctx-desc" id="tplDesc"></p>
       <span class="pill new" id="diffPill" hidden></span>
     </div>
     <div class="trace">
@@ -2445,7 +2462,6 @@ function renderCanvas(){
   if(t>1 && nNew){ pill.hidden=false; pill.textContent = "+ " + nNew + " new vs template " + (t-1); }
   else pill.hidden = true;
 
-  $("#tplDesc").innerHTML = "<b>"+TPL[t].tagline+".</b> " + TPL[t].desc;
   rowsEl.innerHTML = "";
   canvas.classList.toggle("with-data-sources",state.showServing);
 
@@ -3080,7 +3096,16 @@ function setView(v){
   if(v==="pipe") requestAnimationFrame(drawWires);
 }
 
-$$(".seg button").forEach(b=> b.addEventListener("click",()=> setTpl(+b.dataset.tpl)));
+$$(".seg button").forEach(b=>{
+  const t = +b.dataset.tpl, template = TPL[t];
+  const tip = document.createElement("span");
+  tip.className = "tpl-tip"; tip.id = "tplTip"+t; tip.setAttribute("role","tooltip");
+  tip.innerHTML = "<b>"+template.tagline+".</b> "+template.desc;
+  b.setAttribute("aria-label","Template "+t+": "+template.name);
+  b.setAttribute("aria-describedby",tip.id);
+  b.appendChild(tip);
+  b.addEventListener("click",()=> setTpl(t));
+});
 $$(".tabs button").forEach(b=> b.addEventListener("click",()=> setView(b.dataset.view)));
 $("#resetBtn").addEventListener("click", ()=>{ state.off[state.tpl] = new Set(); renderAll(); });
 $("#servingToggle").addEventListener("click",()=>{
