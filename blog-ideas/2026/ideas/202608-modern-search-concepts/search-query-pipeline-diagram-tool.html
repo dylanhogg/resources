@@ -18,7 +18,8 @@
   --rec-bg:#dcfce7; --rec-line:#15803d; --rec-text:#12351f;
   --opt-bg:#ede9fe; --opt-line:#6d28d9; --opt-text:#2b1a52;
   --ctrl-bg:#e8ecf2; --ctrl-line:#64748b; --ctrl-text:#27303f;
-  --wire:#94a1b3; --wire-loop:#c2704a; --wire-ctrl:#8b93a5; --wire-train:#0f766e; --wire-data:#68778d;
+  --wire:#6f7d92; --wire-loop:#b85f36; --wire-ctrl:#667085;
+  --wire-feed:#7c3aed; --wire-train:#0f766e; --wire-data:#53657d;
   --data-bg:#f7f9fc; --data-line:#7b8798; --data-text:#344054;
   --warn:#b45309; --warn-bg:#fef3c7;
   --ok:#15803d;
@@ -37,7 +38,8 @@
       --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
       --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
       --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-      --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf; --wire-data:#91a0b5;
+      --wire:#8290a6; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
+      --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-data:#9aabc2;
       --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
       --warn:#e0a94a; --warn-bg:#332a17;
       --ok:#4ea96e;
@@ -54,7 +56,8 @@
   --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
   --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
   --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-  --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf; --wire-data:#91a0b5;
+  --wire:#8290a6; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
+  --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-data:#9aabc2;
   --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
   --warn:#e0a94a; --warn-bg:#332a17;
   --ok:#4ea96e;
@@ -185,7 +188,11 @@ a{color:var(--accent)}
 .legendrow button:hover{background:var(--surface-2);color:var(--text)}
 .legendrow button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 .legendrow i{width:8px;height:8px;border-radius:2px;display:inline-block}
-.legendrow i.wkey{width:16px;height:0;border-radius:0}
+.legendrow i.data-key{width:10px;border:1px solid var(--data-line);border-radius:50% / 24%;background:var(--data-bg)}
+.legend-label{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-top:8px}
+.relation-legend{display:grid;grid-template-columns:1fr;gap:5px;margin-top:5px}
+.relation-legend span{gap:7px;color:var(--text-2)}
+.relation-key{width:44px;height:10px;flex:none;overflow:visible}
 
 .caps{display:flex;flex-wrap:wrap;gap:5px}
 .cap{
@@ -712,17 +719,20 @@ table.mini .met{color:var(--accent)}
 
       <div class="panel">
         <h3>Legend</h3>
+        <div class="legend-label">Nodes</div>
         <div class="legendrow" style="gap:7px 12px">
           <span><i style="background:var(--core-bg);border:1px solid var(--core-line)"></i>core</span>
           <span><i style="background:var(--rec-bg);border:1px solid var(--rec-line)"></i>recommended</span>
           <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full</span>
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
+          <span><i class="data-key"></i>data plane</span>
         </div>
-        <div class="legendrow" id="relationLegend" style="gap:7px 12px;margin-top:9px"></div>
+        <div class="legend-label">Relationships</div>
+        <div class="legendrow relation-legend" id="relationLegend"></div>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
-          Control-plane components steer a stage rather than transforming candidates.
-          A <em>trains</em> wire is not a request-time path: it means the target's model is
-          fitted from that data. Serving sources are logical indexes or stores, not prescribed products or deployments.
+          Flow moves requests or candidates. Branches select a conditional path; returns retry an earlier stage.
+          Control-plane components steer without transforming candidates. Feeds carry non-spine data; trains is offline.
+          Serving sources are logical indexes or stores, not prescribed products or deployments.
         </p>
       </div>
 
@@ -2171,51 +2181,58 @@ const RELATION_TYPES = Object.freeze({
   flow:{
     fwd:"Flows to", rev:"Receives flow from",
     description:"Request and candidate data moving through the main pipeline.",
-    color:"var(--wire)", dash:"", linecap:"butt", marker:"flow", opacity:1, width:1.4,
+    aria:"Request and candidate flow",
+    color:"var(--wire)", dash:"", linecap:"butt", marker:"flow", opacity:1, width:1.6,
     route:"spine", componentRelation:false,
-    legend:{visible:false,label:"flows — request / candidates",strokeStyle:"solid"}
+    legend:{visible:true,label:"flows — request / candidates"}
   },
   branch:{
     fwd:"Branches to", rev:"Reached when",
     description:"A conditional path selected by a decision outcome.",
-    color:"var(--wire)", dash:"6 4", linecap:"butt", marker:"flow", opacity:1, width:1.4,
+    aria:"Conditional branch",
+    color:"var(--wire)", dash:"9 4", linecap:"butt", marker:"flow", opacity:1, width:1.5,
     route:"branch", componentRelation:false,
-    legend:{visible:false,label:"branches — conditional",strokeStyle:"dashed"}
+    legend:{visible:true,label:"branches — conditional"}
   },
   loop:{
     fwd:"Retries through", rev:"Retried from",
     description:"A bounded recovery path that returns candidates or predicates to an earlier stage.",
-    color:"var(--wire-loop)", dash:"", linecap:"butt", marker:"loop", opacity:1, width:1.4,
+    aria:"Recovery return",
+    color:"var(--wire-loop)", dash:"", linecap:"butt", marker:"loop", opacity:1, width:1.6,
     route:"loop", componentRelation:false,
-    legend:{visible:false,label:"returns — recovery / retry",strokeStyle:"solid"}
+    legend:{visible:true,label:"returns — recovery / retry"}
   },
   steers:{
     fwd:"Steers", rev:"Steered by",
     description:"Request-time control — changes how the stage behaves for this query.",
-    color:"var(--wire-ctrl)", dash:"3 4", linecap:"butt", marker:"control", opacity:.8, width:1.4,
+    aria:"Request-time steering",
+    color:"var(--wire-ctrl)", dash:"3 4", linecap:"butt", marker:"control", opacity:.88, width:1.5,
     route:"side", curve:.45, componentRelation:true,
-    legend:{visible:true,label:"steers — request time",strokeStyle:"dashed"}
+    legend:{visible:true,label:"steers — request time"}
   },
   feeds:{
     fwd:"Feeds", rev:"Fed by",
     description:"Data flow outside the main spine.",
-    color:"var(--wire-ctrl)", dash:"1 5", linecap:"round", marker:"control", opacity:1, width:1.4,
+    aria:"Non-spine data feed",
+    color:"var(--wire-feed)", dash:"6 3 1 3", linecap:"round", marker:"feed", opacity:1, width:1.5,
     route:"side", curve:.4, componentRelation:true,
-    legend:{visible:false,label:"feeds — non-spine data",strokeStyle:"dotted"}
+    legend:{visible:true,label:"feeds — non-spine data"}
   },
   trains:{
     fwd:"Trains", rev:"Trained by",
     description:"Offline dependency — the target's parameters are fitted from this data, not steered by it at query time.",
-    color:"var(--wire-train)", dash:"7 5", linecap:"butt", marker:"train", opacity:1, width:1.4,
+    aria:"Offline training dependency",
+    color:"var(--wire-train)", dash:"12 4 2 4", linecap:"butt", marker:"train", opacity:1, width:1.5,
     route:"side", curve:.45, componentRelation:true,
-    legend:{visible:true,label:"trains — offline",strokeStyle:"dashed"}
+    legend:{visible:true,label:"trains — offline"}
   },
   serves:{
     fwd:"Serves", rev:"Served by",
     description:"A logical index or store queried or hydrated by the target component.",
-    color:"var(--wire-data)", dash:"2 5", linecap:"round", marker:"data", opacity:.72, width:1.4,
+    aria:"External data serving relationship",
+    color:"var(--wire-data)", dash:"1 5", linecap:"round", marker:"data", opacity:.82, width:1.5,
     route:"source", componentRelation:false,
-    legend:{visible:true,label:"serves — external data",strokeStyle:"dotted"}
+    legend:{visible:true,label:"serves — external data"}
   }
 });
 
@@ -2550,15 +2567,14 @@ function validateRelationshipModel(){
   usedKinds.forEach(kind=>{
     const relation = RELATION_TYPES[kind];
     if(!relation) throw new Error("Missing relationship definition: "+kind);
-    ["fwd","rev","description","color","marker","route"].forEach(field=>{
+    ["fwd","rev","description","aria","color","marker","route"].forEach(field=>{
       if(!relation[field]) throw new Error("Missing "+field+" for relationship: "+kind);
     });
     if(typeof relation.opacity!=="number" || typeof relation.width!=="number" ||
        typeof relation.linecap!=="string"){
       throw new Error("Incomplete visual definition for relationship: "+kind);
     }
-    if(!relation.legend || typeof relation.legend.visible!=="boolean" ||
-       !relation.legend.label || !relation.legend.strokeStyle){
+    if(!relation.legend || typeof relation.legend.visible!=="boolean" || !relation.legend.label){
       throw new Error("Incomplete legend definition for relationship: "+kind);
     }
   });
@@ -3026,8 +3042,8 @@ function escapeAttribute(value){
 }
 function relationshipAriaLabel(edge){
   const relation=RELATION_TYPES[edge.kind];
-  return renderTargetName(edge.from)+" "+relation.fwd.toLowerCase()+" "+renderTargetName(edge.to)+
-    (edge.label ? ": "+edge.label : "");
+  return relation.aria+" from "+renderTargetName(edge.from)+" to "+renderTargetName(edge.to)+
+    (edge.label ? "; outcome: "+edge.label : "");
 }
 
 function drawWires(){
@@ -3529,9 +3545,17 @@ function renderAll(){
 function renderRelationLegend(){
   $("#relationLegend").innerHTML = Object.entries(RELATION_TYPES)
     .filter(([,relation])=>relation.legend.visible)
-    .map(([kind,relation])=>
-      '<span data-relation-kind="'+kind+'"><i class="wkey" style="border-top:2px '+
-      relation.legend.strokeStyle+' '+relation.color+'"></i>'+relation.legend.label+'</span>')
+    .map(([kind,relation])=>{
+      const markerId="legend-arrow-"+kind;
+      const dash=relation.dash ? ' stroke-dasharray="'+relation.dash+'"' : "";
+      return '<span data-relation-kind="'+kind+'" title="'+escapeAttribute(relation.description)+'">'+
+        '<svg class="relation-key" viewBox="0 0 44 10" aria-hidden="true" focusable="false">'+
+          '<defs><marker id="'+markerId+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
+            '<path d="M0,0 L8,4 L0,8 z" style="fill:'+relation.color+'"/></marker></defs>'+
+          '<line x1="1" y1="5" x2="38" y2="5" style="stroke:'+relation.color+'" stroke-width="'+relation.width+'"'+dash+
+            ' stroke-linecap="'+relation.linecap+'" opacity="'+relation.opacity+'" marker-end="url(#'+markerId+')"/>'+
+        '</svg>'+relation.legend.label+'</span>';
+    })
     .join("");
 }
 

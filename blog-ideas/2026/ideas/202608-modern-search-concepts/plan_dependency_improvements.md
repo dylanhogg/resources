@@ -111,6 +111,34 @@ Refactor relationship metadata without changing the visual output yet.
 
 ## Phase 2 — Complete and clarify the legend
 
+**Status: Complete — 2026-08-23**
+
+Implemented in `search-query-pipeline-diagram-tool.html`:
+
+- Expanded the relationship legend from three entries to all seven canonical kinds: flow, branch, returns, steers, feeds, trains, and serves.
+- Added the missing data-plane/source node swatch and separated the legend into clearly labelled Nodes and Relationships sections.
+- Replaced approximate CSS border samples with inline SVG samples generated from `RELATION_TYPES`. Legend strokes, arrowheads, widths, dash arrays, line caps, colours, and opacity now use the same metadata as the rendered connectors.
+- Assigned a distinct redundant treatment to every relationship kind. In particular, `feeds` now uses a purple dash-dot line, `serves` a slate dotted line, `trains` a teal long dash-dot line, and `steers` a short grey dash.
+- Preserved orange solid recovery lines, while increasing ordinary flow and control-line contrast in both light and dark themes.
+- Added concise semantic accessibility phrases to the canonical registry. Rendered paths now read as, for example, “Request-time steering from Retrieval routing to parallel group…” and labelled branches append their outcome.
+- Strengthened startup validation so every relationship kind must provide accessibility wording as well as complete visual and legend metadata.
+
+Verification:
+
+- All seven legend samples exactly match a rendered connector of the same kind for stroke token, width, dash pattern, line cap, and opacity.
+- Every one of the 66 paths in Full with sources shown has a descriptive `aria-label`; the seven-target collapsed steering path retains all represented target names.
+- Phase 0 logical inventories remain unchanged: Core 9/12, Core + recommended 31/35, and Full 76/84 with sources hidden/shown.
+- Rendered path counts remain unchanged: Core 9/12, Core + recommended 27/31, and Full 58/66 with sources hidden/shown.
+- Latency and complexity remain unchanged across all six template/source combinations.
+- Light- and dark-theme browser inspection showed all seven treatments remain distinguishable, with no browser warnings or errors.
+
+Discoveries and decisions:
+
+- A single-column relationship list is clearer than a two-column layout in the 288 px sidebar because each sample remains adjacent to an unbroken label.
+- Rendering legend samples from the canonical registry eliminates a subtle maintenance risk: a CSS approximation can drift even when its name remains correct.
+- The `serves` key remains visible while data sources are hidden. This explains the existing “Show data sources” control before activation and keeps the legend stable when the source layer is toggled.
+- Dark-theme legend text needed the stronger secondary-text token after visual inspection; the line treatments themselves did not require further adjustment.
+
 Add all rendered dependency types to the legend:
 
 - request/candidate flow
