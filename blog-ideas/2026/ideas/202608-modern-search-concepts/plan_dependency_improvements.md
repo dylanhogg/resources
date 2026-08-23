@@ -354,6 +354,55 @@ Also resolve Retrieval routing → Late-interaction rerank:
 
 ## Phase 6 — Restore dependency clarity on narrow screens
 
+**Status: Complete — 2026-08-23**
+
+Implemented in `search-query-pipeline-diagram-tool.html`:
+
+- Replaced the former arrow-only mobile fallback with a first-class textual dependency view generated from `logicalDependencies(...)`, the same inventory that drives desktop connectors, diagnostics and regression fixtures.
+- Added a compact mobile introduction that states the active logical-relationship count, shows only the relationship kinds present in the current template/source state, and explains how to inspect endpoints.
+- Added relationship summaries between stacked pipeline rows. They collapse repeated fan-out/fan-in endpoints while retaining separate flow and gated-entry treatments and real decision-outcome labels.
+- Replaced the generic recovery arrow with an indented **Recovery decision** block that explicitly preserves both branches and returns:
+
+  - `too few` → Constraint relaxation → returns `relaxed predicate` to Metadata pre-filter
+  - `zero` → Zero-result fallback → returns `recovery mode` to Metadata pre-filter
+
+- Added a mobile **Selective rerank cascade** marker with the same route-selected/pass-through rule as the desktop boundary.
+- Added dependency chips inside every active control-plane card. Dense endpoint sets are compacted to meaningful groups such as `retrieval legs` and `gated rerankers`; smaller sets retain their component names.
+- Added `serves` chips to shown data-source cards and hid the older duplicate source sentence at narrow widths.
+- Changed narrow-screen card activation from immediately covering the canvas with the drawer to inserting an inline dependency panel beside the selected card. The panel:
+
+  - highlights every connected card without moving them
+  - lists every active incoming and outgoing logical relationship using canonical forward/reverse terminology
+  - preserves branch outcomes and Phase 5 payload/timing annotations
+  - lets keyboard or pointer users select connected endpoints
+  - provides an explicit **Open full component details** action for the existing drawer
+
+- Added responsive-state handling so crossing the 700 px breakpoint rebuilds the appropriate representation. Desktop SVG paths and stage boundaries return above the breakpoint; mobile summaries return at or below it.
+- Kept all mobile-only DOM hidden from layout and accessibility above 700 px. Only geometrically impractical SVG curves are removed on narrow screens; the dependency model remains complete.
+
+Verification:
+
+- At 390 px, the mobile relationship totals exactly match the logical fixtures in all six template/source states: Core 9/12, Core + recommended 31/35 and Full 79/87.
+- Core shows flow summaries; Recommended adds gated entry, recovery, steering and telemetry; Full adds training and profile updates. Showing sources adds `serves`, giving Full all nine canonical relationship kinds.
+- Mobile renders zero semantic SVG paths by design, while the same Full state immediately restores 47 semantic paths representing all 79 logical relationships after resizing to desktop.
+- The breakpoint is exact: 700 px shows the textual representation with no curves; 701 px hides it and restores the SVG renderer.
+- Core renders seven between-row summaries, Recommended fifteen plus one recovery block, and Full twenty-one plus one recovery block and one cascade marker.
+- Full control cards render twelve compact dependency chips. With sources shown, all seven data-source cards expose `serves` chips; the shared image ANN source lists both visual consumers.
+- Selecting Retrieval routing exposes two incoming and twelve outgoing active endpoints while its card compacts them to `retrieval legs · gated rerankers · Candidate budget allocation`.
+- Selecting the shared image ANN source lists both serving endpoints; dependency-reference navigation moves the inline panel and connected-card highlight to the chosen endpoint.
+- Disabling Semantic rerank removes its incident dependencies and changes the Full mobile inventory from 79 to 77 and row summaries from 21 to 20 without leaving a stale selected endpoint.
+- Inline selection, full-drawer handoff, close cleanup, source visibility, light/dark themes, mobile-to-desktop-to-mobile resizing and the exact breakpoint were exercised with no browser warnings or errors.
+
+Discoveries and decisions:
+
+- The logical inventory is a better responsive source than the desktop render-edge list. Render edges intentionally collapse groups for geometry; starting from them would discard endpoints precisely where the textual view needs full detail.
+- A short transition summary after each model row communicates sequence more reliably than a decorative downward arrow, especially when a row contains parallel or gated alternatives.
+- Compact card chips and complete inline selection serve different levels of detail: chips make control ownership scannable, while the selection panel prevents grouping from hiding actual endpoints.
+- The drawer remains valuable for contracts and implementation guidance, but it is too disruptive as the first dependency interaction on a phone. Making it an explicit second step keeps the pipeline and its highlighted dependencies visible.
+- The desktop rerank boundary cannot be meaningfully measured around a long mobile stack. A marker carrying the same group name and pass-through rule preserves the semantics without pretending that a mobile geometric enclosure is useful.
+- Source cards already contained a desktop-oriented `Serves` sentence. Hiding that sentence only on mobile avoids duplication while keeping the new canonical relationship chip visible.
+- Relationship-kind chips in the mobile introduction intentionally reflect current state. In particular, `serves` appears only when data sources are shown, unlike the stable explanatory sidebar legend.
+
 The current `≤700px` behavior removes all lines. Replace that with a deliberate responsive representation.
 
 Recommended implementation:

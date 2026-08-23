@@ -354,6 +354,11 @@ a{color:var(--accent)}
 .wires path.hover-connected{stroke-width:2.2!important;opacity:1!important}
 .node[data-id="assembly"]{text-align:left}
 
+/* ---------- narrow-screen dependency representation ---------- */
+.mobile-dependency-intro,.mobile-transition,.mobile-recovery,
+.mobile-stage-marker,.mobile-selection,.mobile-dep-chips{display:none}
+.mobile-connected:not(.off){outline:2px solid var(--accent-soft);outline-offset:2px}
+
 /* ---------- serving dependencies ---------- */
 .data-source-column{
   display:flex;flex-direction:column;justify-content:center;gap:9px;width:206px;max-width:100%;min-width:0
@@ -664,11 +669,69 @@ table.mini .met{color:var(--accent)}
   .node{max-width:none;width:100%}
   .canvas.with-data-sources .data-source-column{display:flex;width:100%;gap:9px}
   .data-source-node{width:100%;max-width:none;padding:17px 12px 12px}
+  .data-source-node .source-serves{display:none}
   .wires{display:none}
-  .row:not(:last-child)::after{
-    content:"";position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);
-    width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;
-    border-top:7px solid var(--wire)
+  .mobile-dependency-intro,.mobile-transition,.mobile-recovery,
+  .mobile-stage-marker,.mobile-selection,.mobile-dep-chips{display:flex}
+  .mobile-dependency-intro{
+    flex-direction:column;gap:8px;margin-bottom:18px;padding:12px 13px;
+    border:1px solid var(--border);border-radius:10px;background:var(--surface)
+  }
+  .mobile-dependency-intro strong{font-size:12px}
+  .mobile-dependency-intro p{margin:0;color:var(--text-2);font-size:11px}
+  .mobile-kind-list{display:flex;flex-wrap:wrap;gap:5px}
+  .mobile-kind{
+    display:inline-flex;align-items:center;gap:5px;padding:2px 6px;border:1px solid var(--border);
+    border-radius:20px;background:var(--surface-2);color:var(--text-2);font-size:9.5px
+  }
+  .mobile-rel-key{width:18px;height:7px;overflow:visible;flex:none}
+  .mobile-transition{
+    position:relative;flex-direction:column;gap:4px;margin:-14px 8px 18px;padding:8px 10px 8px 17px;
+    border-left:2px solid var(--wire);border-radius:0 8px 8px 0;background:var(--surface-2)
+  }
+  .mobile-transition::before{
+    content:"";position:absolute;left:-5px;bottom:-5px;width:7px;height:7px;
+    border-right:2px solid var(--wire);border-bottom:2px solid var(--wire);transform:rotate(45deg)
+  }
+  .mobile-transition-line{display:flex;align-items:flex-start;gap:7px;font-size:10.5px;color:var(--text-2)}
+  .mobile-transition-line b{color:var(--text);font-weight:650}
+  .mobile-recovery{
+    flex-direction:column;gap:7px;margin:-14px 4px 20px 24px;padding:10px 11px;
+    border:1px solid var(--wire-loop);border-left-width:3px;border-radius:8px;background:var(--warn-bg)
+  }
+  .mobile-recovery-title{font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.045em;color:var(--wire-loop)}
+  .mobile-recovery-path{font-size:10.5px;color:var(--text-2);line-height:1.45}
+  .mobile-recovery-path b{color:var(--text)}
+  .mobile-stage-marker{
+    flex-direction:column;gap:2px;margin:2px 0 18px;padding:8px 10px;
+    border:1px dashed var(--wire-gate);border-radius:9px;color:var(--wire-gate);background:var(--surface)
+  }
+  .mobile-stage-marker b{font-size:10px;text-transform:uppercase;letter-spacing:.045em}
+  .mobile-stage-marker span{font-size:10px;color:var(--text-2)}
+  .mobile-dep-chips{flex-wrap:wrap;gap:4px;margin-top:7px}
+  .mobile-dep-chip{
+    display:inline-flex;gap:3px;align-items:center;border:1px solid var(--dep-color,var(--border));
+    border-radius:6px;background:var(--surface);color:var(--dep-color,var(--text-2));padding:2px 5px;
+    font-size:9px;font-weight:650;line-height:1.35;text-transform:none
+  }
+  .mobile-selection{
+    flex:1 1 100%;width:100%;flex-direction:column;gap:9px;margin:2px 0 8px;padding:11px 12px;
+    border:2px solid var(--accent);border-radius:9px;background:var(--surface);box-shadow:var(--shadow)
+  }
+  .mobile-selection-head{display:flex;align-items:flex-start;gap:8px}
+  .mobile-selection-head strong{font-size:11.5px;line-height:1.35}
+  .mobile-selection-head button{margin-left:auto;border:0;background:none;color:var(--text-3);padding:0 2px}
+  .mobile-selection-group{display:flex;flex-direction:column;gap:5px}
+  .mobile-selection-label{font-size:9px;font-weight:750;text-transform:uppercase;letter-spacing:.045em;color:var(--text-3)}
+  .mobile-selection-row{display:flex;align-items:flex-start;gap:6px;font-size:10px;color:var(--text-2)}
+  .mobile-selection-row b{color:var(--text);font-weight:650}
+  .mobile-dep-ref{
+    border:1px solid var(--border);border-radius:5px;background:var(--surface-2);color:var(--text-2);
+    padding:2px 5px;font-size:9.5px;text-align:left
+  }
+  .mobile-details-btn{
+    align-self:flex-start;border:1px solid var(--accent);border-radius:6px;background:var(--accent-soft);
+    color:var(--accent);padding:4px 7px;font-size:10px;font-weight:650
   }
   .drawer{width:100vw}
   .step{grid-template-columns:1fr;gap:8px}
@@ -3015,7 +3078,178 @@ function renderServingToggle(){
 /* =======================================================================
    CANVAS RENDER
    ======================================================================= */
-function nodeEl(id, newIds){
+const isNarrowLayout = () => window.matchMedia("(max-width:700px)").matches;
+const entityName = id => DATA_SOURCES[id]?.name || S[id]?.name || id;
+
+function mobileRelationKey(kind){
+  const relation=RELATION_TYPES[kind];
+  const dash=relation.dash ? ' stroke-dasharray="'+relation.dash+'"' : "";
+  return '<svg class="mobile-rel-key" viewBox="0 0 18 7" aria-hidden="true">'+
+    '<line x1="1" y1="3.5" x2="14" y2="3.5" style="stroke:'+relation.color+'" stroke-width="1.5"'+dash+
+      ' stroke-linecap="'+relation.linecap+'"/>'+
+    '<path d="M13,1 L18,3.5 L13,6 z" style="fill:'+relation.color+'"/></svg>';
+}
+
+function compactDependencyNames(ids){
+  const remaining=[...new Set(ids)], labels=[];
+  const extractGroup=(members,label,min=2)=>{
+    const matches=remaining.filter(id=>members.includes(id));
+    if(matches.length<min) return;
+    labels.push(label);
+    matches.forEach(id=>remaining.splice(remaining.indexOf(id),1));
+  };
+  extractGroup(LEGS,"retrieval legs",3);
+  extractGroup(GATED_RERANKERS,"gated rerankers",2);
+  labels.push(...remaining.map(entityName));
+  return labels.join(" · ");
+}
+
+function mobileDependencyChips(id,logical){
+  const groups=[];
+  const collect=(edges,direction)=>{
+    const byKind=new Map();
+    edges.forEach(edge=>{
+      if(!byKind.has(edge.kind)) byKind.set(edge.kind,[]);
+      byKind.get(edge.kind).push(direction==="out" ? edge.to : edge.from);
+    });
+    byKind.forEach((ids,kind)=>groups.push({
+      kind,
+      label:RELATION_TYPES[kind][direction==="out"?"fwd":"rev"],
+      names:compactDependencyNames(ids)
+    }));
+  };
+  collect(logical.filter(edge=>edge.from===id),"out");
+  collect(logical.filter(edge=>edge.to===id),"in");
+  if(!groups.length) return "";
+  return '<div class="mobile-dep-chips">'+groups.map(group=>
+    '<span class="mobile-dep-chip" data-relation-kind="'+group.kind+'" style="--dep-color:'+RELATION_TYPES[group.kind].color+'">'+
+      group.label+': '+group.names+'</span>').join("")+'</div>';
+}
+
+function mobileDependencyIntro(logical){
+  const kinds=[...new Set(logical.map(edge=>edge.kind))];
+  const el=document.createElement("section");
+  el.className="mobile-dependency-intro";
+  el.setAttribute("aria-label","Narrow-screen dependency view");
+  el.innerHTML='<strong>Dependency view · '+logical.length+' logical relationships</strong>'+
+    '<p>Connector curves are replaced by summaries below. Tap any card to list its incoming and outgoing dependencies.</p>'+
+    '<div class="mobile-kind-list">'+kinds.map(kind=>
+      '<span class="mobile-kind" data-relation-kind="'+kind+'">'+mobileRelationKey(kind)+RELATION_TYPES[kind].legend.label+'</span>').join("")+'</div>';
+  return el;
+}
+
+function mobileTransition(row,logical){
+  const fromIds=(row.c||[]).filter(isOn);
+  const pathEdges=logical.filter(edge=>fromIds.includes(edge.from) &&
+    (edge.kind==="flow" || edge.kind==="gated"));
+  if(!pathEdges.length) return null;
+  const groups=new Map();
+  pathEdges.forEach(edge=>{
+    if(!groups.has(edge.kind)) groups.set(edge.kind,[]);
+    groups.get(edge.kind).push(edge);
+  });
+  const el=document.createElement("div");
+  el.className="mobile-transition";
+  el.setAttribute("aria-label","Pipeline transition");
+  el.innerHTML=[...groups].map(([kind,edges])=>{
+    const from=[...new Set(edges.map(edge=>edge.from))];
+    const to=[...new Set(edges.map(edge=>edge.to))];
+    const prefix=from.length>1 ? '<b>'+compactDependencyNames(from)+'</b> ' : "";
+    const outcome=[...new Set(edges.map(edge=>edge.label).filter(Boolean))];
+    return '<div class="mobile-transition-line" data-relation-kind="'+kind+'">'+mobileRelationKey(kind)+'<span>'+prefix+
+      RELATION_TYPES[kind].fwd.toLowerCase()+' <b>'+compactDependencyNames(to)+'</b>'+
+      (outcome.length ? ' · '+outcome.join(" / ") : '')+'</span></div>';
+  }).join("");
+  return el;
+}
+
+function mobileRecovery(logical){
+  const branches=logical.filter(edge=>edge.from==="sufficiency" && edge.kind==="branch");
+  if(!branches.length) return null;
+  const el=document.createElement("section");
+  el.className="mobile-recovery";
+  el.setAttribute("aria-label","Recovery decision paths");
+  el.innerHTML='<div class="mobile-recovery-title">Recovery decision</div>'+branches.map(branch=>{
+    const returned=logical.find(edge=>edge.from===branch.to && edge.kind==="loop");
+    return '<div class="mobile-recovery-path"><b>'+branch.label+'</b> → '+entityName(branch.to)+
+      (returned ? ' → returns <b>'+returned.label+'</b> to '+entityName(returned.to) : '')+'</div>';
+  }).join("");
+  return el;
+}
+
+function mobileStageMarker(){
+  const el=document.createElement("div");
+  el.className="mobile-stage-marker";
+  el.innerHTML='<b>Selective rerank cascade</b><span>Route-selected passes · skipped stages pass candidates through</span>';
+  return el;
+}
+
+function mobileSelectionRows(edges,direction){
+  if(!edges.length) return '<div class="mobile-selection-row">None in the active pipeline.</div>';
+  return edges.map(edge=>{
+    const other=direction==="out" ? edge.to : edge.from;
+    const relation=RELATION_TYPES[edge.kind];
+    const detail=edge.detail ? ' · '+edge.detail.label+' · '+edge.detail.timing :
+      edge.label ? ' · '+edge.label : '';
+    return '<div class="mobile-selection-row" data-relation-kind="'+edge.kind+'">'+mobileRelationKey(edge.kind)+'<span><b>'+
+      relation[direction==="out"?"fwd":"rev"]+'</b> <button class="mobile-dep-ref" data-mobile-select="'+other+'">'+
+      entityName(other)+'</button>'+detail+'</span></div>';
+  }).join("");
+}
+
+function renderMobileSelection(id){
+  $$(".mobile-selection",rowsEl).forEach(panel=>panel.remove());
+  $$(".mobile-connected",rowsEl).forEach(card=>card.classList.remove("mobile-connected"));
+  if(!isNarrowLayout() || !id) return;
+  const card=DATA_SOURCES[id]
+    ? rowsEl.querySelector('.data-source-node[data-source-id="'+id+'"]')
+    : rowsEl.querySelector('.node[data-id="'+id+'"]');
+  if(!card){ state.sel=null; return; }
+
+  selectEntity(id);
+  const logical=logicalDependencies(state.tpl,{showServing:state.showServing,off:state.off[state.tpl]});
+  const incoming=logical.filter(edge=>edge.to===id);
+  const outgoing=logical.filter(edge=>edge.from===id);
+  [...incoming.map(edge=>edge.from),...outgoing.map(edge=>edge.to)].forEach(other=>{
+    const connected=DATA_SOURCES[other]
+      ? rowsEl.querySelector('.data-source-node[data-source-id="'+other+'"]')
+      : rowsEl.querySelector('.node[data-id="'+other+'"]');
+    connected?.classList.add("mobile-connected");
+  });
+
+  const panel=document.createElement("section");
+  panel.className="mobile-selection";
+  panel.setAttribute("aria-live","polite");
+  panel.setAttribute("aria-label","Dependencies for "+entityName(id));
+  panel.innerHTML='<div class="mobile-selection-head"><strong>Dependencies · '+entityName(id)+'</strong>'+
+    '<button type="button" data-mobile-close aria-label="Close dependency summary">×</button></div>'+
+    '<div class="mobile-selection-group"><div class="mobile-selection-label">Incoming</div>'+mobileSelectionRows(incoming,"in")+'</div>'+
+    '<div class="mobile-selection-group"><div class="mobile-selection-label">Outgoing</div>'+mobileSelectionRows(outgoing,"out")+'</div>'+
+    '<button type="button" class="mobile-details-btn" data-mobile-details>Open full component details</button>';
+  card.insertAdjacentElement("afterend",panel);
+  panel.querySelector("[data-mobile-close]").addEventListener("click",()=>{
+    state.sel=null; panel.remove(); selectEntity(null);
+    $$(".mobile-connected",rowsEl).forEach(el=>el.classList.remove("mobile-connected"));
+  });
+  panel.querySelector("[data-mobile-details]").addEventListener("click",()=>
+    DATA_SOURCES[id] ? openSourceDrawer(id) : openDrawer(id));
+  $$('[data-mobile-select]',panel).forEach(button=>button.addEventListener("click",()=>{
+    state.sel=button.dataset.mobileSelect;
+    renderMobileSelection(state.sel);
+    const selected=rowsEl.querySelector('.selected');
+    selected?.scrollIntoView({block:"nearest"});
+  }));
+}
+
+function activateEntity(id){
+  if(isNarrowLayout()){
+    state.sel=id;
+    renderMobileSelection(id);
+  } else if(DATA_SOURCES[id]) openSourceDrawer(id);
+  else openDrawer(id);
+}
+
+function nodeEl(id, newIds, logical){
   const s = S[id];
   const gate = executionGate(id,state.tpl);
   const el = document.createElement("button");
@@ -3038,12 +3272,13 @@ function nodeEl(id, newIds){
     '<div class="nm">'+s.name+'</div>' +
     (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
     '<div class="meta">'+meta+'</div>' +
+    (s.control ? mobileDependencyChips(id,logical) : "")+
     '<span class="offmark"></span>';
-  el.addEventListener("click", ()=> openDrawer(id));
+  el.addEventListener("click", ()=> activateEntity(id));
   return el;
 }
 
-function dataSourceEl(id){
+function dataSourceEl(id,logical){
   const source = DATA_SOURCES[id];
   const consumers = templateConsumers(id);
   const sourceOn = consumers.some(isOn);
@@ -3062,13 +3297,15 @@ function dataSourceEl(id){
     '<div class="meta"><span class="tierchip '+source.tier+'">'+TIER_LABEL[source.intro]+'</span>'+
       '<span class="data-plane-chip">data plane</span></div>'+
     '<div class="source-serves"><b>Serves</b> '+consumers.map(cid=>S[cid].name).join(" · ")+'</div>'+
+    mobileDependencyChips(id,logical)+
     '<span class="offmark"></span>';
-  el.addEventListener("click", ()=> openSourceDrawer(id));
+  el.addEventListener("click", ()=> activateEntity(id));
   return el;
 }
 
 function renderCanvas(){
   const t = state.tpl;
+  const logical = logicalDependencies(t,{showServing:state.showServing,off:state.off[t]});
   const prev = t>1 ? new Set(tplStages(t-1)) : new Set();
   const newIds = t>1 ? new Set(tplStages(t).filter(id=>!prev.has(id))) : new Set();
   const nNew = newIds.size;
@@ -3079,8 +3316,10 @@ function renderCanvas(){
   rowsEl.innerHTML = "";
   $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
   canvas.classList.toggle("with-data-sources",state.showServing);
+  rowsEl.appendChild(mobileDependencyIntro(logical));
 
   TPL[t].rows.forEach((r,i)=>{
+    if((r.c||[]).includes("semrerank")) rowsEl.appendChild(mobileStageMarker());
     const row = document.createElement("div");
     const parallel = (r.c||[]).some(id=>S[id].parallel);
     row.className = "row" + (parallel ? " parallel-row" : "");
@@ -3095,15 +3334,22 @@ function renderCanvas(){
       if(k==="d" && rowSourceIds.length){
         const column = document.createElement("div");
         column.className = "data-source-column";
-        rowSourceIds.forEach(id=>column.appendChild(dataSourceEl(id)));
+        rowSourceIds.forEach(id=>column.appendChild(dataSourceEl(id,logical)));
         cell.appendChild(column);
       } else {
-        ids.forEach(id=>cell.appendChild(nodeEl(id,newIds)));
+        ids.forEach(id=>cell.appendChild(nodeEl(id,newIds,logical)));
       }
       row.appendChild(cell);
     });
     rowsEl.appendChild(row);
+    const transition=mobileTransition(r,logical);
+    if(transition) rowsEl.appendChild(transition);
+    if((r.c||[]).includes("sufficiency")){
+      const recovery=mobileRecovery(logical);
+      if(recovery) rowsEl.appendChild(recovery);
+    }
   });
+  if(state.sel && isNarrowLayout()) renderMobileSelection(state.sel);
   applyFocus();
   requestAnimationFrame(drawWires);
 }
@@ -3874,6 +4120,8 @@ function closeDrawer(){
   drawer.classList.remove("open"); scrim.classList.remove("open");
   state.sel = null;
   $$(".node,.data-source-node").forEach(el=>el.classList.remove("selected"));
+  $$(".mobile-selection",rowsEl).forEach(panel=>panel.remove());
+  $$(".mobile-connected",rowsEl).forEach(el=>el.classList.remove("mobile-connected"));
 }
 
 /* =======================================================================
@@ -4121,7 +4369,13 @@ $("#clearFocus").addEventListener("click", ()=> setFocus(state.focus.kind, state
 
 let rt;
 new ResizeObserver(()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); }).observe(canvas);
-window.addEventListener("resize", ()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); });
+let responsiveNarrow=isNarrowLayout();
+window.addEventListener("resize", ()=>{
+  clearTimeout(rt);
+  const narrow=isNarrowLayout();
+  if(narrow!==responsiveNarrow){ responsiveNarrow=narrow; rt=setTimeout(renderAll,90); }
+  else rt=setTimeout(drawWires,90);
+});
 if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=> setTimeout(drawWires,50));
 
 renderRelationLegend();
