@@ -291,6 +291,47 @@ For the Full reranking surface:
 
 ## Phase 5 — Correct feedback and learning semantics
 
+**Status: Complete — 2026-08-23**
+
+Implemented in `search-query-pipeline-diagram-tool.html`:
+
+- Renamed Behavioural signals to **Behavioural event log** and made its boundary explicit: Results assembly emits position-aware impression context, while client applications emit clicks, saves, enquiries and reformulations directly into the log.
+- Kept the existing component count instead of adding a User interactions box. The event-log contract and notes identify the external interaction producer without implying that Results assembly originates user actions.
+- Clarified Personalisation as two separate mechanisms in one component: a request-time user-profile lookup on the ranking spine and asynchronous profile updates for future requests.
+- Added `updates` as a ninth canonical relationship type. Its magenta irregular dash treatment, arrow, legend sample, forward/reverse drawer terminology, description and accessibility wording distinguish durable profile-state changes from request flow, telemetry feeds and offline model training.
+- Reclassified Behavioural event log → Personalisation from `trains` to `updates`. Behavioural event log continues to train Learning-to-Rank and the learned form of Fusion policy offline.
+- Added one validated `RELATION_DETAILS` registry for all four feedback/learning relationships. Every entry declares a concise visible label, the transmitted payload and its timing:
+
+  - Results assembly → Behavioural event log: `impression context` · per-response telemetry
+  - Behavioural event log → Fusion policy: `debiased training set` · offline model training
+  - Behavioural event log → Learning-to-Rank: `debiased training set` · offline model training
+  - Behavioural event log → Personalisation: `profile events` · asynchronous profile update
+
+- Rendered those labels as small relation-coloured captions and included the full payload/timing in connector accessibility text and both ends' drawer relationship summaries.
+- Resolved reranker ownership in favour of the existing Retrieval routing contract, which already emits `rerankers_to_fire[]`. Routing now steers all four gated rerankers—Semantic rerank, Late-interaction rerank, VLM rerank and Learning-to-Rank—but not the deterministic Cross-encoder.
+- Collapsed those four logical steering dependencies into one labelled `selects gated passes` edge terminating at the measured Selective rerank cascade boundary. Its accessibility label retains all four represented endpoints.
+- Added startup validation for the gated-reranker set, exact Routing ownership, feedback annotation completeness, annotation-to-edge integrity and the expanded reverse relationship index.
+
+Verification:
+
+- Core remains 9/12 logical relationships with sources hidden/shown; Core + recommended remains 31/35. Full intentionally moves from 76/84 to **79/87** because Routing now owns three additional gated-reranker endpoints.
+- Drawn semantic path counts remain Core 7/10, Core + recommended 24/28 and Full 47/55. The four Routing endpoints collapse into the single reranker-gate path, so the clearer ownership does not add visual clutter.
+- Source visibility still changes only `serves`: Full adds eight serving relationships and no request, control, feedback, training or update relationship.
+- Latency and complexity remain unchanged: Core 34–118 ms / Lean · 15; Core + recommended 97–332 ms / Substantial · 48; Full 172–654 ms / Heavy · 100.
+- Full renders all nine legend kinds, and every legend sample matches the corresponding connector's colour token, width, dash pattern, cap and opacity.
+- Full renders exactly four feedback captions: one impression-context feed, two offline-training dependencies and one profile update. All semantic paths retain descriptive accessibility labels.
+- Disabling Semantic rerank removes that logical endpoint and card connection; the cascade control edge remains with a logical count of three and continues to name the active group.
+- The event-log and Personalisation drawers show the same payload, timing and relation terminology as the canvas and legend.
+- Wide desktop and source-expanded states were inspected in light and dark themes with no browser warnings, errors or invalid group geometry.
+
+Discoveries and decisions:
+
+- A separate User interactions node would add layout and lifecycle ambiguity without adding a pipeline dependency. The client-side producer is clearer as an explicit external input in the event-log contract; only impression context originates at Results assembly.
+- Personalisation is not accurately described as only a trained model. Treating logged events as profile updates preserves the important distinction between asynchronous state mutation and the runtime profile read used by the ranking stage.
+- The routing contract is authoritative for gated rerank execution. Pointing Routing only at Late-interaction rerank was inconsistent with both `rerankers_to_fire[]` and the other visibly gated rerankers.
+- The cascade boundary is the right render target for shared control, while the logical model must retain the four actual endpoints. This preserves dependency clarity in drawers, diagnostics and accessibility without four more long control curves.
+- The Phase 0 source-count invariants remain valid. Phase 5 changes only non-serving Full endpoints, and the new 79/87 baseline is the deliberate semantic successor to the earlier 76/84 fixture.
+
 Implement the decisions made in the clarifying questions below.
 
 Likely relationship shape:

@@ -19,7 +19,7 @@
   --opt-bg:#ede9fe; --opt-line:#6d28d9; --opt-text:#2b1a52;
   --ctrl-bg:#e8ecf2; --ctrl-line:#64748b; --ctrl-text:#27303f;
   --wire:#6f7d92; --wire-gate:#2563b8; --wire-loop:#b85f36; --wire-ctrl:#667085;
-  --wire-feed:#7c3aed; --wire-train:#0f766e; --wire-data:#53657d;
+  --wire-feed:#7c3aed; --wire-train:#0f766e; --wire-update:#be185d; --wire-data:#53657d;
   --data-bg:#f7f9fc; --data-line:#7b8798; --data-text:#344054;
   --warn:#b45309; --warn-bg:#fef3c7;
   --ok:#15803d;
@@ -39,7 +39,7 @@
       --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
       --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
       --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
-      --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-data:#9aabc2;
+      --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
       --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
       --warn:#e0a94a; --warn-bg:#332a17;
       --ok:#4ea96e;
@@ -57,7 +57,7 @@
   --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
   --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
   --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
-  --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-data:#9aabc2;
+  --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
   --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
   --warn:#e0a94a; --warn-bg:#332a17;
   --ok:#4ea96e;
@@ -425,6 +425,10 @@ a{color:var(--accent)}
 }
 .elabel.bus{color:var(--text-2)}
 .elabel.port{color:var(--ctrl-text);border-style:dashed;border-color:var(--ctrl-line)}
+.elabel.relation{
+  border:1px solid var(--relation-color,var(--border));background:var(--surface);
+  color:var(--relation-color,var(--text-2));box-shadow:var(--shadow);font-size:9px
+}
 .stage-boundary{
   position:absolute;z-index:0;border:1px dashed var(--wire-gate);border-radius:18px;
   pointer-events:none;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wire-gate) 9%,transparent)
@@ -552,6 +556,7 @@ table.mini .met{color:var(--accent)}
 .ref{font-size:11px;border:1px solid var(--border);background:var(--surface-2);border-radius:6px;padding:4px 8px;color:var(--text-2)}
 .ref:hover{border-color:var(--accent);color:var(--accent)}
 .ref.isoff{opacity:.55;font-style:italic}
+.refdetail{display:block;margin-top:2px;font-size:9.5px;font-weight:500;color:var(--text-3)}
 .relnote{font-size:11.5px;color:var(--text-3);margin:0 0 8px;line-height:1.45}
 .reldep{
   font-size:11.5px;color:var(--text-2);background:var(--warn-bg);border-left:3px solid var(--warn);
@@ -769,7 +774,8 @@ table.mini .met{color:var(--accent)}
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
           Flow moves requests or candidates. Gated entry runs only when route or intent activates its stage.
           Branches select a decision outcome; returns retry an earlier stage.
-          Control-plane components steer without transforming candidates. Feeds carry non-spine data; trains is offline.
+          Control-plane components steer without transforming candidates. Feeds carry telemetry; trains is offline.
+          Updates change durable profile state without implying model training.
           Serving sources are logical indexes or stores, not prescribed products or deployments.
         </p>
       </div>
@@ -1632,16 +1638,17 @@ def({
 
 def({
   id:"personalisation", name:"Personalisation", group:"Final ranking", tier:"optional", intro:3,
-  sub:"user profile and history signals", lat:[3,15], cx:4, caps:["personal"],
-  purpose:"Adjust ranking using who is asking: prior behaviour, saved items, stated preferences.",
+  sub:"runtime profile lookup + incremental updates", lat:[3,15], cx:4, caps:["personal"],
+  purpose:"Read a durable user profile at request time and adjust ranking using prior behaviour, saved items and stated preferences. Profile state is updated from logged events outside the ranking request.",
   decisions:[{
     q:"How strong is the personalisation?",
     opts:["Re-rank the whole page","Adjust a few slots","Tie-break only"],
     def:"Adjust a few slots, always reserving unpersonalised ones",
     why:"Filter bubbles are the failure mode, and they are invisible in aggregate metrics because engagement goes up while discovery collapses."
   }],
-  contract:{in:"ranked candidates + user profile", out:"personalised ranking + which slots were affected"},
+  contract:{in:"ranked candidates + runtime user-profile lookup", out:"personalised ranking + which slots were affected"},
   notes:[
+    "Keep the request-time profile read separate from asynchronous profile updates. A new click may update future requests, but it must not mutate the ranking already being assembled.",
     "Maintain a persistent unpersonalised control group where traffic and experimentation constraints make it viable. Size and duration should reflect the statistical power available and the product cost of withholding personalisation.",
     "Monitor discovery and coverage as well as engagement. Personalisation can improve aggregate engagement while narrowing what users are able to find."
   ],
@@ -1688,7 +1695,7 @@ def({
     def:"Results plus relaxation, degradation and route state",
     why:"The UI cannot say “showing broader results” unless the pipeline tells it. This is a schema contract, not a nicety — it is the only defence against silent relaxation."
   }],
-  contract:{in:"final ranking", out:"{ results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id?, timings }"},
+  contract:{in:"final ranking", out:"response { results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id?, timings } + impression context { query_id, result_ids[], positions, route_id?, experiment_ids[] }"},
   dials:[{n:"Page size",v:"20"},{n:"Hydration",v:"batch, never per-result"}],
   notes:[
     "Revalidate mandatory eligibility and policy predicates before returning results. This is defence in depth; it does not make post-filtering an acceptable retrieval strategy.",
@@ -1718,17 +1725,20 @@ def({
 });
 
 def({
-  id:"behavioural", name:"Behavioural signals", group:"Results", tier:"recommended", control:true, intro:2,
-  sub:"clicks, saves, enquiries, reformulations", lat:[0,0], cx:3, caps:["learning"],
-  purpose:"The offline loop: capture clicks, saves, enquiries and reformulations, turn them into labels, and feed the trained components. Not in the request path.",
+  id:"behavioural", name:"Behavioural event log", group:"Results", tier:"recommended", control:true, intro:2,
+  sub:"impressions joined to clicks, saves and reformulations", lat:[0,0], cx:3, caps:["learning"],
+  purpose:"The telemetry sink and offline learning source: join position-aware impression context from Results assembly with client-side clicks, saves, enquiries and reformulations. It is not in the ranking request path.",
   decisions:[{
     q:"When do you start collecting?",
     opts:["When a model needs it","From day one"],
     def:"From day one",
     why:"You cannot retroactively collect it, and it is the gating dependency for learned fusion, LTR, personalisation and retriever fine-tuning. Instrument it before anything consumes it."
   }],
-  contract:{in:"impressions + interactions", out:"labelled judgements, hard negatives, training sets"},
-  notes:["Mine hard negatives carefully: an unlabelled relevant document mined as a hard negative actively teaches the retriever the wrong thing."],
+  contract:{in:"impression context from Results assembly + interaction events from clients", out:"joined telemetry, debiased judgements, profile events and versioned training sets"},
+  notes:[
+    "Client applications emit interaction events directly; the Results assembly feed supplies the query, result, position, route and experiment context required to interpret them.",
+    "Mine hard negatives carefully: an unlabelled relevant document mined as a hard negative actively teaches the retriever the wrong thing."
+  ],
   failures:[{f:"Position bias untreated",s:"Models that reproduce the current ranking",m:"interleaving experiments; debiased estimators"}]
 });
 
@@ -2197,9 +2207,11 @@ Object.keys(DATA_SOURCES).forEach(sourceId=>{
 
    steers : request-time control. A changes how B behaves for THIS query.
    trains : offline dependency.   B's parameters are fitted from data A produces.
-            Drawn differently on purpose — behavioural signals do not steer
+            Drawn differently on purpose — behavioural events do not steer
             Learning-to-Rank at query time, they are what it is trained on.
    feeds  : plain data flow between stages that is not part of the spine.
+   updates: asynchronous state change. B's durable profile state is updated
+            from events A records; this is neither request-time flow nor training.
    ======================================================================= */
 const LEGS = ["lexical","sparse","textvec","textimagevec","imageimagevec","multivec","late"];
 
@@ -2220,6 +2232,9 @@ const GATED_EXECUTION = Object.freeze({
 const SELECTIVE_RERANK_CASCADE = Object.freeze([
   "semrerank","latererank","crossenc","vlmrerank","ltr"
 ]);
+const GATED_RERANKERS = Object.freeze([
+  "semrerank","latererank","vlmrerank","ltr"
+]);
 function executionGate(id,templateId){
   const gate=GATED_EXECUTION[id];
   return gate && templateId>=gate.from ? gate : null;
@@ -2229,13 +2244,31 @@ const REL = {
   "q-image":    { steers:["routing"], feeds:["imageimagevec"] },
   session:      { steers:["understand","rewrite","routing","personalisation"] },
   confidence:   { steers:["prefilter","relax"] },
-  routing:      { steers:LEGS.concat(["budget","latererank"]) },
+  routing:      { steers:LEGS.concat(["budget"]).concat(GATED_RERANKERS) },
   budget:       { steers:LEGS },
   degradation:  { steers:LEGS.concat(["latererank","crossenc","vlmrerank"]) },
   fusionpolicy: { steers:["fusion"] },
   assembly:     { feeds:["behavioural"] },
-  behavioural:  { trains:["fusionpolicy","personalisation","ltr"] }
+  behavioural:  { trains:["fusionpolicy","ltr"], updates:["personalisation"] }
 };
+
+const RELATION_DETAILS = Object.freeze({
+  "assembly|feeds|behavioural":Object.freeze({
+    label:"impression context", payload:"query, result positions, route and experiment context", timing:"per response telemetry"
+  }),
+  "behavioural|trains|fusionpolicy":Object.freeze({
+    label:"debiased training set", payload:"versioned judgements and route outcomes", timing:"offline model training"
+  }),
+  "behavioural|trains|ltr":Object.freeze({
+    label:"debiased training set", payload:"versioned judgements with position-aware features", timing:"offline model training"
+  }),
+  "behavioural|updates|personalisation":Object.freeze({
+    label:"profile events", payload:"clicks, saves, enquiries and stated preferences", timing:"asynchronous profile update"
+  })
+});
+function relationDetail(from,kind,to){
+  return RELATION_DETAILS[[from,kind,to].join("|")]||null;
+}
 
 const RELATION_TYPES = Object.freeze({
   flow:{
@@ -2294,6 +2327,14 @@ const RELATION_TYPES = Object.freeze({
     route:"side", curve:.45, componentRelation:true,
     legend:{visible:true,label:"trains — offline"}
   },
+  updates:{
+    fwd:"Updates", rev:"Updated from",
+    description:"Asynchronous state dependency — logged events update durable profile state for future requests.",
+    aria:"Asynchronous profile-state update",
+    color:"var(--wire-update)", dash:"4 2 1 2 1 5", linecap:"butt", marker:"update", opacity:1, width:1.5,
+    route:"side", curve:.42, componentRelation:true,
+    legend:{visible:true,label:"updates — profile state"}
+  },
   serves:{
     fwd:"Serves", rev:"Served by",
     description:"A logical index or store queried or hydrated by the target component.",
@@ -2305,7 +2346,7 @@ const RELATION_TYPES = Object.freeze({
 });
 
 const COMPONENT_RELATION_KINDS = Object.freeze(
-  ["steers","trains","feeds"].filter(kind=>RELATION_TYPES[kind].componentRelation)
+  Object.entries(RELATION_TYPES).filter(([,relation])=>relation.componentRelation).map(([kind])=>kind)
 );
 
 /* reverse index, built once */
@@ -2338,6 +2379,7 @@ const BASELINE_ALWAYS_RETRIEVAL_LEGS = ["lexical","textvec"];
 const BASELINE_GATED_FULL_RETRIEVAL_LEGS = [
   "sparse","textimagevec","imageimagevec","multivec","late"
 ];
+const BASELINE_GATED_RERANKERS = ["semrerank","latererank","vlmrerank","ltr"];
 
 function baselinePairs(...groups){
   return groups.flatMap(([from,targets,label=""])=>
@@ -2445,7 +2487,7 @@ const DEPENDENCY_BASELINE = {
       ["q-image","routing"],
       ["session",["understand","rewrite","routing","personalisation"]],
       ["confidence",["prefilter","relax"]],
-      ["routing",BASELINE_RETRIEVAL_LEGS.concat(["budget","latererank"])],
+      ["routing",BASELINE_RETRIEVAL_LEGS.concat(["budget"]).concat(BASELINE_GATED_RERANKERS)],
       ["budget",BASELINE_RETRIEVAL_LEGS],
       ["degradation",BASELINE_RETRIEVAL_LEGS.concat(["latererank","crossenc","vlmrerank"])],
       ["fusionpolicy","fusion"]
@@ -2455,8 +2497,9 @@ const DEPENDENCY_BASELINE = {
       ["assembly","behavioural"]
     ),
     trains:baselinePairs(
-      ["behavioural",["fusionpolicy","personalisation","ltr"]]
+      ["behavioural",["fusionpolicy","ltr"]]
     ),
+    updates:baselinePairs(["behavioural","personalisation"]),
     serves:baselinePairs(
       ["ds-text","lexical"],
       ["ds-doc-ann","textvec"],
@@ -2476,7 +2519,9 @@ function logicalDependencies(templateId,{showServing=false,off=new Set()}={}){
   const present = new Set(tplStages(templateId));
   const active = id=>present.has(id) && !off.has(id);
   const dependencies = [];
-  const add = (from,to,kind,label="")=>dependencies.push({from,to,kind,label});
+  const add = (from,to,kind,label="")=>dependencies.push({
+    from,to,kind,label,detail:relationDetail(from,kind,to)
+  });
   const groups = template.rows
     .map(row=>({ids:(row.c||[]).filter(active),label:row.nextLabel||""}))
     .filter(group=>group.ids.length);
@@ -2619,6 +2664,15 @@ function validateRelationshipModel(){
     requireComponent(id,"selective rerank cascade");
     if(S[id].group!=="Reranking") throw new Error("Non-reranking component in selective cascade: "+id);
   });
+  if(new Set(GATED_RERANKERS).size!==GATED_RERANKERS.length){
+    throw new Error("Duplicate component in gated reranker set");
+  }
+  GATED_RERANKERS.forEach(id=>{
+    requireComponent(id,"gated reranker set");
+    if(!SELECTIVE_RERANK_CASCADE.includes(id) || !executionGate(id,3)){
+      throw new Error("Invalid gated reranker: "+id);
+    }
+  });
 
   Object.entries(REL).forEach(([from,relations])=>{
     requireComponent(from,"REL source");
@@ -2639,6 +2693,26 @@ function validateRelationshipModel(){
     }));
   });
   assertUnique(componentRelations,"component");
+
+  const routedRerankers=new Set((REL.routing?.steers||[]).filter(id=>S[id]?.group==="Reranking"));
+  if(GATED_RERANKERS.some(id=>!routedRerankers.has(id)) ||
+     [...routedRerankers].some(id=>!GATED_RERANKERS.includes(id))){
+    throw new Error("Retrieval routing must target every gated reranker, and no deterministic reranker");
+  }
+
+  const componentKeys=new Set(componentRelations.map(({from,to,kind})=>[from,kind,to].join("|")));
+  Object.entries(RELATION_DETAILS).forEach(([key,detail])=>{
+    if(!componentKeys.has(key)) throw new Error("Relationship detail has no component relationship: "+key);
+    if(!detail.label || !detail.payload || !detail.timing){
+      throw new Error("Incomplete relationship detail: "+key);
+    }
+  });
+  componentRelations.filter(({from})=>from==="assembly" || from==="behavioural")
+    .forEach(({from,to,kind})=>{
+      if(!relationDetail(from,kind,to)){
+        throw new Error("Feedback relationship lacks transmission detail: "+[from,kind,to].join("|"));
+      }
+    });
 
   templateIds.forEach(templateId=>(TPL[templateId].extra||[]).forEach(([from,to,,kind])=>{
     requireComponent(from,"template "+templateId+" extra source");
@@ -2705,6 +2779,7 @@ function validateRelationshipModel(){
   return Object.freeze({
     relationTypes:usedKinds.size,
     componentRelations:componentRelations.length,
+    annotatedRelations:Object.keys(RELATION_DETAILS).length,
     servingRelations:servingRelations.length,
     gatedStages:Object.keys(GATED_EXECUTION).length,
     reverseIndexes:2
@@ -3053,7 +3128,16 @@ const PARALLEL_GROUPS = Object.freeze({
     })
   })
 });
-const RENDER_TARGET_TYPES = Object.freeze(["node","group","source"]);
+const STAGE_GROUPS = Object.freeze({
+  "selective-rerank-cascade":Object.freeze({
+    label:"selective rerank cascade",
+    members:SELECTIVE_RERANK_CASCADE,
+    padding:Object.freeze({x:22,y:28}),
+    controlPorts:Object.freeze({routing:"selects gated passes"}),
+    controlSides:Object.freeze({routing:"right"})
+  })
+});
+const RENDER_TARGET_TYPES = Object.freeze(["node","group","stage-group","source"]);
 let parallelLayoutCache = new Map();
 
 function makeRenderTarget(type,id,members,rowIndex){
@@ -3067,6 +3151,12 @@ function nodeRenderTarget(id){
 }
 function groupRenderTarget(id,rowIndex,members,portId=null,layoutMembers=members){
   const target=makeRenderTarget("group",id,members,rowIndex);
+  target.portId=portId;
+  target.layoutMembers=[...layoutMembers];
+  return target;
+}
+function stageGroupRenderTarget(id,members,portId=null,layoutMembers=STAGE_GROUPS[id]?.members||members){
+  const target=makeRenderTarget("stage-group",id,members);
   target.portId=portId;
   target.layoutMembers=[...layoutMembers];
   return target;
@@ -3117,8 +3207,26 @@ function parallelGroupLayout(target){
   parallelLayoutCache.set(key,layout);
   return layout;
 }
+function stageGroupLayout(target){
+  const spec=STAGE_GROUPS[target.id];
+  if(!spec) return null;
+  const rects=(target.layoutMembers||spec.members).map(id=>rectOf('.node[data-id="'+id+'"]')).filter(Boolean);
+  if(!rects.length) return null;
+  const padding=spec.padding||{x:0,y:0};
+  const left=Math.min(...rects.map(rect=>rect.x))-padding.x;
+  const top=Math.min(...rects.map(rect=>rect.y))-padding.y;
+  const right=Math.max(...rects.map(rect=>rect.x+rect.w))+padding.x;
+  const bottom=Math.max(...rects.map(rect=>rect.y+rect.h))+padding.y;
+  return {
+    name:target.id,spec,
+    bounds:{x:left,y:top,w:right-left,h:bottom-top,cx:(left+right)/2,cy:(top+bottom)/2}
+  };
+}
+function renderGroupLayout(target){
+  return target.type==="stage-group" ? stageGroupLayout(target) : parallelGroupLayout(target);
+}
 function renderTargetRect(target){
-  if(target.type==="group") return parallelGroupLayout(target)?.bounds||null;
+  if(target.type==="group" || target.type==="stage-group") return renderGroupLayout(target)?.bounds||null;
   if(target.type==="source") return rectOf('.data-source-node[data-source-id="'+target.id+'"]');
   return rectOf('.node[data-id="'+target.id+'"]');
 }
@@ -3136,6 +3244,7 @@ function renderEdge(logicalEdges,toTarget=null,fromTarget=null,geometry="curve",
     from,to,
     kind:first.kind,
     label:first.label||null,
+    detail:first.detail||null,
     caption,
     geometry,
     logical
@@ -3202,8 +3311,20 @@ function componentRenderEdges(templateId,logicalEdges){
 
   const rendered = [];
   grouped.forEach(edges=>{
+    const consumed=new Set();
+    Object.entries(STAGE_GROUPS).forEach(([groupId,spec])=>{
+      const portCaption=spec.controlPorts?.[edges[0].from];
+      if(!portCaption) return;
+      const members=edges.filter(edge=>spec.members.includes(edge.to));
+      if(!members.length) return;
+      members.forEach(edge=>consumed.add(edge));
+      rendered.push(renderEdge(members,
+        stageGroupRenderTarget(groupId,members.map(edge=>edge.to),edges[0].from),
+        null,"curve",portCaption));
+    });
+
     const byParallel = new Map();
-    edges.forEach(edge=>{
+    edges.filter(edge=>!consumed.has(edge)).forEach(edge=>{
       const parallel=S[edge.to].parallel;
       const key=parallel||("@"+edge.to);
       if(!byParallel.has(key)) byParallel.set(key,[]);
@@ -3242,6 +3363,10 @@ function edgeList(){
 }
 
 function renderTargetName(target){
+  if(target.type==="stage-group"){
+    const label=STAGE_GROUPS[target.id]?.label||target.id;
+    return label+": "+renderTargetIds(target).map(id=>S[id].name).join(", ");
+  }
   if(target.type==="group"){
     return "parallel group: "+renderTargetIds(target).map(id=>S[id].name).join(", ");
   }
@@ -3257,6 +3382,7 @@ function relationshipAriaLabel(edge){
   return relation.aria+" from "+renderTargetName(edge.from)+" to "+renderTargetName(edge.to)+
     (edge.label ? "; outcome: "+edge.label : "")+
     (edge.caption ? "; group port: "+edge.caption : "")+
+    (edge.detail ? "; transmits "+edge.detail.payload+"; timing: "+edge.detail.timing : "")+
     (gateConditions.length ? "; condition: "+gateConditions.join(" or ") : "");
 }
 
@@ -3314,14 +3440,19 @@ function parallelFlowGeometry(edge,a,b){
 }
 
 function groupControlGeometry(edge,sourceRect){
-  const layout=parallelGroupLayout(edge.to);
+  const layout=renderGroupLayout(edge.to);
   if(!layout) return null;
   const ids=Object.keys(layout.spec?.controlPorts||{});
   const slot=Math.max(1,ids.indexOf(edge.to.portId)+1)/(ids.length+1);
   const bounds=layout.bounds;
   let side,port,source;
 
-  if(sourceRect.y+sourceRect.h<=bounds.y){
+  const preferredSide=layout.spec?.controlSides?.[edge.to.portId];
+  if(preferredSide==="right"){
+    side="right";
+    port={x:bounds.x+bounds.w,y:bounds.y+bounds.h*slot};
+    source={x:sourceRect.x,y:sourceRect.cy};
+  } else if(sourceRect.y+sourceRect.h<=bounds.y){
     side="top";
     port={x:bounds.x+bounds.w*slot,y:bounds.y-14};
     source={x:sourceRect.cx,y:sourceRect.y+sourceRect.h};
@@ -3371,19 +3502,17 @@ function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,para
 function renderStageBoundaries(){
   $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
   if(state.tpl!==3) return;
-  const rects=SELECTIVE_RERANK_CASCADE.map(id=>rectOf('.node[data-id="'+id+'"]')).filter(Boolean);
-  if(!rects.length) return;
-  const left=Math.min(...rects.map(rect=>rect.x))-22;
-  const top=Math.min(...rects.map(rect=>rect.y))-28;
-  const right=Math.max(...rects.map(rect=>rect.x+rect.w))+22;
-  const bottom=Math.max(...rects.map(rect=>rect.y+rect.h))+28;
+  const target=stageGroupRenderTarget("selective-rerank-cascade",GATED_RERANKERS);
+  const layout=stageGroupLayout(target);
+  if(!layout) return;
+  const {x:left,y:top,w:width,h:height}=layout.bounds;
   const boundary=document.createElement("div");
   boundary.className="stage-boundary";
   boundary.dataset.group="selective-rerank-cascade";
   boundary.style.left=left+"px";
   boundary.style.top=top+"px";
-  boundary.style.width=(right-left)+"px";
-  boundary.style.height=(bottom-top)+"px";
+  boundary.style.width=width+"px";
+  boundary.style.height=height+"px";
   boundary.innerHTML='<span class="boundary-title">Selective rerank cascade</span>'+
     '<span class="boundary-note">route-selected passes · skipped stages pass candidates through</span>';
   canvas.appendChild(boundary);
@@ -3424,7 +3553,7 @@ function drawWires(){
       return;
     }
 
-    if(e.to.type==="group" && e.to.portId){
+    if((e.to.type==="group" || e.to.type==="stage-group") && e.to.portId){
       const geometry=groupControlGeometry(e,a);
       if(!geometry) return;
       paths+=wirePathMarkup(e,edgeIndex,geometry.d,relation);
@@ -3487,6 +3616,7 @@ function drawWires(){
     }
     paths += wirePathMarkup(e,edgeIndex,d,style);
     if(e.label) labels.push({edgeIndex,text:e.label,loop:e.kind==="loop",branch:e.kind==="branch"});
+    if(e.detail) labels.push({edgeIndex,text:e.detail.label,relation:true,color:relation.color,position:.56});
   });
   wires.innerHTML = defs + paths;
   renderStageBoundaries();
@@ -3497,7 +3627,8 @@ function drawWires(){
     const point = l.point || path.getPointAtLength(path.getTotalLength()*(l.position||.5));
     const el = document.createElement("span");
     el.className = "elabel" + (l.loop?" loop":"") + (l.branch?" branch":"")+
-      (l.bus?" bus":"")+(l.port?" port":"");
+      (l.bus?" bus":"")+(l.port?" port":"")+(l.relation?" relation":"");
+    if(l.color) el.style.setProperty("--relation-color",l.color);
     el.style.left = point.x+"px"; el.style.top = point.y+"px"; el.textContent = l.text;
     canvas.appendChild(el);
   });
@@ -3650,9 +3781,13 @@ function openDrawer(id){
     const offAndNeeded = dir==="rev" ? live.filter(isOff) : [];
     return sect(relation[dir==="fwd"?"fwd":"rev"],
       '<p class="relnote">'+relation.description+'</p>' +
-      '<div class="reflist">'+live.map(x=>
-        '<button class="ref'+(isOff(x)?" isoff":"")+'" data-goto="'+x+'">'+
-        S[x].name + (isOff(x)?" · off":"") + '</button>').join("")+'</div>' +
+      '<div class="reflist">'+live.map(x=>{
+        const detail=dir==="fwd" ? relationDetail(id,kind,x) : relationDetail(x,kind,id);
+        return '<button class="ref'+(isOff(x)?" isoff":"")+'" data-goto="'+x+'">'+
+          S[x].name + (isOff(x)?" · off":"") +
+          (detail ? '<span class="refdetail">'+detail.label+' — '+detail.payload+' · '+detail.timing+'</span>' : '')+
+          '</button>';
+      }).join("")+'</div>' +
       (offAndNeeded.length && kind==="trains"
         ? '<p class="reldep">'+S[id].name+' is trained from data '+
           offAndNeeded.map(x=>S[x].name).join(" and ")+
