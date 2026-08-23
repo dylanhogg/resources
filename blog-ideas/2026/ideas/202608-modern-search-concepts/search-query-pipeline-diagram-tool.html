@@ -419,20 +419,8 @@ a{color:var(--accent)}
 }
 .elabel{
   position:absolute;z-index:2;transform:translate(-50%,-50%);
-  font-size:10px;font-weight:600;color:var(--text-3);background:var(--bg);
+  font-size:10px;font-weight:600;color:var(--line-label-color,var(--text-3));background:var(--bg);
   padding:1px 6px;border-radius:5px;white-space:nowrap;pointer-events:none
-}
-.elabel.loop{color:var(--wire-loop);transform:translate(-50%,-50%)}
-.elabel.branch{padding-inline:4px}
-.elabel.bus,.elabel.port{
-  border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow);
-  font-size:9px;letter-spacing:.035em;text-transform:uppercase
-}
-.elabel.bus{color:var(--text-2)}
-.elabel.port{color:var(--ctrl-text);border-style:dashed;border-color:var(--ctrl-line)}
-.elabel.relation{
-  border:1px solid var(--relation-color,var(--border));background:var(--surface);
-  color:var(--relation-color,var(--text-2));box-shadow:var(--shadow);font-size:9px
 }
 .stage-boundary{
   position:absolute;z-index:0;border:1px dashed var(--wire-gate);border-radius:18px;
@@ -3795,7 +3783,7 @@ function drawWires(){
         {marker:false,semantic:false,part:"bus"});
       paths+=wirePathMarkup(e,edgeIndex,geometry.directional,relation,
         {marker:true,semantic:true,part:e.geometry});
-      if(geometry.label) labels.push({...geometry.label,bus:true});
+      if(geometry.label) labels.push({...geometry.label,bus:true,color:relation.color});
       return;
     }
 
@@ -3804,7 +3792,8 @@ function drawWires(){
       if(!geometry) return;
       paths+=wirePathMarkup(e,edgeIndex,geometry.d,relation);
       labels.push({edgeIndex,text:e.caption,
-        position:geometry.side==="right"||geometry.side==="left" ? .52 : .35,port:true});
+        position:geometry.side==="right"||geometry.side==="left" ? .52 : .35,
+        port:true,color:relation.color});
       return;
     }
 
@@ -3861,8 +3850,8 @@ function drawWires(){
       d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
     }
     paths += wirePathMarkup(e,edgeIndex,d,style);
-    if(e.label) labels.push({edgeIndex,text:e.label,loop:e.kind==="loop",branch:e.kind==="branch"});
-    if(e.detail) labels.push({edgeIndex,text:e.detail.label,relation:true,color:relation.color,position:.56});
+    if(e.label) labels.push({edgeIndex,text:e.label,loop:e.kind==="loop",branch:e.kind==="branch",color:style.color});
+    if(e.detail) labels.push({edgeIndex,text:e.detail.label,relation:true,color:style.color,position:.56});
   });
   wires.innerHTML = defs + paths;
   renderStageBoundaries();
@@ -3874,8 +3863,9 @@ function drawWires(){
     const el = document.createElement("span");
     el.className = "elabel" + (l.loop?" loop":"") + (l.branch?" branch":"")+
       (l.bus?" bus":"")+(l.port?" port":"")+(l.relation?" relation":"");
-    if(l.color) el.style.setProperty("--relation-color",l.color);
-    el.style.left = point.x+"px"; el.style.top = point.y+"px"; el.textContent = l.text;
+    if(l.color) el.style.setProperty("--line-label-color",l.color);
+    el.style.left = point.x+"px"; el.style.top = point.y+"px";
+    el.textContent = String(l.text).toLowerCase();
     canvas.appendChild(el);
   });
 }
