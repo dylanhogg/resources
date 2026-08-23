@@ -232,6 +232,39 @@ Implementation details:
 
 ## Phase 4 — Represent gating and optionality correctly
 
+**Status: Complete — 2026-08-23**
+
+Implemented in `search-query-pipeline-diagram-tool.html`:
+
+- Added `gated` as an eighth canonical relationship kind. Its blue dash-dot treatment, marker, description, accessibility wording, and legend sample are distinct from solid flow, conditional decision branches, recovery returns, and grey control steering.
+- Added one validated `GATED_EXECUTION` registry for the stages whose request-path entry depends on route, intent, image presence, budget, or policy.
+- Applied gated entry to Text-to-image retrieval from Recommended onward and, in Full, to Image-to-image, Learned sparse, Multi-vector/passage, and Late-interaction retrieval.
+- Applied gated entry to the optional Full reranking passes: Semantic rerank, Late-interaction rerank, VLM rerank, and Learning-to-Rank. Cross-encoder remains the solid primary pass.
+- Added a blue inset rail and a specific gate chip to every gated card. Image-to-image reads “image query”; the visual stages read “visual intent”; route-selected and optional passes say so directly.
+- Marked full-index Late-interaction retrieval and Late-interaction rerank as “alternative placement” rather than implying both should run.
+- Added a measured “Selective rerank cascade” boundary around the five Full reranking stages, with the explicit rule “route-selected passes · skipped stages pass candidates through”.
+- Extended the Phase 3 retrieval bus so deterministic and gated branches share one fan-out scaffold while retaining separate semantic paths and styles.
+- Added gate context to connector accessibility labels, component drawers, hover summaries, and the node legend.
+- Added startup validation for gated-stage definitions and selective-cascade membership.
+
+Verification:
+
+- Endpoint counts remain unchanged: Core 9/12, Core + recommended 31/35, and Full 76/84 logical relationships with sources hidden/shown.
+- Core has zero gated relationships and zero gated cards. Recommended has one gated relationship/card for Text-to-image retrieval. Full has nine gated logical relationships and nine gated cards.
+- The mixed deterministic/gated fan-out intentionally produces semantic SVG counts of Core 7/10, Core + recommended 24/28, and Full 47/55 with sources hidden/shown.
+- Source visibility changes only `serves` paths; gated and other non-serving paths remain unchanged.
+- Disabling all four optional reranking passes creates a direct solid Fusion → Cross-encoder flow. The retrieval gates remain, and no disabled reranker remains on the request path.
+- All eight legend samples exactly match their rendered connector type for stroke, width, dash rhythm, line cap, and opacity.
+- Gate cards, connectors, chips, cascade boundary, and captions were inspected in light and dark themes with no browser errors or invalid SVG coordinates.
+
+Discoveries and decisions:
+
+- Retrieval routing already declares `rerankers_to_fire[]` in its contract, so the existing content supports request-time reranker gating without inventing a new owner. Phase 4 does not add more steering edges; Phase 5 still owns the narrower routing-to-reranker relationship decision.
+- Gating belongs on entry to a stage, while the stage's successful output remains ordinary candidate flow. This avoids turning every connector around an optional stage into a new semantic type.
+- A gate pattern alone is insufficient in a dense diagram. The card rail, concise condition chip, group boundary, and bypass note provide redundant explanations without relying on colour.
+- Cross-encoder is the stable production reranker in Recommended and the primary pass in Full; preserving its solid entry keeps the production path legible inside the selective catalogue.
+- Learning-to-Rank is marked as an optional pass rather than specifically route-selected: its execution may depend on model availability or policy even when Retrieval routing does not own it.
+
 Introduce a clear visual treatment for request-time gated execution. It should be distinct from decision branches and control steering.
 
 Apply it to:

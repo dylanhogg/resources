@@ -18,7 +18,7 @@
   --rec-bg:#dcfce7; --rec-line:#15803d; --rec-text:#12351f;
   --opt-bg:#ede9fe; --opt-line:#6d28d9; --opt-text:#2b1a52;
   --ctrl-bg:#e8ecf2; --ctrl-line:#64748b; --ctrl-text:#27303f;
-  --wire:#6f7d92; --wire-loop:#b85f36; --wire-ctrl:#667085;
+  --wire:#6f7d92; --wire-gate:#2563b8; --wire-loop:#b85f36; --wire-ctrl:#667085;
   --wire-feed:#7c3aed; --wire-train:#0f766e; --wire-data:#53657d;
   --data-bg:#f7f9fc; --data-line:#7b8798; --data-text:#344054;
   --warn:#b45309; --warn-bg:#fef3c7;
@@ -38,7 +38,7 @@
       --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
       --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
       --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-      --wire:#8290a6; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
+      --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
       --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-data:#9aabc2;
       --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
       --warn:#e0a94a; --warn-bg:#332a17;
@@ -56,7 +56,7 @@
   --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
   --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
   --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-  --wire:#8290a6; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
+  --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
   --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-data:#9aabc2;
   --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
   --warn:#e0a94a; --warn-bg:#332a17;
@@ -189,6 +189,7 @@ a{color:var(--accent)}
 .legendrow button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 .legendrow i{width:8px;height:8px;border-radius:2px;display:inline-block}
 .legendrow i.data-key{width:10px;border:1px solid var(--data-line);border-radius:50% / 24%;background:var(--data-bg)}
+.legendrow i.gate-key{width:10px;height:10px;border:1px solid var(--wire-gate);background:var(--surface);box-shadow:inset 3px 0 var(--wire-gate)}
 .legend-label{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-top:8px}
 .relation-legend{display:grid;grid-template-columns:1fr;gap:5px;margin-top:5px}
 .relation-legend span{gap:7px;color:var(--text-2)}
@@ -319,6 +320,15 @@ a{color:var(--accent)}
   font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
   border:1px solid var(--warn);color:var(--warn);border-radius:20px;padding:1px 6px
 }
+.node .gatechip{
+  font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  border:1px solid var(--wire-gate);color:var(--wire-gate);background:var(--surface);
+  border-radius:20px;padding:1px 6px
+}
+.node .altchip{
+  font-size:9px;font-weight:650;letter-spacing:.025em;text-transform:uppercase;
+  border:1px dashed currentColor;color:var(--text-3);border-radius:20px;padding:1px 6px
+}
 .node.core{background:var(--core-bg);border-color:var(--core-line);color:var(--core-text)}
 .node.core .sb{color:var(--core-text);opacity:.72}
 .node.recommended{background:var(--rec-bg);border-color:var(--rec-line);color:var(--rec-text)}
@@ -327,6 +337,8 @@ a{color:var(--accent)}
 .node.optional .sb{color:var(--opt-text);opacity:.72}
 .node.control{background:var(--ctrl-bg);border-color:var(--ctrl-line);border-style:dashed;color:var(--ctrl-text);min-width:150px;max-width:200px}
 .node.control .sb{color:var(--ctrl-text);opacity:.72}
+.node.gated{box-shadow:inset 4px 0 var(--wire-gate),var(--shadow)}
+.node.gated:hover{box-shadow:inset 4px 0 var(--wire-gate),0 3px 6px rgba(16,23,37,.10),0 10px 22px rgba(16,23,37,.10)}
 .node.decision{border-radius:22px}
 .node.io{min-width:132px;text-align:center}
 .node.io .nm{font-size:12px}
@@ -338,6 +350,7 @@ a{color:var(--accent)}
   opacity:.88;transform:translateY(-1px);
   box-shadow:0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)
 }
+.node.gated.hover-connected:not(.off){box-shadow:inset 4px 0 var(--wire-gate),0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)}
 .wires path.hover-connected{stroke-width:2.2!important;opacity:1!important}
 .node[data-id="assembly"]{text-align:left}
 
@@ -412,6 +425,18 @@ a{color:var(--accent)}
 }
 .elabel.bus{color:var(--text-2)}
 .elabel.port{color:var(--ctrl-text);border-style:dashed;border-color:var(--ctrl-line)}
+.stage-boundary{
+  position:absolute;z-index:0;border:1px dashed var(--wire-gate);border-radius:18px;
+  pointer-events:none;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wire-gate) 9%,transparent)
+}
+.stage-boundary .boundary-title,.stage-boundary .boundary-note{
+  position:absolute;left:14px;background:var(--surface);border:1px solid var(--wire-gate);
+  color:var(--wire-gate);border-radius:20px;padding:2px 8px;white-space:nowrap
+}
+.stage-boundary .boundary-title{
+  top:-12px;font-size:9px;font-weight:750;letter-spacing:.045em;text-transform:uppercase
+}
+.stage-boundary .boundary-note{bottom:-12px;font-size:9px;color:var(--text-2);border-color:var(--border)}
 
 /* ---------- hover preview ---------- */
 .hovercard{
@@ -737,11 +762,13 @@ table.mini .met{color:var(--accent)}
           <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full</span>
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
           <span><i class="data-key"></i>data plane</span>
+          <span><i class="gate-key"></i>gated stage</span>
         </div>
         <div class="legend-label">Relationships</div>
         <div class="legendrow relation-legend" id="relationLegend"></div>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
-          Flow moves requests or candidates. Branches select a conditional path; returns retry an earlier stage.
+          Flow moves requests or candidates. Gated entry runs only when route or intent activates its stage.
+          Branches select a decision outcome; returns retry an earlier stage.
           Control-plane components steer without transforming candidates. Feeds carry non-spine data; trains is offline.
           Serving sources are logical indexes or stores, not prescribed products or deployments.
         </p>
@@ -2176,6 +2203,28 @@ Object.keys(DATA_SOURCES).forEach(sourceId=>{
    ======================================================================= */
 const LEGS = ["lexical","sparse","textvec","textimagevec","imageimagevec","multivec","late"];
 
+/* A gate is a request-time execution condition, not a control relationship.
+   Controllers still `steer`; the gated edge and card show where their route,
+   intent or policy decision conditionally enters the candidate path. */
+const GATED_EXECUTION = Object.freeze({
+  textimagevec:Object.freeze({from:2,label:"visual intent"}),
+  imageimagevec:Object.freeze({from:3,label:"image query"}),
+  sparse:Object.freeze({from:3,label:"route-selected"}),
+  multivec:Object.freeze({from:3,label:"route-selected"}),
+  late:Object.freeze({from:3,label:"route-selected",note:"alternative placement"}),
+  semrerank:Object.freeze({from:3,label:"optional pass"}),
+  latererank:Object.freeze({from:3,label:"route-selected",note:"alternative placement"}),
+  vlmrerank:Object.freeze({from:3,label:"visual intent"}),
+  ltr:Object.freeze({from:3,label:"optional pass"})
+});
+const SELECTIVE_RERANK_CASCADE = Object.freeze([
+  "semrerank","latererank","crossenc","vlmrerank","ltr"
+]);
+function executionGate(id,templateId){
+  const gate=GATED_EXECUTION[id];
+  return gate && templateId>=gate.from ? gate : null;
+}
+
 const REL = {
   "q-image":    { steers:["routing"], feeds:["imageimagevec"] },
   session:      { steers:["understand","rewrite","routing","personalisation"] },
@@ -2196,6 +2245,14 @@ const RELATION_TYPES = Object.freeze({
     color:"var(--wire)", dash:"", linecap:"butt", marker:"flow", opacity:1, width:1.6,
     route:"spine", componentRelation:false,
     legend:{visible:true,label:"flows — request / candidates"}
+  },
+  gated:{
+    fwd:"Conditionally enters", rev:"Conditionally receives from",
+    description:"Request-path entry used only when route, intent or policy activates the target stage.",
+    aria:"Gated request-path entry",
+    color:"var(--wire-gate)", dash:"8 3 2 3", linecap:"butt", marker:"gate", opacity:.96, width:1.6,
+    route:"spine", componentRelation:false,
+    legend:{visible:true,label:"gated — route / intent"}
   },
   branch:{
     fwd:"Branches to", rev:"Reached when",
@@ -2277,6 +2334,10 @@ const DEPENDENCY_KINDS = Object.freeze(Object.keys(RELATION_TYPES));
 const BASELINE_RETRIEVAL_LEGS = [
   "lexical","sparse","textvec","textimagevec","imageimagevec","multivec","late"
 ];
+const BASELINE_ALWAYS_RETRIEVAL_LEGS = ["lexical","textvec"];
+const BASELINE_GATED_FULL_RETRIEVAL_LEGS = [
+  "sparse","textimagevec","imageimagevec","multivec","late"
+];
 
 function baselinePairs(...groups){
   return groups.flatMap(([from,targets,label=""])=>
@@ -2318,7 +2379,7 @@ const DEPENDENCY_BASELINE = {
     flow:BASELINE_QUERY_START.concat(baselinePairs(
       ["understand","rewrite"],
       ["rewrite","prefilter"],
-      ["prefilter",["lexical","textvec","textimagevec"]],
+      ["prefilter",["lexical","textvec"]],
       ["lexical","union"],
       ["textvec","union"],
       ["textimagevec","union"],
@@ -2332,6 +2393,7 @@ const DEPENDENCY_BASELINE = {
       ["diversity","dedup"],
       ["dedup","assembly"]
     )),
+    gated:baselinePairs(["prefilter","textimagevec"]),
     branch:BASELINE_RECOVERY.branch,
     loop:BASELINE_RECOVERY.loop,
     steers:baselinePairs(
@@ -2351,7 +2413,7 @@ const DEPENDENCY_BASELINE = {
       ["understand","rewrite"],
       ["rewrite","expand"],
       ["expand","prefilter"],
-      ["prefilter",BASELINE_RETRIEVAL_LEGS],
+      ["prefilter",BASELINE_ALWAYS_RETRIEVAL_LEGS],
       ["lexical","union"],
       ["sparse","union"],
       ["textvec","union"],
@@ -2362,11 +2424,7 @@ const DEPENDENCY_BASELINE = {
       ["union","sufficiency"],
       ["sufficiency","prune","sufficient"],
       ["prune","fusion"],
-      ["fusion","semrerank"],
-      ["semrerank","latererank"],
       ["latererank","crossenc"],
-      ["crossenc","vlmrerank"],
-      ["vlmrerank","ltr"],
       ["ltr","business"],
       ["business","freshness"],
       ["freshness","personalisation"],
@@ -2374,6 +2432,13 @@ const DEPENDENCY_BASELINE = {
       ["diversity","dedup"],
       ["dedup","assembly"]
     )),
+    gated:baselinePairs(
+      ["prefilter",BASELINE_GATED_FULL_RETRIEVAL_LEGS],
+      ["fusion","semrerank"],
+      ["semrerank","latererank"],
+      ["crossenc","vlmrerank"],
+      ["vlmrerank","ltr"]
+    ),
     branch:BASELINE_RECOVERY.branch,
     loop:BASELINE_RECOVERY.loop,
     steers:baselinePairs(
@@ -2418,8 +2483,10 @@ function logicalDependencies(templateId,{showServing=false,off=new Set()}={}){
 
   for(let i=0;i<groups.length-1;i++){
     const fromGroup=groups[i], toGroup=groups[i+1];
-    fromGroup.ids.forEach(from=>toGroup.ids.forEach(to=>
-      add(from,to,"flow",fromGroup.ids.length===1 && toGroup.ids.length===1 ? fromGroup.label : "")));
+    fromGroup.ids.forEach(from=>toGroup.ids.forEach(to=>{
+      const kind=executionGate(to,templateId) ? "gated" : "flow";
+      add(from,to,kind,fromGroup.ids.length===1 && toGroup.ids.length===1 ? fromGroup.label : "");
+    }));
   }
 
   (template.extra||[]).forEach(([from,to,label,kind])=>{
@@ -2520,7 +2587,7 @@ function validateDependencyBaseline(){
 
 function validateRelationshipModel(){
   const templateIds = Object.keys(TPL).map(Number);
-  const usedKinds = new Set(["flow","serves"]);
+  const usedKinds = new Set(["flow","gated","serves"]);
   const componentRelations = [];
   const servingRelations = [];
 
@@ -2535,6 +2602,23 @@ function validateRelationshipModel(){
       seen.add(key);
     });
   };
+
+  Object.entries(GATED_EXECUTION).forEach(([id,gate])=>{
+    requireComponent(id,"gated execution");
+    if(!Number.isInteger(gate.from) || !TPL[gate.from] || !gate.label){
+      throw new Error("Invalid gated-execution definition: "+id);
+    }
+    if(!tplStages(gate.from).includes(id)){
+      throw new Error("Gated component is absent from its first gated template: "+id);
+    }
+  });
+  if(new Set(SELECTIVE_RERANK_CASCADE).size!==SELECTIVE_RERANK_CASCADE.length){
+    throw new Error("Duplicate component in selective rerank cascade");
+  }
+  SELECTIVE_RERANK_CASCADE.forEach(id=>{
+    requireComponent(id,"selective rerank cascade");
+    if(S[id].group!=="Reranking") throw new Error("Non-reranking component in selective cascade: "+id);
+  });
 
   Object.entries(REL).forEach(([from,relations])=>{
     requireComponent(from,"REL source");
@@ -2622,6 +2706,7 @@ function validateRelationshipModel(){
     relationTypes:usedKinds.size,
     componentRelations:componentRelations.length,
     servingRelations:servingRelations.length,
+    gatedStages:Object.keys(GATED_EXECUTION).length,
     reverseIndexes:2
   });
 }
@@ -2857,11 +2942,13 @@ function renderServingToggle(){
    ======================================================================= */
 function nodeEl(id, newIds){
   const s = S[id];
+  const gate = executionGate(id,state.tpl);
   const el = document.createElement("button");
   el.className = "node " + (s.control ? "control" : s.tier) +
-                 (s.decision ? " decision":"") + (s.io ? " io":"");
+                 (s.decision ? " decision":"") + (s.io ? " io":"") + (gate ? " gated":"");
   el.dataset.id = id;
   el.dataset.on = isOn(id) ? "1" : "0";
+  if(gate) el.dataset.executionGate = gate.label;
   if(!isOn(id)) el.classList.add("off");
   if(newIds.has(id)) el.classList.add("isnew");
   if(state.sel===id) el.classList.add("selected");
@@ -2869,7 +2956,9 @@ function nodeEl(id, newIds){
     '<span class="tierchip '+s.tier+'" title="First appears in '+TPL[s.intro].name+'">'+
       TIER_LABEL[s.intro]+'</span>' +
     '<span class="groupchip">'+s.group+'</span>' +
-    (s.conditional ? '<span class="condchip">conditional</span>' : "");
+    (gate ? '<span class="gatechip">'+gate.label+'</span>' :
+      s.conditional ? '<span class="condchip">conditional</span>' : "")+
+    (gate?.note ? '<span class="altchip">'+gate.note+'</span>' : "");
   el.innerHTML =
     '<div class="nm">'+s.name+'</div>' +
     (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
@@ -2913,6 +3002,7 @@ function renderCanvas(){
   else pill.hidden = true;
 
   rowsEl.innerHTML = "";
+  $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
   canvas.classList.toggle("with-data-sources",state.showServing);
 
   TPL[t].rows.forEach((r,i)=>{
@@ -2975,18 +3065,20 @@ function makeRenderTarget(type,id,members,rowIndex){
 function nodeRenderTarget(id){
   return makeRenderTarget(DATA_SOURCES[id] ? "source" : "node",id,[id]);
 }
-function groupRenderTarget(id,rowIndex,members,portId=null){
+function groupRenderTarget(id,rowIndex,members,portId=null,layoutMembers=members){
   const target=makeRenderTarget("group",id,members,rowIndex);
   target.portId=portId;
+  target.layoutMembers=[...layoutMembers];
   return target;
 }
 function renderTargetIds(target){ return target.members||[target.id]; }
 function parallelGroupName(target){ return target.id.replace(/^parallel:/,""); }
 function parallelGroupLayout(target){
-  const key=[target.id,target.rowIndex,...target.members].join("|");
+  const layoutMembers=target.layoutMembers||target.members;
+  const key=[target.id,target.rowIndex,...target.members,"layout",...layoutMembers].join("|");
   if(parallelLayoutCache.has(key)) return parallelLayoutCache.get(key);
 
-  const cards=target.members.map(id=>({id,rect:rectOf('.node[data-id="'+id+'"]')}))
+  const cards=layoutMembers.map(id=>({id,rect:rectOf('.node[data-id="'+id+'"]')}))
     .filter(card=>card.rect).sort((a,b)=>a.rect.y-b.rect.y || a.rect.x-b.rect.x);
   if(!cards.length) return null;
   const groupName=parallelGroupName(target);
@@ -3050,39 +3142,50 @@ function renderEdge(logicalEdges,toTarget=null,fromTarget=null,geometry="curve",
   };
 }
 
-function parallelFlowRenderEdges(templateId,flowEdges){
+function parallelPathRenderEdges(templateId,pathEdges){
   const consumed=new Set(), collapsed=[];
   TPL[templateId].rows.forEach((row,rowIndex)=>{
     const parallelNames=[...new Set((row.c||[]).map(id=>S[id].parallel).filter(Boolean))];
     parallelNames.forEach(parallel=>{
       const members=(row.c||[]).filter(id=>S[id].parallel===parallel && isOn(id));
       if(members.length<2) return;
-      const target=groupRenderTarget("parallel:"+parallel,rowIndex,members);
-
       const incoming=new Map(), outgoing=new Map();
-      flowEdges.forEach(edge=>{
+      pathEdges.forEach(edge=>{
         if(members.includes(edge.to) && !members.includes(edge.from)){
           if(!incoming.has(edge.from)) incoming.set(edge.from,[]);
           incoming.get(edge.from).push(edge);
         }
         if(members.includes(edge.from) && !members.includes(edge.to)){
-          if(!outgoing.has(edge.to)) outgoing.set(edge.to,[]);
-          outgoing.get(edge.to).push(edge);
+          const key=edge.kind+"|"+edge.to;
+          if(!outgoing.has(key)) outgoing.set(key,[]);
+          outgoing.get(key).push(edge);
         }
       });
       incoming.forEach(edges=>{
         if(edges.length<2) return;
         edges.forEach(edge=>consumed.add(edge));
-        collapsed.push(renderEdge(edges,target,null,"parallel-in"));
+        const byKind=new Map();
+        edges.forEach(edge=>{
+          if(!byKind.has(edge.kind)) byKind.set(edge.kind,[]);
+          byKind.get(edge.kind).push(edge);
+        });
+        byKind.forEach((kindEdges,kind)=>{
+          const targets=kindEdges.map(edge=>edge.to);
+          collapsed.push(renderEdge(kindEdges,
+            groupRenderTarget("parallel:"+parallel,rowIndex,targets,null,members),
+            null,kind==="gated" ? "parallel-in-gated" : "parallel-in"));
+        });
       });
       outgoing.forEach(edges=>{
         if(edges.length<2) return;
         edges.forEach(edge=>consumed.add(edge));
-        collapsed.push(renderEdge(edges,nodeRenderTarget(edges[0].to),target,"parallel-out"));
+        collapsed.push(renderEdge(edges,nodeRenderTarget(edges[0].to),
+          groupRenderTarget("parallel:"+parallel,rowIndex,edges.map(edge=>edge.from),null,members),
+          "parallel-out"));
       });
     });
   });
-  return flowEdges.filter(edge=>!consumed.has(edge)).map(edge=>renderEdge(edge)).concat(collapsed);
+  return pathEdges.filter(edge=>!consumed.has(edge)).map(edge=>renderEdge(edge)).concat(collapsed);
 }
 
 /* Several logical relationships may share one group-level drawn path. Keeping
@@ -3132,9 +3235,9 @@ function edgeList(){
   const components = logical.filter(edge=>RELATION_TYPES[edge.kind].componentRelation);
   const direct = logical.filter(edge=>!RELATION_TYPES[edge.kind].componentRelation && edge.kind!=="serves");
   const serving = logical.filter(edge=>edge.kind==="serves");
-  const flow=direct.filter(edge=>edge.kind==="flow");
-  const otherDirect=direct.filter(edge=>edge.kind!=="flow");
-  return parallelFlowRenderEdges(state.tpl,flow).concat(otherDirect.map(edge=>renderEdge(edge)))
+  const path=direct.filter(edge=>edge.kind==="flow" || edge.kind==="gated");
+  const otherDirect=direct.filter(edge=>edge.kind!=="flow" && edge.kind!=="gated");
+  return parallelPathRenderEdges(state.tpl,path).concat(otherDirect.map(edge=>renderEdge(edge)))
     .concat(componentRenderEdges(state.tpl,components),serving.map(edge=>renderEdge(edge)));
 }
 
@@ -3149,9 +3252,12 @@ function escapeAttribute(value){
 }
 function relationshipAriaLabel(edge){
   const relation=RELATION_TYPES[edge.kind];
+  const gateConditions=edge.kind==="gated" ? [...new Set(renderTargetIds(edge.to)
+    .map(id=>executionGate(id,state.tpl)?.label).filter(Boolean))] : [];
   return relation.aria+" from "+renderTargetName(edge.from)+" to "+renderTargetName(edge.to)+
     (edge.label ? "; outcome: "+edge.label : "")+
-    (edge.caption ? "; group port: "+edge.caption : "");
+    (edge.caption ? "; group port: "+edge.caption : "")+
+    (gateConditions.length ? "; condition: "+gateConditions.join(" or ") : "");
 }
 
 function wirePathMarkup(edge,edgeIndex,d,style,{marker=true,semantic=true,part="primary"}={}){
@@ -3167,24 +3273,27 @@ function wirePathMarkup(edge,edgeIndex,d,style,{marker=true,semantic=true,part="
 }
 
 function parallelFlowGeometry(edge,a,b){
-  const target=edge.geometry==="parallel-in" ? edge.to : edge.from;
+  const incoming=edge.geometry==="parallel-in" || edge.geometry==="parallel-in-gated";
+  const target=incoming ? edge.to : edge.from;
   const layout=parallelGroupLayout(target);
   if(!layout) return null;
   const first=layout.rows[0], last=layout.rows[layout.rows.length-1];
 
-  if(edge.geometry==="parallel-in"){
+  if(incoming){
+    const branchIds=new Set(edge.logical.map(logical=>logical.to));
     const dy=Math.max(18,(first.inY-(a.y+a.h))*.55);
-    const scaffold=[
+    const scaffold=edge.geometry==="parallel-in" ? [
       'M'+a.cx+','+(a.y+a.h)+' C'+a.cx+','+(a.y+a.h+dy)+' '+layout.inletX+','+(first.inY-dy)+' '+layout.inletX+','+first.inY,
       'M'+layout.inletX+','+first.inY+' V'+last.inY,
       ...layout.rows.map(row=>'M'+layout.inletX+','+row.inY+' H'+row.cards[row.cards.length-1].rect.cx)
-    ].join(' ');
-    const directional=layout.rows.flatMap(row=>row.cards.map(card=>
+    ].join(' ') : "";
+    const directional=layout.rows.flatMap(row=>row.cards.filter(card=>branchIds.has(card.id)).map(card=>
       'M'+card.rect.cx+','+row.inY+' V'+card.rect.y)).join(' ');
     return {
       scaffold,directional,
-      label:{text:layout.spec?.ingressLabel||layout.spec?.label||layout.name,
-        point:{x:Math.min(layout.bounds.cx,layout.inletX+70),y:first.inY-12}}
+      label:edge.geometry==="parallel-in" ?
+        {text:layout.spec?.ingressLabel||layout.spec?.label||layout.name,
+          point:{x:Math.min(layout.bounds.cx,layout.inletX+70),y:first.inY-12}} : null
     };
   }
 
@@ -3259,7 +3368,29 @@ function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,para
     ' L'+laneX+','+upperY+' C'+laneX+','+ty+' '+laneX+','+ty+' '+tx+','+ty;
 }
 
+function renderStageBoundaries(){
+  $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
+  if(state.tpl!==3) return;
+  const rects=SELECTIVE_RERANK_CASCADE.map(id=>rectOf('.node[data-id="'+id+'"]')).filter(Boolean);
+  if(!rects.length) return;
+  const left=Math.min(...rects.map(rect=>rect.x))-22;
+  const top=Math.min(...rects.map(rect=>rect.y))-28;
+  const right=Math.max(...rects.map(rect=>rect.x+rect.w))+22;
+  const bottom=Math.max(...rects.map(rect=>rect.y+rect.h))+28;
+  const boundary=document.createElement("div");
+  boundary.className="stage-boundary";
+  boundary.dataset.group="selective-rerank-cascade";
+  boundary.style.left=left+"px";
+  boundary.style.top=top+"px";
+  boundary.style.width=(right-left)+"px";
+  boundary.style.height=(bottom-top)+"px";
+  boundary.innerHTML='<span class="boundary-title">Selective rerank cascade</span>'+
+    '<span class="boundary-note">route-selected passes · skipped stages pass candidates through</span>';
+  canvas.appendChild(boundary);
+}
+
 function drawWires(){
+  $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
   if(window.innerWidth<=700){ wires.innerHTML=""; $$(".elabel").forEach(e=>e.remove()); return; }
   const W = canvas.scrollWidth, H = canvas.scrollHeight;
   wires.setAttribute("width",W); wires.setAttribute("height",H);
@@ -3282,14 +3413,14 @@ function drawWires(){
     const relation = RELATION_TYPES[e.kind];
     let d, style=relation;
 
-    if(e.geometry==="parallel-in" || e.geometry==="parallel-out"){
+    if(e.geometry==="parallel-in" || e.geometry==="parallel-in-gated" || e.geometry==="parallel-out"){
       const geometry=parallelFlowGeometry(e,a,b);
       if(!geometry) return;
-      paths+=wirePathMarkup(e,edgeIndex,geometry.scaffold,relation,
+      if(geometry.scaffold) paths+=wirePathMarkup(e,edgeIndex,geometry.scaffold,relation,
         {marker:false,semantic:false,part:"bus"});
       paths+=wirePathMarkup(e,edgeIndex,geometry.directional,relation,
         {marker:true,semantic:true,part:e.geometry});
-      labels.push({...geometry.label,bus:true});
+      if(geometry.label) labels.push({...geometry.label,bus:true});
       return;
     }
 
@@ -3358,6 +3489,7 @@ function drawWires(){
     if(e.label) labels.push({edgeIndex,text:e.label,loop:e.kind==="loop",branch:e.kind==="branch"});
   });
   wires.innerHTML = defs + paths;
+  renderStageBoundaries();
   labels.forEach(l=>{
     const path = l.edgeIndex==null ? null :
       wires.querySelector('path[data-edge-index="'+l.edgeIndex+'"][data-edge-kind]');
@@ -3458,6 +3590,7 @@ function selectEntity(id){
 function openDrawer(id){
   const s = S[id];
   if(!s) return;
+  const gate = executionGate(id,state.tpl);
   hideHover();
   selectEntity(id);
 
@@ -3474,6 +3607,8 @@ function openDrawer(id){
     (s.lat && s.lat[1] ? '<span class="chip">'+(s.conditional?"Conditional ":"")+'p95 <b>'+s.lat[0]+"–"+s.lat[1]+' ms</b></span>' : "") +
     (s.cx ? '<span class="chip">Complexity <b>'+s.cx+'/5</b></span>' : "") +
     (s.model ? '<span class="chip">model in path</span>' : "") +
+    (gate ? '<span class="chip">Request gated by <b>'+gate.label+'</b></span>' : "") +
+    (gate?.note ? '<span class="chip"><b>'+gate.note+'</b></span>' : "") +
     '<button class="enable-btn" id="dToggle" data-on="'+(on?1:0)+'"'+(locked?" disabled title=\"Core components cannot be switched off\"":"")+'>'+
       (locked ? "core · always on" : (on ? "✓ enabled" : "disabled — enable")) + '</button>';
 
@@ -3663,11 +3798,13 @@ function showHover(el, id){
   } else {
     const s = S[id];
     if(!s || drawer.classList.contains("open")) return;
-  const latency = s.lat[0]===s.lat[1] ? s.lat[0]+" ms" : s.lat[0]+"–"+s.lat[1]+" ms";
+    const gate = executionGate(id,state.tpl);
+    const latency = s.lat[0]===s.lat[1] ? s.lat[0]+" ms" : s.lat[0]+"–"+s.lat[1]+" ms";
     hoverCard.innerHTML =
       '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
         '<span class="hc-pill">p95 '+latency+'</span>'+
-        '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span></div>'+
+        '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
+        (gate ? '<span class="hc-pill">gated: '+gate.label+'</span>' : "")+'</div>'+
       '<p class="hc-desc">'+s.purpose+'</p>'+
       (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
       (s.notes && s.notes.length ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+
