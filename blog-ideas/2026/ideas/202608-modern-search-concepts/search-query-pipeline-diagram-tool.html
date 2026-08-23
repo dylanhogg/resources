@@ -718,11 +718,7 @@ table.mini .met{color:var(--accent)}
           <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full</span>
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
         </div>
-        <div class="legendrow" style="gap:7px 12px;margin-top:9px">
-          <span><i class="wkey" style="border-top:2px dashed var(--wire-ctrl)"></i>steers &mdash; request time</span>
-          <span><i class="wkey" style="border-top:2px dashed var(--wire-train)"></i>trains &mdash; offline</span>
-          <span><i class="wkey" style="border-top:2px dotted var(--wire-data)"></i>serves &mdash; external data</span>
-        </div>
+        <div class="legendrow" id="relationLegend" style="gap:7px 12px;margin-top:9px"></div>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
           Control-plane components steer a stage rather than transforming candidates.
           A <em>trains</em> wire is not a request-time path: it means the target's model is
@@ -2171,22 +2167,446 @@ const REL = {
   behavioural:  { trains:["fusionpolicy","personalisation","ltr"] }
 };
 
-const REL_KINDS = ["steers","trains","feeds"];
-const REL_LABEL = {
-  steers:{ fwd:"Steers", rev:"Steered by",
-           note:"Request-time control — changes how the stage behaves for this query." },
-  trains:{ fwd:"Trains", rev:"Trained by",
-           note:"Offline dependency — this component's parameters are fitted from that data, not steered by it at query time." },
-  feeds: { fwd:"Feeds", rev:"Fed by", note:"Data flow outside the main spine." }
-};
+const RELATION_TYPES = Object.freeze({
+  flow:{
+    fwd:"Flows to", rev:"Receives flow from",
+    description:"Request and candidate data moving through the main pipeline.",
+    color:"var(--wire)", dash:"", linecap:"butt", marker:"flow", opacity:1, width:1.4,
+    route:"spine", componentRelation:false,
+    legend:{visible:false,label:"flows — request / candidates",strokeStyle:"solid"}
+  },
+  branch:{
+    fwd:"Branches to", rev:"Reached when",
+    description:"A conditional path selected by a decision outcome.",
+    color:"var(--wire)", dash:"6 4", linecap:"butt", marker:"flow", opacity:1, width:1.4,
+    route:"branch", componentRelation:false,
+    legend:{visible:false,label:"branches — conditional",strokeStyle:"dashed"}
+  },
+  loop:{
+    fwd:"Retries through", rev:"Retried from",
+    description:"A bounded recovery path that returns candidates or predicates to an earlier stage.",
+    color:"var(--wire-loop)", dash:"", linecap:"butt", marker:"loop", opacity:1, width:1.4,
+    route:"loop", componentRelation:false,
+    legend:{visible:false,label:"returns — recovery / retry",strokeStyle:"solid"}
+  },
+  steers:{
+    fwd:"Steers", rev:"Steered by",
+    description:"Request-time control — changes how the stage behaves for this query.",
+    color:"var(--wire-ctrl)", dash:"3 4", linecap:"butt", marker:"control", opacity:.8, width:1.4,
+    route:"side", curve:.45, componentRelation:true,
+    legend:{visible:true,label:"steers — request time",strokeStyle:"dashed"}
+  },
+  feeds:{
+    fwd:"Feeds", rev:"Fed by",
+    description:"Data flow outside the main spine.",
+    color:"var(--wire-ctrl)", dash:"1 5", linecap:"round", marker:"control", opacity:1, width:1.4,
+    route:"side", curve:.4, componentRelation:true,
+    legend:{visible:false,label:"feeds — non-spine data",strokeStyle:"dotted"}
+  },
+  trains:{
+    fwd:"Trains", rev:"Trained by",
+    description:"Offline dependency — the target's parameters are fitted from this data, not steered by it at query time.",
+    color:"var(--wire-train)", dash:"7 5", linecap:"butt", marker:"train", opacity:1, width:1.4,
+    route:"side", curve:.45, componentRelation:true,
+    legend:{visible:true,label:"trains — offline",strokeStyle:"dashed"}
+  },
+  serves:{
+    fwd:"Serves", rev:"Served by",
+    description:"A logical index or store queried or hydrated by the target component.",
+    color:"var(--wire-data)", dash:"2 5", linecap:"round", marker:"data", opacity:.72, width:1.4,
+    route:"source", componentRelation:false,
+    legend:{visible:true,label:"serves — external data",strokeStyle:"dotted"}
+  }
+});
+
+const COMPONENT_RELATION_KINDS = Object.freeze(
+  ["steers","trains","feeds"].filter(kind=>RELATION_TYPES[kind].componentRelation)
+);
 
 /* reverse index, built once */
 const RREL = {};
-Object.keys(REL).forEach(from=> REL_KINDS.forEach(kind=>
+Object.keys(REL).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
   (REL[from][kind]||[]).forEach(to=>{
     (RREL[to] = RREL[to] || {});
     (RREL[to][kind] = RREL[to][kind] || []).push(from);
   })));
+
+/* =======================================================================
+   DEPENDENCY BASELINE — logical endpoints, independent of SVG geometry.
+
+   Invariants:
+   - Core is the irreducible path; Recommended is the production target;
+     Full is a catalogue of gated capabilities, not an execute-all path.
+   - Showing data sources adds only source nodes and `serves` relationships.
+   - Disabling a component removes every relationship incident on that node.
+   - A data source is active only while at least one served component is active.
+
+   Later layout work may collapse several logical relationships into one drawn
+   path. This fixture deliberately protects the logical inventory instead.
+   ======================================================================= */
+
+const DEPENDENCY_KINDS = Object.freeze(Object.keys(RELATION_TYPES));
+const BASELINE_RETRIEVAL_LEGS = [
+  "lexical","sparse","textvec","textimagevec","imageimagevec","multivec","late"
+];
+
+function baselinePairs(...groups){
+  return groups.flatMap(([from,targets,label=""])=>
+    (Array.isArray(targets) ? targets : [targets]).map(to=>[from,to,label]));
+}
+
+const BASELINE_QUERY_START = baselinePairs(
+  ["q-text","normalise"],
+  ["normalise","understand"]
+);
+const BASELINE_RECOVERY = {
+  branch:baselinePairs(
+    ["sufficiency","relax","too few"],
+    ["sufficiency","zerofallback","zero"]
+  ),
+  loop:baselinePairs(
+    ["relax","prefilter","relaxed predicate"],
+    ["zerofallback","prefilter","recovery mode"]
+  )
+};
+
+const DEPENDENCY_BASELINE = {
+  1:{
+    flow:BASELINE_QUERY_START.concat(baselinePairs(
+      ["understand","prefilter"],
+      ["prefilter",["lexical","textvec"]],
+      ["lexical","union"],
+      ["textvec","union"],
+      ["union","fusion"],
+      ["fusion","assembly"]
+    )),
+    serves:baselinePairs(
+      ["ds-text","lexical"],
+      ["ds-doc-ann","textvec"],
+      ["ds-doc-store","assembly"]
+    )
+  },
+  2:{
+    flow:BASELINE_QUERY_START.concat(baselinePairs(
+      ["understand","rewrite"],
+      ["rewrite","prefilter"],
+      ["prefilter",["lexical","textvec","textimagevec"]],
+      ["lexical","union"],
+      ["textvec","union"],
+      ["textimagevec","union"],
+      ["union","sufficiency"],
+      ["sufficiency","prune","sufficient"],
+      ["prune","fusion"],
+      ["fusion","crossenc"],
+      ["crossenc","business"],
+      ["business","freshness"],
+      ["freshness","diversity"],
+      ["diversity","dedup"],
+      ["dedup","assembly"]
+    )),
+    branch:BASELINE_RECOVERY.branch,
+    loop:BASELINE_RECOVERY.loop,
+    steers:baselinePairs(
+      ["routing",["lexical","textvec","textimagevec"]],
+      ["degradation",["lexical","textvec","textimagevec","crossenc"]]
+    ),
+    feeds:baselinePairs(["assembly","behavioural"]),
+    serves:baselinePairs(
+      ["ds-text","lexical"],
+      ["ds-doc-ann","textvec"],
+      ["ds-image-ann","textimagevec"],
+      ["ds-doc-store","assembly"]
+    )
+  },
+  3:{
+    flow:BASELINE_QUERY_START.concat(baselinePairs(
+      ["understand","rewrite"],
+      ["rewrite","expand"],
+      ["expand","prefilter"],
+      ["prefilter",BASELINE_RETRIEVAL_LEGS],
+      ["lexical","union"],
+      ["sparse","union"],
+      ["textvec","union"],
+      ["textimagevec","union"],
+      ["imageimagevec","union"],
+      ["multivec","union"],
+      ["late","union"],
+      ["union","sufficiency"],
+      ["sufficiency","prune","sufficient"],
+      ["prune","fusion"],
+      ["fusion","semrerank"],
+      ["semrerank","latererank"],
+      ["latererank","crossenc"],
+      ["crossenc","vlmrerank"],
+      ["vlmrerank","ltr"],
+      ["ltr","business"],
+      ["business","freshness"],
+      ["freshness","personalisation"],
+      ["personalisation","diversity"],
+      ["diversity","dedup"],
+      ["dedup","assembly"]
+    )),
+    branch:BASELINE_RECOVERY.branch,
+    loop:BASELINE_RECOVERY.loop,
+    steers:baselinePairs(
+      ["q-image","routing"],
+      ["session",["understand","rewrite","routing","personalisation"]],
+      ["confidence",["prefilter","relax"]],
+      ["routing",BASELINE_RETRIEVAL_LEGS.concat(["budget","latererank"])],
+      ["budget",BASELINE_RETRIEVAL_LEGS],
+      ["degradation",BASELINE_RETRIEVAL_LEGS.concat(["latererank","crossenc","vlmrerank"])],
+      ["fusionpolicy","fusion"]
+    ),
+    feeds:baselinePairs(
+      ["q-image","imageimagevec"],
+      ["assembly","behavioural"]
+    ),
+    trains:baselinePairs(
+      ["behavioural",["fusionpolicy","personalisation","ltr"]]
+    ),
+    serves:baselinePairs(
+      ["ds-text","lexical"],
+      ["ds-doc-ann","textvec"],
+      ["ds-image-ann",["textimagevec","imageimagevec"]],
+      ["ds-sparse","sparse"],
+      ["ds-passage-ann","multivec"],
+      ["ds-token","late"],
+      ["ds-doc-store","assembly"]
+    )
+  }
+};
+
+function logicalDependencies(templateId,{showServing=false,off=new Set()}={}){
+  const template = TPL[templateId];
+  if(!template) throw new Error("Unknown pipeline template: "+templateId);
+
+  const present = new Set(tplStages(templateId));
+  const active = id=>present.has(id) && !off.has(id);
+  const dependencies = [];
+  const add = (from,to,kind,label="")=>dependencies.push({from,to,kind,label});
+  const groups = template.rows
+    .map(row=>({ids:(row.c||[]).filter(active),label:row.nextLabel||""}))
+    .filter(group=>group.ids.length);
+
+  for(let i=0;i<groups.length-1;i++){
+    const fromGroup=groups[i], toGroup=groups[i+1];
+    fromGroup.ids.forEach(from=>toGroup.ids.forEach(to=>
+      add(from,to,"flow",fromGroup.ids.length===1 && toGroup.ids.length===1 ? fromGroup.label : "")));
+  }
+
+  (template.extra||[]).forEach(([from,to,label,kind])=>{
+    if(active(from) && active(to)) add(from,to,kind,label||"");
+  });
+
+  Object.entries(REL).forEach(([from,relations])=>{
+    if(!active(from)) return;
+    COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
+      if(active(to)) add(from,to,kind);
+    }));
+  });
+
+  if(showServing){
+    Object.entries(SERVING_REL).forEach(([sourceId,consumers])=>
+      consumers.forEach(to=>{ if(active(to)) add(sourceId,to,"serves"); }));
+  }
+  return dependencies;
+}
+
+function dependencyKey({from,to,kind,label=""}){
+  return [kind,from,to,label].join("|");
+}
+
+function expectedDependencies(templateId,showServing){
+  const fixture = DEPENDENCY_BASELINE[templateId];
+  return DEPENDENCY_KINDS.flatMap(kind=>
+    kind==="serves" && !showServing ? [] :
+    (fixture[kind]||[]).map(([from,to,label=""])=>({from,to,kind,label})));
+}
+
+function assertDependencySet(actual,expected,context){
+  const actualKeys = actual.map(dependencyKey).sort();
+  const expectedKeys = expected.map(dependencyKey).sort();
+  const actualSet = new Set(actualKeys), expectedSet = new Set(expectedKeys);
+  const missing = expectedKeys.filter(key=>!actualSet.has(key));
+  const unexpected = actualKeys.filter(key=>!expectedSet.has(key));
+  const actualDuplicates = actualKeys.filter((key,index)=>key===actualKeys[index-1]);
+  const expectedDuplicates = expectedKeys.filter((key,index)=>key===expectedKeys[index-1]);
+  if(missing.length || unexpected.length || actualDuplicates.length || expectedDuplicates.length){
+    throw new Error("Dependency baseline mismatch for "+context+"\n"+
+      (missing.length ? "Missing: "+missing.join(", ")+"\n" : "")+
+      (unexpected.length ? "Unexpected: "+unexpected.join(", ")+"\n" : "")+
+      (actualDuplicates.length ? "Actual duplicates: "+actualDuplicates.join(", ")+"\n" : "")+
+      (expectedDuplicates.length ? "Fixture duplicates: "+expectedDuplicates.join(", ") : ""));
+  }
+}
+
+function validateDependencyBaseline(){
+  const expectedSourceCounts = {1:3,2:4,3:7};
+  const expectedServingCounts = {1:3,2:4,3:8};
+  const summary = {};
+
+  [1,2,3].forEach(templateId=>{
+    const templateStages = tplStages(templateId);
+    const hidden = logicalDependencies(templateId);
+    const shown = logicalDependencies(templateId,{showServing:true});
+    const serving = shown.filter(edge=>edge.kind==="serves");
+    const nonServing = shown.filter(edge=>edge.kind!=="serves");
+    const sourceCount = new Set(serving.map(edge=>edge.from)).size;
+
+    assertDependencySet(hidden,expectedDependencies(templateId,false),"template "+templateId+", sources hidden");
+    assertDependencySet(shown,expectedDependencies(templateId,true),"template "+templateId+", sources shown");
+    assertDependencySet(nonServing,hidden,"template "+templateId+", source visibility invariant");
+
+    if(sourceCount!==expectedSourceCounts[templateId] || serving.length!==expectedServingCounts[templateId]){
+      throw new Error("Serving baseline mismatch for template "+templateId+
+        ": expected "+expectedSourceCounts[templateId]+" sources / "+expectedServingCounts[templateId]+
+        " edges, got "+sourceCount+" sources / "+serving.length+" edges");
+    }
+
+    templateStages.forEach(componentId=>{
+      const disabled = logicalDependencies(templateId,{showServing:true,off:new Set([componentId])});
+      if(disabled.some(edge=>edge.from===componentId || edge.to===componentId)){
+        throw new Error("Disabled component remains connected in template "+templateId+": "+componentId);
+      }
+    });
+
+    Object.entries(SERVING_REL).forEach(([sourceId,consumers])=>{
+      const templateConsumers = consumers.filter(id=>templateStages.includes(id));
+      if(!templateConsumers.length) return;
+      const disabled = logicalDependencies(templateId,{showServing:true,off:new Set(templateConsumers)});
+      if(disabled.some(edge=>edge.kind==="serves" && edge.from===sourceId)){
+        throw new Error("Inactive source remains connected in template "+templateId+": "+sourceId);
+      }
+    });
+
+    summary[templateId] = Object.freeze({
+      hiddenEdges:hidden.length,
+      shownEdges:shown.length,
+      sourceNodes:sourceCount,
+      servingEdges:serving.length
+    });
+  });
+
+  return Object.freeze(summary);
+}
+
+function validateRelationshipModel(){
+  const templateIds = Object.keys(TPL).map(Number);
+  const usedKinds = new Set(["flow","serves"]);
+  const componentRelations = [];
+  const servingRelations = [];
+
+  const requireComponent = (id,context)=>{
+    if(!S[id]) throw new Error("Unknown component in "+context+": "+id);
+  };
+  const assertUnique = (relations,context)=>{
+    const seen = new Set();
+    relations.forEach(({from,to,kind})=>{
+      const key=[kind,from,to].join("|");
+      if(seen.has(key)) throw new Error("Duplicate "+context+" relationship: "+key);
+      seen.add(key);
+    });
+  };
+
+  Object.entries(REL).forEach(([from,relations])=>{
+    requireComponent(from,"REL source");
+    Object.keys(relations).forEach(kind=>{
+      if(!COMPONENT_RELATION_KINDS.includes(kind)){
+        throw new Error("Unsupported component relationship kind: "+kind);
+      }
+    });
+    COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
+      requireComponent(to,"REL target");
+      usedKinds.add(kind);
+      componentRelations.push({from,to,kind});
+      const coexists = templateIds.some(templateId=>{
+        const stages = tplStages(templateId);
+        return stages.includes(from) && stages.includes(to);
+      });
+      if(!coexists) throw new Error("Relationship endpoints never coexist: "+kind+"|"+from+"|"+to);
+    }));
+  });
+  assertUnique(componentRelations,"component");
+
+  templateIds.forEach(templateId=>(TPL[templateId].extra||[]).forEach(([from,to,,kind])=>{
+    requireComponent(from,"template "+templateId+" extra source");
+    requireComponent(to,"template "+templateId+" extra target");
+    usedKinds.add(kind);
+  }));
+
+  Object.keys(DATA_SOURCES).forEach(sourceId=>{
+    const consumers = SERVING_REL[sourceId];
+    if(!consumers || !consumers.length) throw new Error("Serving source has no consumers: "+sourceId);
+  });
+  Object.entries(SERVING_REL).forEach(([sourceId,consumers])=>{
+    if(!DATA_SOURCES[sourceId]) throw new Error("Unknown serving source: "+sourceId);
+    consumers.forEach(to=>{
+      requireComponent(to,"serving target");
+      servingRelations.push({from:sourceId,to,kind:"serves"});
+    });
+  });
+  assertUnique(servingRelations,"serving");
+
+  usedKinds.forEach(kind=>{
+    const relation = RELATION_TYPES[kind];
+    if(!relation) throw new Error("Missing relationship definition: "+kind);
+    ["fwd","rev","description","color","marker","route"].forEach(field=>{
+      if(!relation[field]) throw new Error("Missing "+field+" for relationship: "+kind);
+    });
+    if(typeof relation.opacity!=="number" || typeof relation.width!=="number" ||
+       typeof relation.linecap!=="string"){
+      throw new Error("Incomplete visual definition for relationship: "+kind);
+    }
+    if(!relation.legend || typeof relation.legend.visible!=="boolean" ||
+       !relation.legend.label || !relation.legend.strokeStyle){
+      throw new Error("Incomplete legend definition for relationship: "+kind);
+    }
+  });
+
+  const expectedRREL = {};
+  componentRelations.forEach(({from,to,kind})=>{
+    (expectedRREL[to] = expectedRREL[to] || {});
+    (expectedRREL[to][kind] = expectedRREL[to][kind] || []).push(from);
+  });
+  const expectedRSERVING = {};
+  servingRelations.forEach(({from,to})=>
+    (expectedRSERVING[to] = expectedRSERVING[to] || []).push(from));
+  const normalized = index=>JSON.stringify(Object.fromEntries(
+    Object.entries(index).sort(([a],[b])=>a.localeCompare(b)).map(([id,relations])=>[
+      id,
+      Array.isArray(relations) ? [...relations].sort() : Object.fromEntries(
+        Object.entries(relations).sort(([a],[b])=>a.localeCompare(b))
+          .map(([kind,ids])=>[kind,[...ids].sort()]))
+    ])
+  ));
+  if(normalized(RREL)!==normalized(expectedRREL)) throw new Error("RREL is stale");
+  if(normalized(RSERVING)!==normalized(expectedRSERVING)) throw new Error("RSERVING is stale");
+
+  const markerColors = new Map();
+  usedKinds.forEach(kind=>{
+    const {marker,color}=RELATION_TYPES[kind];
+    if(markerColors.has(marker) && markerColors.get(marker)!==color){
+      throw new Error("Relationship marker uses conflicting colours: "+marker);
+    }
+    markerColors.set(marker,color);
+  });
+
+  return Object.freeze({
+    relationTypes:usedKinds.size,
+    componentRelations:componentRelations.length,
+    servingRelations:servingRelations.length,
+    reverseIndexes:2
+  });
+}
+
+const DEPENDENCY_BASELINE_RESULT = validateDependencyBaseline();
+const RELATIONSHIP_MODEL_RESULT = validateRelationshipModel();
+window.dependencyDiagnostics = Object.freeze({
+  inventory:(templateId,showServing=false,disabledIds=[])=>
+    logicalDependencies(templateId,{showServing,off:new Set(disabledIds)}),
+  validation:DEPENDENCY_BASELINE_RESULT,
+  modelValidation:RELATIONSHIP_MODEL_RESULT
+});
 
 /* components that cannot exist without a parent */
 const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency", imageimagevec:"q-image" };
@@ -2511,69 +2931,103 @@ function rowComponentRect(rowIndex){
   return {x:left-cr.left,y:top-cr.top,w:right-left,h:bottom-top,
           cx:(left+right)/2-cr.left,cy:(top+bottom)/2-cr.top};
 }
-function nodeRect(id){
-  if(String(id).startsWith("row:")) return rowComponentRect(id.slice(4));
-  if(DATA_SOURCES[id]) return rectOf('.data-source-node[data-source-id="'+id+'"]');
-  return rectOf('.node[data-id="'+id+'"]');
+const RENDER_TARGET_TYPES = Object.freeze(["node","group","source"]);
+
+function makeRenderTarget(type,id,members,rowIndex){
+  if(!RENDER_TARGET_TYPES.includes(type)) throw new Error("Unknown render target type: "+type);
+  if(!id || !members.length) throw new Error("Render target requires an id and at least one member");
+  if(type==="group" && !Number.isInteger(rowIndex)) throw new Error("Group render target requires a row index: "+id);
+  return {type,id,rowIndex,members:[...members]};
+}
+function nodeRenderTarget(id){
+  return makeRenderTarget(DATA_SOURCES[id] ? "source" : "node",id,[id]);
+}
+function groupRenderTarget(id,rowIndex,members){
+  return makeRenderTarget("group",id,members,rowIndex);
+}
+function renderTargetIds(target){ return target.members||[target.id]; }
+function renderTargetRect(target){
+  if(target.type==="group") return rowComponentRect(target.rowIndex);
+  if(target.type==="source") return rectOf('.data-source-node[data-source-id="'+target.id+'"]');
+  return rectOf('.node[data-id="'+target.id+'"]');
+}
+function renderEdge(logicalEdges,toTarget){
+  const logical = Array.isArray(logicalEdges) ? logicalEdges : [logicalEdges];
+  const first = logical[0];
+  if(!first) throw new Error("Render edge requires at least one logical relationship");
+  if(logical.some(edge=>edge.from!==first.from || edge.kind!==first.kind)){
+    throw new Error("A collapsed render edge must share one source and relationship kind");
+  }
+  return {
+    from:nodeRenderTarget(first.from),
+    to:toTarget||nodeRenderTarget(first.to),
+    kind:first.kind,
+    label:first.label||null,
+    logical
+  };
 }
 
-/* Turn REL into drawable edges for this template. A source that steers three or
-   more members of one parallel group collapses to a single edge into that row,
-   which is what keeps the retrieval fan-out from becoming six overlapping wires. */
-function relEdges(t){
-  const rows = TPL[t].rows;
-  const present = new Set(tplStages(t));
-  const rowOf = id => rows.findIndex(r => (r.c||[]).includes(id));
-  const out = [];
+/* Several logical relationships may share one group-level drawn path. Keeping
+   those logical endpoints on the render edge preserves drawers, hover state and
+   future accessibility labels while allowing the geometry to stay uncluttered. */
+function componentRenderEdges(templateId,logicalEdges){
+  const rows = TPL[templateId].rows;
+  const grouped = new Map();
+  logicalEdges.forEach(edge=>{
+    const key=[edge.from,edge.kind].join("|");
+    if(!grouped.has(key)) grouped.set(key,[]);
+    grouped.get(key).push(edge);
+  });
 
-  Object.keys(REL).forEach(from=>{
-    if(!present.has(from) || !isOn(from)) return;
-    REL_KINDS.forEach(kind=>{
-      const targets = (REL[from][kind]||[]).filter(id=> present.has(id) && isOn(id));
-      if(!targets.length) return;
-      const kindName = kind==="trains" ? "train" : kind==="feeds" ? "feedback" : "ctrl";
-
-      const byGroup = {};
-      targets.forEach(id=>{
-        const g = S[id].parallel;
-        (byGroup[g||("@"+id)] = byGroup[g||("@"+id)] || []).push(id);
-      });
-      Object.keys(byGroup).forEach(g=>{
-        const ids = byGroup[g];
-        if(!g.startsWith("@") && ids.length>=3){
-          const ri = rowOf(ids[0]);
-          if(ri>=0){ out.push([from,"row:"+ri,"",kindName]); return; }
+  const rendered = [];
+  grouped.forEach(edges=>{
+    const byParallel = new Map();
+    edges.forEach(edge=>{
+      const parallel=S[edge.to].parallel;
+      const key=parallel||("@"+edge.to);
+      if(!byParallel.has(key)) byParallel.set(key,[]);
+      byParallel.get(key).push(edge);
+    });
+    byParallel.forEach((members,parallel)=>{
+      if(!parallel.startsWith("@") && members.length>=3){
+        const rowIndex=rows.findIndex(row=>(row.c||[]).includes(members[0].to));
+        if(rowIndex>=0){
+          rendered.push(renderEdge(members,
+            groupRenderTarget("parallel:"+parallel,rowIndex,members.map(edge=>edge.to))));
+          return;
         }
-        ids.forEach(id=> out.push([from,id,"",kindName]));
-      });
+      }
+      members.forEach(edge=>rendered.push(renderEdge(edge)));
     });
   });
-  return out;
+  return rendered;
 }
 
 function edgeList(){
-  const t = TPL[state.tpl], edges = [];
-  const groups = t.rows.map((r,i)=>({ ids:(r.c||[]).filter(isOn), row:i, label:r.nextLabel }))
-                       .filter(g=>g.ids.length);
-  for(let i=0;i<groups.length-1;i++){
-    const a=groups[i], b=groups[i+1];
-    a.ids.forEach(from=> b.ids.forEach(to=>{
-      const label = (a.ids.length===1 && b.ids.length===1) ? a.label : null;
-      edges.push({from,to,label,kind:"flow"});
-    }));
-  }
-  (t.extra||[]).concat(relEdges(state.tpl)).forEach(([from,to,label,kind])=>{
-    const okFrom = String(from).startsWith("row:") || isOn(from);
-    const okTo   = String(to).startsWith("row:")   || isOn(to);
-    if(okFrom && okTo) edges.push({from,to,label,kind});
+  const logical = logicalDependencies(state.tpl,{
+    showServing:state.showServing,
+    off:state.off[state.tpl]
   });
-  if(state.showServing){
-    activeSourceIds().forEach(sourceId=>{
-      activeConsumers(sourceId).forEach(componentId=>
-        edges.push({from:sourceId,to:componentId,label:null,kind:"serves"}));
-    });
+  const components = logical.filter(edge=>RELATION_TYPES[edge.kind].componentRelation);
+  const direct = logical.filter(edge=>!RELATION_TYPES[edge.kind].componentRelation && edge.kind!=="serves");
+  const serving = logical.filter(edge=>edge.kind==="serves");
+  return direct.map(edge=>renderEdge(edge))
+    .concat(componentRenderEdges(state.tpl,components),serving.map(edge=>renderEdge(edge)));
+}
+
+function renderTargetName(target){
+  if(target.type==="group"){
+    return "parallel group: "+renderTargetIds(target).map(id=>S[id].name).join(", ");
   }
-  return edges;
+  return DATA_SOURCES[target.id] ? DATA_SOURCES[target.id].name : S[target.id].name;
+}
+function escapeAttribute(value){
+  return String(value).replace(/[&"<>]/g,char=>({"&":"&amp;","\"":"&quot;","<":"&lt;",">":"&gt;"})[char]);
+}
+function relationshipAriaLabel(edge){
+  const relation=RELATION_TYPES[edge.kind];
+  return renderTargetName(edge.from)+" "+relation.fwd.toLowerCase()+" "+renderTargetName(edge.to)+
+    (edge.label ? ": "+edge.label : "");
 }
 
 function drawWires(){
@@ -2583,28 +3037,29 @@ function drawWires(){
   wires.setAttribute("viewBox","0 0 "+W+" "+H);
   $$(".elabel").forEach(e=>e.remove());
 
-  let defs = '<defs>' +
-    ['flow:var(--wire)','loop:var(--wire-loop)','ctrl:var(--wire-ctrl)','train:var(--wire-train)','data:var(--wire-data)'].map(d=>{
-      const [k,c]=d.split(":");
-      return '<marker id="ah-'+k+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
-             '<path d="M0,0 L8,4 L0,8 z" style="fill:'+c+'"/></marker>';
-    }).join("") + '</defs>';
+  const markerColors = new Map();
+  Object.values(RELATION_TYPES).forEach(relation=>{
+    if(!markerColors.has(relation.marker)) markerColors.set(relation.marker,relation.color);
+  });
+  const defs = '<defs>' + Array.from(markerColors,([marker,color])=>
+    '<marker id="ah-'+marker+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
+    '<path d="M0,0 L8,4 L0,8 z" style="fill:'+color+'"/></marker>').join("") + '</defs>';
 
   let paths = "", labels = [];
   edgeList().forEach((e,edgeIndex)=>{
-    const a = nodeRect(e.from), b = nodeRect(e.to);
+    const a = renderTargetRect(e.from), b = renderTargetRect(e.to);
     if(!a||!b) return;
-    let d, stroke="var(--wire)", dash="", marker="flow";
+    const relation = RELATION_TYPES[e.kind];
+    let d, style=relation;
 
     // An explicit kind routes itself. The geometric "runs upward" test is only a
     // fallback for spine edges, which carry no routing of their own — and it needs a
     // tolerance, because two cards centred in the same row differ by a few pixels
     // without the edge going anywhere.
-    const spine  = e.kind==="flow" || e.kind==="branch";
+    const spine  = relation.route==="spine" || relation.route==="branch";
     const runsUp = b.y < a.y - 24;
 
-    if(e.kind==="serves"){
-      stroke="var(--wire-data)"; dash='stroke-dasharray="2 5" stroke-linecap="round"'; marker="data";
+    if(relation.route==="source"){
       const horizontal = a.x+a.w <= b.x+6;
       if(horizontal){
         const sx=a.x+a.w, sy=a.cy, tx=b.x, ty=b.cy;
@@ -2617,34 +3072,22 @@ function drawWires(){
         const dy=Math.max(18,Math.abs(ty-sy)*.5)*(sourceAbove?1:-1);
         d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
       }
-    } else if(e.kind==="ctrl" || e.kind==="train"){
-      const train = e.kind==="train";
-      stroke = train ? "var(--wire-train)" : "var(--wire-ctrl)";
-      dash   = train ? 'stroke-dasharray="7 5"' : 'stroke-dasharray="3 4"';
-      marker = train ? "train" : "ctrl";
+    } else if(relation.route==="side"){
       const fromLeft = a.cx > b.cx;
       const sx = fromLeft ? a.x : a.x+a.w, sy = a.cy;
       const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
-      const k = Math.max(30, Math.abs(tx-sx)*0.45) * (fromLeft?-1:1);
+      const k = Math.max(30, Math.abs(tx-sx)*relation.curve) * (fromLeft?-1:1);
       d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
-    } else if(e.kind==="feedback"){
-      stroke="var(--wire-ctrl)"; dash='stroke-dasharray="1 5" stroke-linecap="round"'; marker="ctrl";
-      const fromLeft = a.cx > b.cx;
-      const sx = fromLeft ? a.x : a.x+a.w, sy = a.cy;
-      const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
-      const k = Math.max(30, Math.abs(tx-sx)*0.4) * (fromLeft?-1:1);
-      d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
-    } else if(e.kind==="branch" && b.cx < a.cx - 24){
-      dash='stroke-dasharray="6 4"';
+    } else if(relation.route==="branch" && b.cx < a.cx - 24){
       const sx=a.x, sy=a.cy, tx=b.x+b.w, ty=b.cy;
       const dx=Math.max(24,(sx-tx)*.45);
       d = "M"+sx+","+sy+" C"+(sx-dx)+","+sy+" "+(tx+dx)+","+ty+" "+tx+","+ty;
-    } else if(e.kind==="loop" || (spine && runsUp)){
-      stroke="var(--wire-loop)"; marker="loop";
+    } else if(relation.route==="loop" || (spine && runsUp)){
+      style=RELATION_TYPES.loop;
       const besideMain = a.x+a.w < b.x;
       if(besideMain){
         const sx=a.x+a.w, sy=a.cy, tx=b.x;
-        const isFallback=e.from==="zerofallback";
+        const isFallback=renderTargetIds(e.from).includes("zerofallback");
         const ty=b.cy+(isFallback?7:-7);
         const spread=Math.max(48,Math.min(110,(tx-sx)*.58));
         d = "M"+sx+","+sy+" C"+(sx+spread)+","+sy+" "+(tx-spread)+","+ty+" "+tx+","+ty;
@@ -2657,12 +3100,13 @@ function drawWires(){
       const sx=a.cx, sy=a.y+a.h, tx=b.cx, ty=b.y;
       const dy = Math.max(12,(ty-sy)*0.55);
       d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
-      if(e.kind==="branch"){
-        dash='stroke-dasharray="6 4"';
-      }
     }
-    paths += '<path data-edge-index="'+edgeIndex+'" data-edge-kind="'+e.kind+'" d="'+d+'" style="fill:none;stroke:'+stroke+'" stroke-width="1.4" '+dash+
-             ' marker-end="url(#ah-'+marker+')" opacity="'+(e.kind==="ctrl"?".8":e.kind==="serves"?".72":"1")+'"/>';
+    const dash = style.dash ? ' stroke-dasharray="'+style.dash+'"' : "";
+    const linecap = style.linecap!=="butt" ? ' stroke-linecap="'+style.linecap+'"' : "";
+    paths += '<path data-edge-index="'+edgeIndex+'" data-edge-kind="'+e.kind+'" data-logical-count="'+e.logical.length+'" d="'+d+
+             '" style="fill:none;stroke:'+style.color+'" stroke-width="'+style.width+'"'+dash+linecap+
+             ' marker-end="url(#ah-'+style.marker+')" opacity="'+style.opacity+'" role="img" aria-label="'+
+             escapeAttribute(relationshipAriaLabel(e))+'"/>';
     if(e.label) labels.push({edgeIndex,text:e.label,loop:e.kind==="loop",branch:e.kind==="branch"});
   });
   wires.innerHTML = defs + paths;
@@ -2817,9 +3261,10 @@ function openDrawer(id){
   const relRow = (kind, ids, dir) => {
     const live = ids.filter(x=>S[x]);
     if(!live.length) return "";
+    const relation = RELATION_TYPES[kind];
     const offAndNeeded = dir==="rev" ? live.filter(isOff) : [];
-    return sect(REL_LABEL[kind][dir==="fwd"?"fwd":"rev"],
-      '<p class="relnote">'+REL_LABEL[kind].note+'</p>' +
+    return sect(relation[dir==="fwd"?"fwd":"rev"],
+      '<p class="relnote">'+relation.description+'</p>' +
       '<div class="reflist">'+live.map(x=>
         '<button class="ref'+(isOff(x)?" isoff":"")+'" data-goto="'+x+'">'+
         S[x].name + (isOff(x)?" · off":"") + '</button>').join("")+'</div>' +
@@ -2830,8 +3275,8 @@ function openDrawer(id){
         : ""));
   };
   const fwd = REL[id] || {}, rev = RREL[id] || {};
-  REL_KINDS.forEach(k=>{ h += relRow(k, fwd[k]||[], "fwd"); });
-  REL_KINDS.forEach(k=>{ h += relRow(k, rev[k]||[], "rev"); });
+  COMPONENT_RELATION_KINDS.forEach(k=>{ h += relRow(k, fwd[k]||[], "fwd"); });
+  COMPONENT_RELATION_KINDS.forEach(k=>{ h += relRow(k, rev[k]||[], "rev"); });
 
   const sources = RSERVING[id] || [];
   if(sources.length) h += sect("Served by",
@@ -2923,16 +3368,10 @@ document.body.appendChild(hoverCard);
 let hoverTimer = null, hoverId = null;
 const finePointer = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-function endpointIds(endpoint){
-  if(!String(endpoint).startsWith("row:")) return [endpoint];
-  const row = TPL[state.tpl].rows[+String(endpoint).slice(4)];
-  return row ? (row.c||[]).filter(isOn) : [];
-}
-
 function showHoverConnections(id){
   const connected = new Set(), connectedEdges = new Set();
   edgeList().forEach((edge,index)=>{
-    const from = endpointIds(edge.from), to = endpointIds(edge.to);
+    const from = renderTargetIds(edge.from), to = renderTargetIds(edge.to);
     if(from.includes(id)){
       to.forEach(target=>connected.add(target));
       connectedEdges.add(index);
@@ -3087,6 +3526,15 @@ function renderAll(){
   hideHover(); renderCanvas(); renderBudget(); renderCompList(); renderServingToggle();
 }
 
+function renderRelationLegend(){
+  $("#relationLegend").innerHTML = Object.entries(RELATION_TYPES)
+    .filter(([,relation])=>relation.legend.visible)
+    .map(([kind,relation])=>
+      '<span data-relation-kind="'+kind+'"><i class="wkey" style="border-top:2px '+
+      relation.legend.strokeStyle+' '+relation.color+'"></i>'+relation.legend.label+'</span>')
+    .join("");
+}
+
 function setTpl(t){
   if(state.tpl===t){ renderAll(); return; }
   state.prevTpl = state.tpl; state.tpl = t;
@@ -3146,6 +3594,7 @@ new ResizeObserver(()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); }).ob
 window.addEventListener("resize", ()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); });
 if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=> setTimeout(drawWires,50));
 
+renderRelationLegend();
 renderBuild();
 renderAll();
 </script>
