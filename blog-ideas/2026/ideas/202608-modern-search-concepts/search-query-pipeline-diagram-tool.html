@@ -245,16 +245,14 @@ a{color:var(--accent)}
 }
 .btn-ghost:hover{background:var(--surface-2);color:var(--text)}
 .dep-toggle{
-  width:100%;display:flex;align-items:center;gap:9px;margin-top:12px;padding:9px 10px;
-  border:1px solid var(--border);border-radius:9px;background:var(--surface);text-align:left
+  display:inline-flex;align-items:center;gap:8px;padding:7px 10px;
+  border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);
+  font-size:11.5px;font-weight:600;white-space:nowrap
 }
 .dep-toggle:hover{border-color:var(--border-strong);background:var(--surface-2)}
 .dep-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.dep-toggle .dep-copy{display:flex;flex-direction:column;min-width:0}
-.dep-toggle .dep-name{font-size:11.5px;font-weight:600;color:var(--text)}
-.dep-toggle .dep-count{font-size:10.5px;color:var(--text-3)}
 .dep-toggle .dep-sw{
-  width:30px;height:18px;margin-left:auto;border-radius:20px;background:var(--surface-3);
+  width:30px;height:18px;border-radius:20px;background:var(--surface-3);
   position:relative;flex:none;transition:background .15s
 }
 .dep-toggle .dep-sw::after{
@@ -274,13 +272,13 @@ a{color:var(--accent)}
   gap:12px;align-items:center;margin-bottom:34px;z-index:1
 }
 .row .cell{display:flex;gap:11px;flex-wrap:wrap;min-width:0}
-.row .cell.center{justify-content:center}
+.row .cell.center{justify-content:center;column-gap:17px;row-gap:14px}
 .row .cell.center > .node{flex:1 1 154px}
-.row .cell.left{justify-content:flex-end}
+.row .cell.left{justify-content:flex-end;transform:translateX(24px)}
 .row .cell.right{justify-content:flex-start}
 .canvas.with-data-sources .row{
   grid-template-columns:minmax(0,206px) minmax(0,154px) 24px minmax(0,1fr) minmax(0,176px);
-  width:calc(100% + 106px);margin-left:-106px
+  width:calc(100% + 118px);margin-left:-118px
 }
 .canvas.with-data-sources .cell.data{grid-column:1;align-self:stretch;justify-content:flex-start}
 .canvas.with-data-sources .cell.left{grid-column:2}
@@ -394,7 +392,9 @@ a{color:var(--accent)}
 /* ---------- hover preview ---------- */
 .hovercard{
   position:fixed;z-index:80;width:390px;max-width:calc(100vw - 24px);
-  background:var(--surface);border:1px solid var(--border-strong);border-radius:11px;
+  background:var(--surface);background:color-mix(in srgb,var(--surface) 92%,transparent);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid var(--border-strong);border-radius:11px;
   box-shadow:var(--shadow-lg);padding:12px 13px;pointer-events:none
 }
 .hovercard .hc-top{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:9px}
@@ -584,6 +584,7 @@ table.mini .met{color:var(--accent)}
   .canvas.with-data-sources .cell.left,
   .canvas.with-data-sources .cell.center,
   .canvas.with-data-sources .cell.right{grid-column:1}
+  .canvas.with-data-sources .cell.left{transform:none}
   .canvas.with-data-sources .data-source-column{
     display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%
   }
@@ -600,6 +601,7 @@ table.mini .met{color:var(--accent)}
   .canvas{padding-left:0}
   .row{grid-template-columns:1fr;gap:10px;margin-bottom:26px;position:relative}
   .row .cell{justify-content:center!important}
+  .row .cell.left{transform:none}
   .row .cell:empty{display:none}
   .row .cell.center > .node{flex:1 1 100%}
   .node{max-width:none;width:100%}
@@ -628,7 +630,7 @@ table.mini .met{color:var(--accent)}
 <header class="hdr">
   <div class="brand">
     <h1>Query Search Pipeline Explorer</h1>
-    <span class="sub">Progressive reference templates &middot; optional serving-data layer &middot; hybrid text &amp; image retrieval &middot; logical architecture, not frameworks</span>
+    <span class="sub">Progressive pipeline levels &middot; optional serving-data layer &middot; hybrid text &amp; image retrieval &middot; logical architecture, not frameworks</span>
   </div>
   <div class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-pipe" aria-controls="view-pipe" aria-selected="true" data-view="pipe">Pipelines</button>
@@ -643,11 +645,14 @@ table.mini .met{color:var(--accent)}
 
   <div class="ctxbar">
     <div class="ctx-row">
-      <div class="seg" role="group" aria-label="Template">
+      <div class="seg" role="group" aria-label="Pipeline level">
         <button data-tpl="1" aria-pressed="true"><span class="n">1</span>Core</button>
         <button data-tpl="2" aria-pressed="false"><span class="n">2</span>Core + recommended</button>
         <button data-tpl="3" aria-pressed="false"><span class="n">3</span>Full surface</button>
       </div>
+      <button class="dep-toggle" id="servingToggle" aria-pressed="false" aria-controls="rows" aria-label="Show data sources">
+        <span>Show data sources</span><span class="dep-sw" aria-hidden="true"></span>
+      </button>
       <span class="pill new" id="diffPill" hidden></span>
     </div>
     <div class="trace">
@@ -699,9 +704,9 @@ table.mini .met{color:var(--accent)}
       <div class="panel">
         <h3>Legend</h3>
         <div class="legendrow" style="gap:7px 12px">
-          <span><i style="background:var(--core-bg);border:1px solid var(--core-line)"></i>core &middot; template 1</span>
-          <span><i style="background:var(--rec-bg);border:1px solid var(--rec-line)"></i>recommended &middot; template 2</span>
-          <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full &middot; template 3</span>
+          <span><i style="background:var(--core-bg);border:1px solid var(--core-line)"></i>core</span>
+          <span><i style="background:var(--rec-bg);border:1px solid var(--rec-line)"></i>recommended</span>
+          <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full</span>
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
         </div>
         <div class="legendrow" style="gap:7px 12px;margin-top:9px">
@@ -714,16 +719,12 @@ table.mini .met{color:var(--accent)}
           A <em>trains</em> wire is not a request-time path: it means the target's model is
           fitted from that data. Serving sources are logical indexes or stores, not prescribed products or deployments.
         </p>
-        <button class="dep-toggle" id="servingToggle" aria-pressed="false" aria-controls="rows" aria-label="Show serving dependencies">
-          <span class="dep-copy"><span class="dep-name">Serving dependencies</span><span class="dep-count" id="servingCount"></span></span>
-          <span class="dep-sw" aria-hidden="true"></span>
-        </button>
       </div>
 
       <div class="panel complist">
         <h3>Components <span class="pill" id="offCount" hidden></span></h3>
         <div id="compList"></div>
-        <button class="btn-ghost" id="resetBtn" style="margin-top:12px">Reset to template defaults</button>
+        <button class="btn-ghost" id="resetBtn" style="margin-top:12px">Reset level defaults</button>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
           Switch components off to compose a variant and watch the budget move. Core components are locked.
         </p>
@@ -745,7 +746,7 @@ table.mini .met{color:var(--accent)}
     <h2 style="font-size:20px;margin-bottom:8px">Build order</h2>
     <p class="build-intro">
       Ordered by value delivered per unit of cost, with the trigger condition that says <em>now</em> —
-      not a schedule. Steps 1&ndash;7 are Template&nbsp;2. Most systems should stop there and spend the
+      not a schedule. Steps 1&ndash;7 are the Core + recommended level. Most systems should stop there and spend the
       remaining effort on data quality, the evaluation set, and the index, which is where the returns
       usually are. Click any component to open its detail.
     </p>
@@ -773,7 +774,7 @@ table.mini .met{color:var(--accent)}
       <p>The explorer combines an interactive architecture map with implementation guidance and component-level design notes.</p>
       <div class="about-grid">
         <article class="about-card">
-          <h4>Progressive reference templates</h4>
+          <h4>Progressive pipeline levels</h4>
           <p>Move from a locked Core baseline, through the recommended production target, to the Full surface of specialised options. Each level reveals the additions it makes.</p>
         </article>
         <article class="about-card">
@@ -1153,7 +1154,7 @@ def({
   }],
   contract:{in:"intent, constraints, has_image", out:"{ legs_to_fire[], rerankers_to_fire[], route_id } (logged)"},
   notes:[
-    "Use inspectable static intent rules in the Recommended template. Learned or budget-aware routing is a later optimisation in the same component, not a separate request path.",
+    "Use inspectable static intent rules at the Core + recommended level. Learned or budget-aware routing is a later optimisation in the same component, not a separate request path.",
     "Routing errors may appear as relevance regressions rather than request failures. Log the selected route and activated stages for each query so routing decisions can be diagnosed."
   ],
   failures:[{f:"A leg or gated reranker is never routed to",s:"Looks like a corpus, index or model-quality problem",m:"route distribution; per-stage fire rate"}]
@@ -2190,7 +2191,7 @@ const STEPS = [
    build:"A labelled set of 200–500 queries with graded relevance, pooled across legs so recall is measurable rather than assumed. Deterministic replay. A probe suite of ~30 queries with known rank-1 answers.",
    trigger:"Before anything else.",
    buys:"Every later decision becomes measurable instead of arguable. Without it, all the tradeoffs below are opinions."},
-  {n:1, t:1, title:"Template 1 spine, fixed RRF, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","fusion","assembly"],
+  {n:1, t:1, title:"Core spine, fixed RRF, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","fusion","assembly"],
    build:"Normalise, understand, enforce query and mandatory policy predicates, run two retrieval legs, collate candidates, apply fixed RRF, and assemble results.",
    trigger:"—",
    buys:"A working hybrid baseline with an explicit relevance ordering and honest numbers."},
@@ -2287,10 +2288,6 @@ function activeConsumers(sourceId){
 
 function activeSourceIds(){
   return sourceIdsForConsumers(tplStages(state.tpl).filter(isOn));
-}
-
-function templateSourceIds(){
-  return sourceIdsForConsumers(tplStages(state.tpl));
 }
 
 function sourceIdsFor(componentIds){
@@ -2394,12 +2391,9 @@ function renderBudget(){
 }
 
 function renderServingToggle(){
-  const count = templateSourceIds().length;
   const button = $("#servingToggle");
   button.setAttribute("aria-pressed",String(state.showServing));
-  button.setAttribute("aria-label",(state.showServing?"Hide":"Show")+" serving dependencies");
-  $("#servingCount").textContent = count+" logical "+(count===1?"source":"sources")+
-    (state.showServing?" shown":" · collapsed");
+  button.setAttribute("aria-label","Show data sources");
 }
 
 /* =======================================================================
@@ -2416,7 +2410,7 @@ function nodeEl(id, newIds){
   if(newIds.has(id)) el.classList.add("isnew");
   if(state.sel===id) el.classList.add("selected");
   const meta =                                       // tier, group, then conditional state
-    '<span class="tierchip '+s.tier+'" title="First appears in template '+s.intro+' — '+TPL[s.intro].name+'">'+
+    '<span class="tierchip '+s.tier+'" title="First appears in '+TPL[s.intro].name+'">'+
       TIER_LABEL[s.intro]+'</span>' +
     '<span class="groupchip">'+s.group+'</span>' +
     (s.conditional ? '<span class="condchip">conditional</span>' : "");
@@ -2459,7 +2453,7 @@ function renderCanvas(){
   const newIds = t>1 ? new Set(tplStages(t).filter(id=>!prev.has(id))) : new Set();
   const nNew = newIds.size;
   const pill = $("#diffPill");
-  if(t>1 && nNew){ pill.hidden=false; pill.textContent = "+ " + nNew + " new vs template " + (t-1); }
+  if(t>1 && nNew){ pill.hidden=false; pill.textContent = "+ " + nNew + " new vs " + TPL[t-1].name; }
   else pill.hidden = true;
 
   rowsEl.innerHTML = "";
@@ -2638,7 +2632,7 @@ function drawWires(){
         const sx=a.x+a.w, sy=a.cy, tx=b.x;
         const isFallback=e.from==="zerofallback";
         const ty=b.cy+(isFallback?7:-7);
-        const gutterX=Math.min(tx-18,sx+(isFallback?40:32));
+        const gutterX=Math.min(tx-18,sx+(isFallback?12:4));
         const bendY=ty+24;
         d = "M"+sx+","+sy+" C"+gutterX+","+sy+" "+gutterX+","+bendY+" "+tx+","+bendY+
             " C"+tx+","+bendY+" "+tx+","+ty+" "+tx+","+ty;
@@ -2738,7 +2732,7 @@ function syncFocusUI(){
   $("#focusList").innerHTML = hits.length
     ? hits.map(id=>'<button class="ref'+(isOff(id)?" isoff":"")+'" data-goto="'+id+'">'+
         S[id].name + (isOff(id)?" · off":"") + '</button>').join("")
-    : '<p class="fnone">No component in template '+state.tpl+' provides this. Switch template, or re-enable a component.</p>';
+    : '<p class="fnone">No component in '+TPL[state.tpl].name+' provides this. Switch level, or re-enable a component.</p>';
   $$("#focusList .ref").forEach(b=> b.addEventListener("click", ()=> openDrawer(b.dataset.goto)));
 }
 
@@ -2770,7 +2764,7 @@ function openDrawer(id){
 
   const locked = lockedFor(id), on = isOn(id);
   $("#dChips").innerHTML =
-    '<span class="chip">Introduced in <b>template '+s.intro+'</b></span>' +
+    '<span class="chip">Introduced in <b>'+TPL[s.intro].name+'</b></span>' +
     (s.lat && s.lat[1] ? '<span class="chip">'+(s.conditional?"Conditional ":"")+'p95 <b>'+s.lat[0]+"–"+s.lat[1]+' ms</b></span>' : "") +
     (s.cx ? '<span class="chip">Complexity <b>'+s.cx+'/5</b></span>' : "") +
     (s.model ? '<span class="chip">model in path</span>' : "") +
@@ -2835,7 +2829,7 @@ function openDrawer(id){
 
   const usedIn = [1,2,3].filter(t=>tplStages(t).includes(id));
   h += sect("Appears in", '<div class="reflist">'+usedIn.map(t=>
-        '<button class="ref" data-tpl="'+t+'">Template '+t+' · '+TPL[t].name+'</button>').join("")+'</div>');
+        '<button class="ref" data-tpl="'+t+'">'+TPL[t].name+'</button>').join("")+'</div>');
 
   $("#dBody").innerHTML = h;
   $$("#dBody .ref[data-goto]").forEach(b=> b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
@@ -2863,7 +2857,7 @@ function openSourceDrawer(id){
   const consumers = SERVING_REL[id] || [];
   const active = activeConsumers(id);
   $("#dChips").innerHTML =
-    '<span class="chip">Introduced in <b>template '+source.intro+'</b></span>'+
+    '<span class="chip">Introduced in <b>'+TPL[source.intro].name+'</b></span>'+
     '<span class="chip">Active consumers <b>'+active.length+'</b></span>'+
     '<span class="chip">Defined consumers <b>'+consumers.length+'</b></span>';
 
@@ -2874,7 +2868,7 @@ function openSourceDrawer(id){
   const serves = '<p class="relnote">Components that query or hydrate from this logical source.</p>'+
     '<div class="reflist">'+consumers.map(componentId=>{
       const unavailable = !present.has(componentId), off = present.has(componentId) && isOff(componentId);
-      const suffix = unavailable ? " · not in this template" : off ? " · off" : "";
+      const suffix = unavailable ? " · not in "+TPL[state.tpl].name : off ? " · off" : "";
       return '<button class="ref'+(unavailable||off?' isoff':'')+'" data-goto="'+componentId+'">'+
         S[componentId].name+suffix+'</button>';
     }).join("")+'</div>';
@@ -2889,7 +2883,7 @@ function openSourceDrawer(id){
     notes+
     drawerSect("Serves",serves)+
     drawerSect("Appears with",'<div class="reflist">'+templates.map(t=>
-      '<button class="ref" data-source-tpl="'+t+'">Template '+t+' · '+TPL[t].name+'</button>').join("")+'</div>');
+      '<button class="ref" data-source-tpl="'+t+'">'+TPL[t].name+'</button>').join("")+'</div>');
 
   $$("#dBody .ref[data-goto]").forEach(b=>b.addEventListener("click",()=>openDrawer(b.dataset.goto)));
   $$("#dBody .ref[data-source-tpl]").forEach(b=>b.addEventListener("click",()=>{
@@ -3060,7 +3054,7 @@ function renderBuild(){
       '<div class="grid" style="grid-template-columns:1fr"><div><div class="lb">Build</div>'+s.build+'</div></div>'+
       (chips ? '<div class="chips">'+chips+'</div>' : "") +
       '</div></div>';
-    return s.n===8 ? '<div class="divider">Steps 1–7 above are Template 2 — the production target. Everything below is Template 3 territory.</div>'+html : html;
+    return s.n===8 ? '<div class="divider">Steps 1–7 above are Core + recommended — the production target. Everything below is Full surface territory.</div>'+html : html;
   }).join("");
   $$("#steps .ref[data-goto]").forEach(b=> b.addEventListener("click",()=>{
     const id = b.dataset.goto;
@@ -3101,7 +3095,7 @@ $$(".seg button").forEach(b=>{
   const tip = document.createElement("span");
   tip.className = "tpl-tip"; tip.id = "tplTip"+t; tip.setAttribute("role","tooltip");
   tip.innerHTML = "<b>"+template.tagline+".</b> "+template.desc;
-  b.setAttribute("aria-label","Template "+t+": "+template.name);
+  b.setAttribute("aria-label",template.name);
   b.setAttribute("aria-describedby",tip.id);
   b.appendChild(tip);
   b.addEventListener("click",()=> setTpl(t));
