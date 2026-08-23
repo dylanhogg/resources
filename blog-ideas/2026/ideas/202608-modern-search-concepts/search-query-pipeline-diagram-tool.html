@@ -159,7 +159,7 @@ a{color:var(--accent)}
   position:sticky;top:53px;max-height:calc(100vh - 53px);overflow-y:auto;
   border-right:1px solid var(--border);background:var(--surface);padding:16px 14px 60px
 }
-.stage-area{padding:26px 20px 120px;min-width:0}
+.stage-area{padding:26px 36px 120px 20px;min-width:0}
 
 /* ---------- sidebar panels ---------- */
 .panel{margin-bottom:18px}
@@ -259,29 +259,36 @@ a{color:var(--accent)}
   content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;
   background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.28);transition:transform .15s
 }
-.dep-toggle[aria-pressed="true"]{border-color:var(--data-line);background:var(--data-bg)}
-.dep-toggle[aria-pressed="true"] .dep-sw{background:var(--data-line)}
+.dep-toggle[aria-pressed="true"]{border-color:var(--rec-line);background:var(--rec-bg);color:var(--rec-text)}
+.dep-toggle[aria-pressed="true"] .dep-sw{background:var(--ok)}
 .dep-toggle[aria-pressed="true"] .dep-sw::after{transform:translateX(12px)}
 
 /* ---------- canvas ---------- */
-.canvas{position:relative;padding-left:118px}
+.canvas{--left-spine-gap:154px;position:relative;padding-left:118px}
 .wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0}
 .row{
-  position:relative;display:grid;
+  position:relative;display:grid;container-type:inline-size;
   grid-template-columns:minmax(0,128px) minmax(0,1fr) minmax(0,176px);
   gap:12px;align-items:center;margin-bottom:34px;z-index:1
 }
 .row .cell{display:flex;gap:11px;flex-wrap:wrap;min-width:0}
 .row .cell.center{justify-content:center;column-gap:17px;row-gap:14px}
 .row .cell.center > .node{flex:1 1 154px}
-.row .cell.left{justify-content:flex-end;transform:translateX(24px)}
+.row .cell.left{
+  justify-content:flex-end;
+  transform:translateX(max(-80px,calc(50cqw - 277px - var(--left-spine-gap))))
+}
+.row .cell.left > .node{width:250px;min-width:250px;max-width:250px}
 .row .cell.right{justify-content:flex-start}
 .canvas.with-data-sources .row{
-  grid-template-columns:minmax(0,206px) minmax(0,154px) 24px minmax(0,1fr) minmax(0,176px);
+  grid-template-columns:minmax(0,206px) minmax(0,154px) 80px minmax(0,1fr) minmax(0,176px);
   width:calc(100% + 118px);margin-left:-118px
 }
 .canvas.with-data-sources .cell.data{grid-column:1;align-self:stretch;justify-content:flex-start}
-.canvas.with-data-sources .cell.left{grid-column:2}
+.canvas.with-data-sources .cell.left{
+  grid-column:2;
+  transform:translateX(max(-80px,calc(50cqw - 353px - var(--left-spine-gap))))
+}
 .canvas.with-data-sources .cell.center{grid-column:4}
 .canvas.with-data-sources .cell.right{grid-column:5}
 .canvas.with-data-sources .cell:empty{display:none}
@@ -388,11 +395,12 @@ a{color:var(--accent)}
   padding:1px 6px;border-radius:5px;white-space:nowrap;pointer-events:none
 }
 .elabel.loop{color:var(--wire-loop);transform:translate(-50%,-50%)}
+.elabel.branch{padding-inline:4px}
 
 /* ---------- hover preview ---------- */
 .hovercard{
   position:fixed;z-index:80;width:390px;max-width:calc(100vw - 24px);
-  background:var(--surface);background:color-mix(in srgb,var(--surface) 92%,transparent);
+  background:var(--surface);background:color-mix(in srgb,var(--surface) 88%,transparent);
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   border:1px solid var(--border-strong);border-radius:11px;
   box-shadow:var(--shadow-lg);padding:12px 13px;pointer-events:none
@@ -602,6 +610,7 @@ table.mini .met{color:var(--accent)}
   .row{grid-template-columns:1fr;gap:10px;margin-bottom:26px;position:relative}
   .row .cell{justify-content:center!important}
   .row .cell.left{transform:none}
+  .row .cell.left > .node{width:100%;min-width:0;max-width:none}
   .row .cell:empty{display:none}
   .row .cell.center > .node{flex:1 1 100%}
   .node{max-width:none;width:100%}
@@ -2585,7 +2594,7 @@ function drawWires(){
   edgeList().forEach((e,edgeIndex)=>{
     const a = nodeRect(e.from), b = nodeRect(e.to);
     if(!a||!b) return;
-    let d, stroke="var(--wire)", dash="", marker="flow", lx, ly;
+    let d, stroke="var(--wire)", dash="", marker="flow";
 
     // An explicit kind routes itself. The geometric "runs upward" test is only a
     // fallback for spine edges, which carry no routing of their own — and it needs a
@@ -2625,23 +2634,24 @@ function drawWires(){
       const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
       const k = Math.max(30, Math.abs(tx-sx)*0.4) * (fromLeft?-1:1);
       d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
+    } else if(e.kind==="branch" && b.cx < a.cx - 24){
+      dash='stroke-dasharray="6 4"';
+      const sx=a.x, sy=a.cy, tx=b.x+b.w, ty=b.cy;
+      const dx=Math.max(24,(sx-tx)*.45);
+      d = "M"+sx+","+sy+" C"+(sx-dx)+","+sy+" "+(tx+dx)+","+ty+" "+tx+","+ty;
     } else if(e.kind==="loop" || (spine && runsUp)){
       stroke="var(--wire-loop)"; marker="loop";
-      const besideMain = state.showServing && a.x+a.w < b.x;
+      const besideMain = a.x+a.w < b.x;
       if(besideMain){
         const sx=a.x+a.w, sy=a.cy, tx=b.x;
         const isFallback=e.from==="zerofallback";
         const ty=b.cy+(isFallback?7:-7);
-        const gutterX=Math.min(tx-18,sx+(isFallback?12:4));
-        const bendY=ty+24;
-        d = "M"+sx+","+sy+" C"+gutterX+","+sy+" "+gutterX+","+bendY+" "+tx+","+bendY+
-            " C"+tx+","+bendY+" "+tx+","+ty+" "+tx+","+ty;
-        lx=a.cx; ly=(sy+bendY)/2;
+        const spread=Math.max(48,Math.min(110,(tx-sx)*.58));
+        d = "M"+sx+","+sy+" C"+(sx+spread)+","+sy+" "+(tx-spread)+","+ty+" "+tx+","+ty;
       } else {
         const gx = 62;
         const sx=a.x, sy=a.cy, tx=b.x, ty=b.cy;
         d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+ty+" "+tx+","+ty;
-        lx = gx+9; ly = (sy+ty)/2;
       }
     } else {
       const sx=a.cx, sy=a.y+a.h, tx=b.cx, ty=b.y;
@@ -2649,18 +2659,20 @@ function drawWires(){
       d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
       if(e.kind==="branch"){
         dash='stroke-dasharray="6 4"';
-        lx = sx + (tx-sx)*0.2; ly = sy + (ty-sy)*0.2;
-      } else { lx = (sx+tx)/2; ly = (sy+ty)/2; }
+      }
     }
     paths += '<path data-edge-index="'+edgeIndex+'" data-edge-kind="'+e.kind+'" d="'+d+'" style="fill:none;stroke:'+stroke+'" stroke-width="1.4" '+dash+
              ' marker-end="url(#ah-'+marker+')" opacity="'+(e.kind==="ctrl"?".8":e.kind==="serves"?".72":"1")+'"/>';
-    if(e.label && lx!=null) labels.push({x:lx,y:ly,text:e.label,loop:e.kind==="loop"});
+    if(e.label) labels.push({edgeIndex,text:e.label,loop:e.kind==="loop",branch:e.kind==="branch"});
   });
   wires.innerHTML = defs + paths;
   labels.forEach(l=>{
+    const path = wires.querySelector('path[data-edge-index="'+l.edgeIndex+'"]');
+    if(!path) return;
+    const point = path.getPointAtLength(path.getTotalLength()*.5);
     const el = document.createElement("span");
-    el.className = "elabel" + (l.loop?" loop":"");
-    el.style.left = l.x+"px"; el.style.top = l.y+"px"; el.textContent = l.text;
+    el.className = "elabel" + (l.loop?" loop":"") + (l.branch?" branch":"");
+    el.style.left = point.x+"px"; el.style.top = point.y+"px"; el.textContent = l.text;
     canvas.appendChild(el);
   });
 }
