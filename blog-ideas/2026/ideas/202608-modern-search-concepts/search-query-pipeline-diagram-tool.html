@@ -472,11 +472,12 @@ a{color:var(--accent)}
 }
 .hovercard .hc-top{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:9px}
 .hovercard .hc-pill{
-  font-size:9.5px;font-weight:650;letter-spacing:.025em;color:var(--text-2);background:var(--surface-2);
+  font-size:9.5px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--text-2);background:var(--surface-2);
   border:1px solid var(--border);border-radius:6px;padding:2px 7px;white-space:nowrap
 }
-.hovercard .hc-group{text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
-.hovercard .hc-cond{text-transform:uppercase;letter-spacing:.05em;color:var(--warn)}
+.hovercard .hc-group{color:var(--text-3)}
+.hovercard .hc-cond{color:var(--warn)}
 .hovercard .hc-gate{
   margin:0 0 8px;font-size:11.5px;line-height:1.45;color:var(--text-2);
   border-left:3px solid var(--gate-color,var(--gate-request));padding-left:8px
@@ -484,6 +485,7 @@ a{color:var(--accent)}
 .hovercard .hc-gate b{
   font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text)
 }
+.hovercard .hc-condline{border-left-color:var(--warn)}
 .hovercard .hc-desc{margin:0;font-size:12px;line-height:1.5;color:var(--text)}
 .hovercard .hc-ex,.hovercard .hc-notes,.hovercard .hc-rels{
   margin-top:10px;padding-top:9px;border-top:1px solid var(--border);
@@ -1264,6 +1266,7 @@ def({
 def({
   id:"relax", name:"Constraint relaxation", group:"Constraint handling", tier:"recommended", intro:2,
   sub:"ordered ladder, bounded passes", lat:[5,20], conditional:true, cx:3, caps:["recovery"],
+  conditionalOn:"Runs only when the sufficiency check reports too few candidates, at one retrieval round trip per pass.",
   handles:["geo","price"],
   purpose:"A bounded, ordered ladder that gives up one constraint category per pass and re-runs retrieval, rather than failing an over-constrained query.",
   decisions:[{
@@ -1289,6 +1292,7 @@ def({
 def({
   id:"zerofallback", name:"Zero-result fallback", group:"Constraint handling", tier:"recommended", intro:2,
   sub:"drop hard filters, semantic-only, suggestions", lat:[10,40], conditional:true, cx:2, caps:["recovery"],
+  conditionalOn:"Runs only when the relaxation ladder is exhausted and the query would otherwise return nothing.",
   purpose:"A distinct retrieval mode for when the ladder is exhausted: drop the hard predicate entirely, retrieve semantically, and offer spelling and relaxation suggestions.",
   decisions:[{
     q:"Where does the fallback re-enter the pipeline?",
@@ -1669,6 +1673,7 @@ def({
 def({
   id:"vlmrerank", name:"VLM rerank", group:"Reranking", tier:"optional", intro:3,
   sub:"query vs document images, top-M only", lat:[80,500], conditional:true, cx:4, model:true,
+  conditionalOn:"Runs over the top 10\u201320 candidates only, at 80\u2013500 ms per call.",
   caps:["visual"], handles:["fireplace","waterfront"],
   purpose:"A vision-language model judging the query against the document's actual images. The only component that can verify a fine visual claim rather than approximate it.",
   decisions:[{
@@ -2351,6 +2356,16 @@ const GATE_KINDS = Object.freeze({
 });
 
 /* Latency, not execution: orthogonal to whether a gate lets the stage run. */
+/* Gating and cost are orthogonal, so their sentences compose the same way:
+   a per-stage trigger, then the one consequence that holds for all of them.
+   For a gate that suffix names the decider; here it names the budget, which
+   is what `conditional` actually drives \u2014 see budget(). */
+const CONDITIONAL_BUDGET_NOTE = "Counted outside the headline latency budget.";
+
+function conditionalSentence(s){
+  return s.conditionalOn+" "+CONDITIONAL_BUDGET_NOTE;
+}
+
 const CONDITIONAL_NOTE =
   "Cost varies with how much work this stage does on the requests where it runs.";
 
@@ -2814,6 +2829,17 @@ function validateRelationshipModel(){
     if(!Object.keys(spec.conditions).length) throw new Error("Gate kind declares no condition: "+kind);
     if(spec.decidedBy) requireComponent(spec.decidedBy,"gate decider");
   });
+  /* A conditional stage leaves the headline budget, so it owes the reader a
+     reason. An orphan trigger means the flag was removed and the prose left. */
+  Object.values(S).forEach(s=>{
+    if(s.conditional && !s.conditionalOn){
+      throw new Error("Conditional stage declares no trigger: "+s.id);
+    }
+    if(!s.conditional && s.conditionalOn){
+      throw new Error("Trigger declared on a non-conditional stage: "+s.id);
+    }
+  });
+
   Object.entries(GATED_EXECUTION).forEach(([id,gate])=>{
     requireComponent(id,"gated execution");
     if(!Number.isInteger(gate.from) || !TPL[gate.from] || !gate.label){
@@ -4398,6 +4424,8 @@ function showHover(el, id){
          rail colour still separates request gates from deployment ones. */
       (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'"><b>'+gate.label+
         ' gate</b> \u2014 '+gateSentence(gate)+'</p>' : "")+
+      (s.conditional ? '<p class="hc-gate hc-condline"><b>Conditional</b> \u2014 '+
+        conditionalSentence(s)+'</p>' : "")+
       '<p class="hc-desc">'+s.purpose+'</p>'+
       (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
       hoverRelations(id)+
