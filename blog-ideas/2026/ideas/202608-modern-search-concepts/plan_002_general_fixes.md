@@ -13,7 +13,7 @@ item already listed in `TODO.md`.
 
 | Phase | Title                                                 | Status      | Priority | Risk   |
 | ----: | ----------------------------------------------------- | ----------- | -------- | ------ |
-|     0 | Baseline measurements and regression guard            | Not started | Blocking | Low    |
+|     0 | Baseline measurements and regression guard            | Complete    | Blocking | Low    |
 |     1 | Fix sticky header, context bar, and sidebar geometry  | Not started | High     | Low    |
 |     2 | Make the detail drawer non-modal and keyboard-correct | Not started | High     | Medium |
 |     3 | Complete focus mode: dim wires, navigate to hits      | Not started | High     | Low    |
@@ -27,8 +27,10 @@ item already listed in `TODO.md`.
 |    11 | Copy, naming, and cross-view continuity               | Not started | Low      | Low    |
 |    12 | Verification matrix                                   | Not started | Ongoing  | Low    |
 
-Nothing in this plan is implemented yet. Phase 0 is blocking because Phases 1, 4, 5, and 7 all
-move layout, and without recorded baselines there is no way to tell a fix from a regression.
+Phase 0 is complete: `window.dependencyDiagnostics.layout()` and `.layoutSweep()` now reproduce
+every number below on demand. Phases 1 to 12 are not started. Phase 0 was blocking because
+Phases 1, 4, 5, and 7 all move layout, and without recorded baselines there is no way to tell a
+fix from a regression.
 
 Recommended landing order: 0, 1, 3, 2, 4, 5, then the rest by priority. Phase 3 before Phase 2
 because Phase 3 is a small, self-contained win that Phase 2's larger interaction change benefits
@@ -36,38 +38,110 @@ from being able to lean on.
 
 ## Phase 0 — Baseline measurements and regression guard
 
-**Status: Not started**
+**Status: Complete — 2026-08-24**
 
-Record the current state before touching layout, in the same spirit as `plan_001` Phase 0.
+Implemented in the `LAYOUT DIAGNOSTICS` section of `search-query-pipeline-diagram-tool.html`,
+which also becomes the single definition site for `window.dependencyDiagnostics` (the earlier
+export next to the validators moved here so the object is frozen once, with everything on it).
 
-Measured on 2026-08-24 at 1600x1000, Full surface, data sources shown:
+Two new entry points, both measurement-only:
 
-| Measure                      |  Value |
-| ---------------------------- | -----: |
-| Document scroll height       | 3832px |
-| Viewport height              | 1000px |
-| Sidebar scroll height        | 3245px |
-| Sidebar visible height       |  947px |
-| Node cards                   |     38 |
-| Diagram rows                 |     22 |
-| Rendered wire paths          |     65 |
-| Relationship types in legend |      9 |
-| Capability chips             |     16 |
+- `dependencyDiagnostics.layout(scrollY)` — one snapshot of the live page at the given scroll
+  offset, restoring the offset afterwards. Returns the active level and data-source setting,
+  viewport, document height, sidebar scroll and client heights, counts (nodes, data-source
+  nodes, rows, wire paths, legend relationship types, capability chips), the bounding boxes of
+  `.hdr` / `.ctxbar` / `.side`, the derived overlaps between those sticky layers, and every
+  sidebar label currently clipped by its container.
+- `dependencyDiagnostics.layoutSweep(scrollY)` — the same snapshot across all six level and
+  data-source combinations at the current window width, then restores the level, data-source
+  setting, and focus it borrowed. It calls `drawWires()` synchronously because the render path
+  defers wires to the next frame, so a naive sweep would measure stale counts.
 
-Sidebar scroll height at Core + recommended with sources hidden: 2500px.
+Overlaps are reported as pixels of a lower sticky layer hidden behind the one above it, so
+Phase 1 has a number to drive to zero rather than a screenshot to argue about.
 
-Work:
+### Wide desktop — 1600x1000, measured at scroll offset 800
 
-- Extend `window.dependencyDiagnostics` with a `layout()` reporter returning document height,
-  sidebar scroll height, node count, wire count, and the bounding rectangles of `.hdr`,
-  `.ctxbar`, and `.side` at a given scroll offset.
-- Capture the table above for all six template/source combinations at wide desktop,
-  constrained desktop, and narrow widths.
-- Record which sidebar list entries currently overflow their container, so Phase 4 can assert
-  the set is empty afterwards.
+| Level | Sources | Document | Sidebar scroll / visible | Nodes | Source nodes | Rows | Wires |
+| ----- | ------- | -------: | -----------------------: | ----: | -----------: | ---: | ----: |
+| 1     | off     |   1240px |                1909/947px |     9 |            0 |    8 |    17 |
+| 1     | on      |   1395px |                1909/947px |     9 |            3 |    8 |    20 |
+| 2     | off     |   2446px |                2500/947px |    23 |            0 |   16 |    34 |
+| 2     | on      |   2627px |                2500/947px |    23 |            4 |   16 |    38 |
+| 3     | off     |   3437px |                3245/947px |    38 |            0 |   22 |    57 |
+| 3     | on      |   3832px |                3245/947px |    38 |            7 |   22 |    65 |
 
-**Acceptance criteria:** A single diagnostics call reproduces every number in this phase, and
-the same call can be run after each later phase to produce a comparable table.
+Relationship types in the legend (9) and capability chips (16) are constant across all six.
+
+Sticky geometry is identical in all six combinations: `.hdr` occupies [0, 62], `.ctxbar`
+[53, 160], `.side` [53, 1000]. That yields **9px of context bar behind the header** and
+**107px of sidebar behind the context bar** — the sidebar heading "Estimated budget" and the
+p95 value are unreachable at any scroll offset. This is the defect Phase 1 fixes.
+
+### Constrained desktop — 1100x1000, measured at scroll offset 800
+
+| Level | Sources | Document | Sidebar scroll / visible | Wires |
+| ----- | ------- | -------: | -----------------------: | ----: |
+| 1     | off     |   2718px |               1441/1441px |    17 |
+| 1     | on      |   2873px |               1441/1441px |    20 |
+| 2     | off     |   4517px |               1980/1980px |    34 |
+| 2     | on      |   4643px |               1980/1980px |    38 |
+| 3     | off     |   6236px |               2586/2586px |    57 |
+| 3     | on      |   6535px |               2586/2586px |    65 |
+
+Below the 1180px breakpoint the sidebar stops being a scroll container — scroll height equals
+client height — and the document nearly doubles: 6535px against 3832px for the same content.
+The overlaps grow rather than shrink: 9px and **142px**, because the context bar wraps taller
+while `.side` keeps its hardcoded `top:53px`.
+
+### Narrow — 390x844, measured at scroll offset 800
+
+| Level | Sources | Document | Sidebar height | Wires | Sidebar top |
+| ----- | ------- | -------: | -------------: | ----: | ----------: |
+| 1     | off     |   3583px |         1729px |     0 |      1054px |
+| 1     | on      |   3946px |         1729px |     0 |      1417px |
+| 2     | off     |   6100px |         2284px |     0 |      3015px |
+| 2     | on      |   6609px |         2284px |     0 |      3524px |
+| 3     | off     |   8943px |         2950px |     0 |      5193px |
+| 3     | on      |   9814px |         2950px |     0 |      6063px |
+
+Wires are zero by design — `drawWires()` bails below 700px and the textual mobile-transition
+cards take over. Sticky overlaps are zero because sticky positioning is off at this width.
+
+"Sidebar top" is the distance from the viewport top at scroll offset 800, so at Full surface
+with sources shown the level switch, data-source toggle, and component list first become
+visible **6863px into a 9814px document**. That is the number Phase 9 has to move.
+
+### Clipped sidebar labels
+
+Only two entries currently overflow, both at Full surface on wide desktop, both in the
+component list at a 176px container:
+
+| Label                            | Content width | Container |
+| -------------------------------- | ------------: | --------: |
+| Image-to-image vector retrieval   |         180px |     176px |
+| Multi-vector / passage retrieval  |         178px |     176px |
+
+Neither appears at 1100px, where the sidebar is wider. Phase 4 asserts `clippedLabels` is
+empty at every width.
+
+**Acceptance criteria:** met. `dependencyDiagnostics.layoutSweep(800)` at 1600x1000 reproduces
+every number in the wide-desktop table, the overlap pair, and the clipped-label list; the same
+call at any width produces a comparable table after each later phase.
+
+**Verification:** existing `validation` and `modelValidation` results are unchanged
+(9/12, 31/35, 79/87 hidden/shown logical edges), the console is clean, and a sweep followed by
+a screenshot confirms the page returns to Core with sources hidden — the sweep leaves no trace.
+
+**Discoveries:**
+
+1. The constrained-desktop layout is worse than the wide one on every axis measured, not just
+   narrower. Phase 4 should treat 1100px as the design target rather than an afterthought.
+2. The sticky overlap is width-dependent (107px against 142px), which rules out simply
+   correcting the `top` constant to a second hardcoded number. Phase 1 needs the measured
+   `--hdr-h` / `--ctx-h` approach.
+3. Clipped labels are far rarer than expected — two entries, both by under 5px. Phase 4's
+   truncation work is small; its real content is the sidebar's 3245px length.
 
 ## Phase 1 — Fix sticky header, context bar, and sidebar geometry
 

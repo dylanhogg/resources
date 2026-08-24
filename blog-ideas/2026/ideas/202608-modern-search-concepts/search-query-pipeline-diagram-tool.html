@@ -2994,12 +2994,6 @@ function validateRelationshipModel(){
 
 const DEPENDENCY_BASELINE_RESULT = validateDependencyBaseline();
 const RELATIONSHIP_MODEL_RESULT = validateRelationshipModel();
-window.dependencyDiagnostics = Object.freeze({
-  inventory:(templateId,showServing=false,disabledIds=[])=>
-    logicalDependencies(templateId,{showServing,off:new Set(disabledIds)}),
-  validation:DEPENDENCY_BASELINE_RESULT,
-  modelValidation:RELATIONSHIP_MODEL_RESULT
-});
 
 /* components that cannot exist without a parent */
 const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency", imageimagevec:"q-image" };
@@ -4641,6 +4635,100 @@ window.addEventListener("resize", ()=>{
   else rt=setTimeout(drawWires,90);
 });
 if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=> setTimeout(drawWires,50));
+
+/* =======================================================================
+   LAYOUT DIAGNOSTICS
+   A repeatable snapshot of the geometry that later layout work is allowed
+   to move. Measurement only: every helper puts back the scroll offset and
+   the pipeline state it borrowed.
+   ======================================================================= */
+
+/* Sticky layers that share one column of screen space and must not cover
+   one another. */
+const LAYOUT_LAYERS = {header:".hdr", context:".ctxbar", sidebar:".side"};
+
+/* Sidebar labels held to a single line, so an overflow here is a clipped
+   name rather than a wrap. */
+const FITTED_LABELS = "#compList .nm, #caps .cap, #focusList .ref";
+
+const layoutBox = el => {
+  if(!el) return null;
+  const r = el.getBoundingClientRect();
+  return {top:Math.round(r.top), bottom:Math.round(r.bottom), left:Math.round(r.left),
+          width:Math.round(r.width), height:Math.round(r.height)};
+};
+
+/* Pixels of the lower layer hidden behind the one above it. Zero is the
+   goal; anything higher is content the reader cannot reach by scrolling. */
+function layerOverlaps({header,context,sidebar}){
+  const covered = (over,under) => over && under
+    ? Math.max(0, Math.round(Math.min(over.bottom,under.bottom) - Math.max(over.top,under.top)))
+    : null;
+  return {contextUnderHeader:covered(header,context),
+          sidebarUnderContext:covered(context,sidebar)};
+}
+
+function clippedLabels(){
+  return $$(FITTED_LABELS)
+    .filter(el=>el.scrollWidth > el.clientWidth)
+    .map(el=>({text:el.textContent.trim(), clientWidth:el.clientWidth, scrollWidth:el.scrollWidth}));
+}
+
+/* One measurement of the live page, taken at the given scroll offset
+   because the sticky layers only stack once the page has moved. */
+function layoutReport(scrollY = window.scrollY){
+  const resume = window.scrollY;
+  window.scrollTo(0,scrollY);
+  const side = $(".side");
+  const layers = Object.fromEntries(Object.entries(LAYOUT_LAYERS)
+    .map(([name,selector])=>[name,layoutBox($(selector))]));
+  const report = {
+    template:state.tpl, templateName:TPL[state.tpl].name,
+    dataSources:state.showServing, narrow:isNarrowLayout(),
+    viewport:{width:window.innerWidth, height:window.innerHeight},
+    scrollY:Math.round(window.scrollY),
+    documentHeight:Math.round(document.documentElement.scrollHeight),
+    sidebar:{scrollHeight:side.scrollHeight, clientHeight:side.clientHeight},
+    counts:{
+      nodes:$$(".node",rowsEl).length,
+      dataSourceNodes:$$(".data-source-node",rowsEl).length,
+      rows:$$(".row",rowsEl).length,
+      wires:$$("path",wires).length,
+      relationTypes:$$("#relationLegend [data-relation-kind]").length,
+      capabilities:$$("#caps .cap").length
+    },
+    layers, overlaps:layerOverlaps(layers),
+    clippedLabels:clippedLabels()
+  };
+  window.scrollTo(0,resume);
+  return report;
+}
+
+/* Every level crossed with every data-source setting, at whatever width
+   the window currently has. Wires are drawn synchronously here because
+   the render path defers them to the next frame. */
+function layoutSweep(scrollY = 0){
+  const resume = {tpl:state.tpl, showServing:state.showServing, focus:state.focus};
+  const settle = ()=>{ renderAll(); drawWires(); };
+  const combinations = [];
+  [1,2,3].forEach(tpl=>[false,true].forEach(showServing=>{
+    Object.assign(state,{tpl,showServing});
+    settle();
+    combinations.push(layoutReport(scrollY));
+  }));
+  Object.assign(state,resume);
+  settle();
+  return {viewport:{width:window.innerWidth, height:window.innerHeight}, combinations};
+}
+
+window.dependencyDiagnostics = Object.freeze({
+  inventory:(templateId,showServing=false,disabledIds=[])=>
+    logicalDependencies(templateId,{showServing,off:new Set(disabledIds)}),
+  validation:DEPENDENCY_BASELINE_RESULT,
+  modelValidation:RELATIONSHIP_MODEL_RESULT,
+  layout:layoutReport,
+  layoutSweep
+});
 
 renderRelationLegend();
 renderBuild();
