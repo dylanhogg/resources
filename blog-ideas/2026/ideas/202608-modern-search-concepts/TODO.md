@@ -4,6 +4,7 @@ Note: this list is for humans, not for AI agents.
 
 ## Minor fixes
 
+- Is the conditional tag required given gate tags?
 - Only show line labels on highlighting a source or target node for that line.
 - Hover over (or click?) a line pops up a tooltip with the line label, source and target node labels, and short description of the relationship.
 - Separate html from datasructures?

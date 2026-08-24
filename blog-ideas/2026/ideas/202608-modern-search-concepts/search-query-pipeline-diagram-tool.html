@@ -461,10 +461,14 @@ a{color:var(--accent)}
 /* ---------- hover preview ---------- */
 .hovercard{
   position:fixed;z-index:80;width:390px;max-width:calc(100vw - 24px);
-  background:var(--surface);background:color-mix(in srgb,var(--surface) 88%,transparent);
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  background:var(--surface);background:color-mix(in srgb,var(--surface) 72%,transparent);
+  backdrop-filter:blur(5px) saturate(1.4);-webkit-backdrop-filter:blur(5px) saturate(1.4);
   border:1px solid var(--border-strong);border-radius:11px;
-  box-shadow:var(--shadow-lg);padding:12px 13px;pointer-events:none
+  box-shadow:var(--shadow-lg);padding:12px 13px;pointer-events:none;
+  max-height:calc(100vh - 16px);overflow:hidden
+}
+.hovercard .hc-title{
+  font-size:13px;font-weight:700;line-height:1.3;color:var(--text);margin-bottom:7px
 }
 .hovercard .hc-top{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:9px}
 .hovercard .hc-pill{
@@ -472,15 +476,26 @@ a{color:var(--accent)}
   border:1px solid var(--border);border-radius:6px;padding:2px 7px;white-space:nowrap
 }
 .hovercard .hc-group{text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
+.hovercard .hc-gatepill{
+  text-transform:uppercase;letter-spacing:.05em;color:var(--gate-color,var(--gate-request));
+  border-color:color-mix(in srgb,var(--gate-color,var(--gate-request)) 42%,var(--border))
+}
+.hovercard .hc-gatepill[data-gate-timing="deployment"]{border-style:dashed}
+.hovercard .hc-cond{text-transform:uppercase;letter-spacing:.05em;color:var(--warn)}
 .hovercard .hc-gate{
   margin:0 0 8px;font-size:11.5px;line-height:1.45;color:var(--text-2);
   border-left:3px solid var(--gate-color,var(--gate-request));padding-left:8px
 }
+.hovercard .hc-gate b{
+  font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text)
+}
 .hovercard .hc-desc{margin:0;font-size:12px;line-height:1.5;color:var(--text)}
-.hovercard .hc-ex,.hovercard .hc-notes{
+.hovercard .hc-ex,.hovercard .hc-notes,.hovercard .hc-rels{
   margin-top:10px;padding-top:9px;border-top:1px solid var(--border);
   font-size:11.5px;line-height:1.5;color:var(--text-2)
 }
+.hovercard .hc-rel+.hc-rel{margin-top:7px}
+.hovercard .hc-more{color:var(--text-3);font-style:italic}
 .hovercard .hc-notes ul{list-style:none;margin:0;padding:0}
 .hovercard .hc-notes li{margin-top:7px}
 .hovercard .hc-notes li:first-child{margin-top:0}
@@ -4302,6 +4317,32 @@ document.body.appendChild(hoverCard);
 let hoverTimer = null, hoverId = null;
 const finePointer = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
+/* The relationships worth previewing, in the order the card lists them. The
+   drawer renders these in full; here they collapse to names, because the card
+   is a preview of what is on the canvas rather than a reference page — hence
+   `scoped`, which drops components the current template does not draw. */
+const HOVER_RELATIONS = Object.freeze([
+  {label:"Served by",             pick:id=>RSERVING[id],      name:x=>DATA_SOURCES[x]?.name},
+  {label:RELATION_TYPES.steers.rev, pick:id=>RREL[id]?.steers, name:x=>S[x]?.name, scoped:true},
+  {label:RELATION_TYPES.steers.fwd, pick:id=>REL[id]?.steers,  name:x=>S[x]?.name, scoped:true}
+]);
+const HOVER_RELATION_LIMIT = 7;   // routing steers twelve stages; the drawer lists them all
+
+function hoverRelations(id){
+  const drawn = new Set(tplStages(state.tpl));
+  const rows = HOVER_RELATIONS.map(relation=>{
+    const names = (relation.pick(id) || [])
+      .filter(x => !relation.scoped || drawn.has(x))
+      .map(relation.name).filter(Boolean);
+    if(!names.length) return "";
+    const shown = names.slice(0,HOVER_RELATION_LIMIT).join(" \u00b7 ");
+    const rest  = names.length - HOVER_RELATION_LIMIT;
+    return '<div class="hc-rel"><span class="hc-lb">'+relation.label+'</span>'+shown+
+      (rest > 0 ? ' <span class="hc-more">+'+rest+' more</span>' : "")+'</div>';
+  }).join("");
+  return rows ? '<div class="hc-rels">'+rows+'</div>' : "";
+}
+
 function showHoverConnections(id){
   const connected = new Set(), connectedEdges = new Set();
   edgeList().forEach((edge,index)=>{
@@ -4339,6 +4380,7 @@ function showHover(el, id){
     if(drawer.classList.contains("open")) return;
     const consumers = activeConsumers(id);
     hoverCard.innerHTML =
+      '<div class="hc-title">'+source.name+'</div>'+
       '<div class="hc-top"><span class="hc-pill hc-group">Serving data</span>'+
         '<span class="hc-pill">'+consumers.length+' active '+(consumers.length===1?"consumer":"consumers")+'</span></div>'+
       '<p class="hc-desc">'+source.purpose+'</p>'+
@@ -4350,14 +4392,20 @@ function showHover(el, id){
     const gate = executionGate(id,state.tpl);
     const latency = s.lat[0]===s.lat[1] ? s.lat[0]+" ms" : s.lat[0]+"–"+s.lat[1]+" ms";
     hoverCard.innerHTML =
+      '<div class="hc-title">'+s.name+'</div>'+
       '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
         '<span class="hc-pill">p95 '+latency+'</span>'+
         '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
-        (gate ? '<span class="hc-pill">gate: '+gate.label+'</span>' : "")+'</div>'+
-      (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'">'+
+        (gate ? '<span class="hc-pill hc-gatepill" data-gate-timing="'+gate.timing+
+          '" style="--gate-color:'+gate.color+'">Gate: '+gate.label+'</span>' : "")+
+        /* Orthogonal to the gate, exactly as on the node card: when a stage
+           runs, and what it costs on the requests where it does. */
+        (s.conditional ? '<span class="hc-pill hc-cond">Conditional</span>' : "")+'</div>'+
+      (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'"><b>'+gate.label+'</b> \u2014 '+
         gateSentence(gate)+'</p>' : "")+
       '<p class="hc-desc">'+s.purpose+'</p>'+
       (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
+      hoverRelations(id)+
       (s.notes && s.notes.length ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+
         s.notes.map(n=>'<li>'+n+'</li>').join("")+'</ul></div>' : "");
   }
