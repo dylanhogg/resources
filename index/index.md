@@ -5,10 +5,14 @@ title: Index
 
 # Index
 
-{% assign pages = site.pages | sort: "path" %}
+## Pages
 
-{% for p in pages %}
-  {% if p.ext == ".md" and p.path != "index/index.md" %}
-- [{{ p.path | remove: ".md" }}]({{ p.url | relative_url }})
-  {% endif %}
+{% for p in site.pages %}
+- `{{ p.path }}` → `{{ p.url }}`
+{% endfor %}
+
+## Static files
+
+{% for f in site.static_files %}
+- `{{ f.path }}`
 {% endfor %}
