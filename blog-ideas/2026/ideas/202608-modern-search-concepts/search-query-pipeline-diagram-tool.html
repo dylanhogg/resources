@@ -18,7 +18,9 @@
   --rec-bg:#dcfce7; --rec-line:#15803d; --rec-text:#12351f;
   --opt-bg:#ede9fe; --opt-line:#6d28d9; --opt-text:#2b1a52;
   --ctrl-bg:#e8ecf2; --ctrl-line:#64748b; --ctrl-text:#27303f;
-  --wire:#94a1b3; --wire-loop:#c2704a; --wire-ctrl:#8b93a5; --wire-train:#0f766e; --wire-data:#68778d;
+  --wire:#6f7d92; --wire-gate:#2563b8; --wire-loop:#b85f36; --wire-ctrl:#667085;
+  --gate-request:var(--wire-gate); --gate-config:#7a8496;
+  --wire-feed:#7c3aed; --wire-train:#0f766e; --wire-update:#be185d; --wire-data:#53657d;
   --data-bg:#f7f9fc; --data-line:#7b8798; --data-text:#344054;
   --warn:#b45309; --warn-bg:#fef3c7;
   --ok:#15803d;
@@ -37,7 +39,9 @@
       --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
       --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
       --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-      --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf; --wire-data:#91a0b5;
+      --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
+      --gate-config:#93a0b5;
+      --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
       --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
       --warn:#e0a94a; --warn-bg:#332a17;
       --ok:#4ea96e;
@@ -54,7 +58,9 @@
   --rec-bg:#12331f; --rec-line:#4ea96e; --rec-text:#cdf0d8;
   --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
   --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
-  --wire:#5a6577; --wire-loop:#c98763; --wire-ctrl:#4e586a; --wire-train:#2dd4bf; --wire-data:#91a0b5;
+  --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
+  --gate-config:#93a0b5;
+  --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
   --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
   --warn:#e0a94a; --warn-bg:#332a17;
   --ok:#4ea96e;
@@ -102,6 +108,7 @@ a{color:var(--accent)}
 }
 .seg{display:inline-flex;background:var(--surface-2);padding:3px;border-radius:9px;border:1px solid var(--border)}
 .seg button{
+  position:relative;
   border:0;background:transparent;padding:7px 16px;border-radius:7px;font-size:13px;
   font-weight:500;color:var(--text-2);display:flex;align-items:center;gap:8px;white-space:nowrap
 }
@@ -111,9 +118,27 @@ a{color:var(--accent)}
 }
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
 .seg button[aria-pressed="true"] .n{background:var(--accent);color:#fff}
+.tpl-tip{
+  position:absolute;top:calc(100% + 9px);left:50%;z-index:50;width:340px;max-width:calc(100vw - 40px);
+  padding:10px 12px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);
+  box-shadow:var(--shadow-lg);color:var(--text-2);font-size:12px;font-weight:400;line-height:1.45;
+  text-align:left;white-space:normal;pointer-events:none;visibility:hidden;opacity:0;
+  transform:translate(-50%,-3px);transition:opacity .12s,transform .12s,visibility .12s
+}
+.tpl-tip b{color:var(--text);font-weight:650}
+.tpl-tip::before{
+  content:"";position:absolute;top:-5px;left:50%;width:9px;height:9px;background:var(--surface);
+  border-left:1px solid var(--border-strong);border-top:1px solid var(--border-strong);transform:translateX(-50%) rotate(45deg)
+}
+.seg button[data-tpl="1"] .tpl-tip{left:0;transform:translateY(-3px)}
+.seg button[data-tpl="1"] .tpl-tip::before{left:25px}
+.seg button[data-tpl="3"] .tpl-tip{left:auto;right:0;transform:translateY(-3px)}
+.seg button[data-tpl="3"] .tpl-tip::before{left:auto;right:25px;transform:rotate(45deg)}
+.seg button:hover .tpl-tip,.seg button:focus-visible .tpl-tip{visibility:visible;opacity:1}
+.seg button[data-tpl="2"]:hover .tpl-tip,.seg button[data-tpl="2"]:focus-visible .tpl-tip{transform:translate(-50%,0)}
+.seg button[data-tpl="1"]:hover .tpl-tip,.seg button[data-tpl="1"]:focus-visible .tpl-tip,
+.seg button[data-tpl="3"]:hover .tpl-tip,.seg button[data-tpl="3"]:focus-visible .tpl-tip{transform:translateY(0)}
 .ctx-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.ctx-desc{font-size:12.5px;color:var(--text-2);max-width:56ch}
-.ctx-desc b{color:var(--text);font-weight:600}
 .pill{
   display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;
   padding:4px 9px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-2)
@@ -140,7 +165,7 @@ a{color:var(--accent)}
   position:sticky;top:53px;max-height:calc(100vh - 53px);overflow-y:auto;
   border-right:1px solid var(--border);background:var(--surface);padding:16px 14px 60px
 }
-.stage-area{padding:26px 20px 120px;min-width:0}
+.stage-area{padding:26px 36px 120px 20px;min-width:0}
 
 /* ---------- sidebar panels ---------- */
 .panel{margin-bottom:18px}
@@ -166,7 +191,29 @@ a{color:var(--accent)}
 .legendrow button:hover{background:var(--surface-2);color:var(--text)}
 .legendrow button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 .legendrow i{width:8px;height:8px;border-radius:2px;display:inline-block}
-.legendrow i.wkey{width:16px;height:0;border-radius:0}
+.legendrow i.data-key{width:10px;border:1px solid var(--data-line);border-radius:50% / 24%;background:var(--data-bg)}
+.legend-label{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-top:8px}
+.gate-legend{display:grid;gap:5px;margin-top:6px}
+.gate-legend button{
+  display:grid;grid-template-columns:1fr auto;gap:5px 7px;align-items:center;width:100%;
+  text-align:left;border:1px solid var(--border);background:var(--surface);
+  border-radius:8px;padding:6px 8px
+}
+.gate-legend button:hover{border-color:var(--accent)}
+.gate-legend button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.gate-legend .gk-chip{
+  justify-self:start;font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  border:1px solid var(--gate-color);color:var(--gate-color);background:var(--surface);
+  border-radius:20px;padding:1px 6px
+}
+.gate-legend button[data-gate-timing="deployment"] .gk-chip{border-style:dashed;font-weight:650}
+.gate-legend .gk-count{
+  font-size:9.5px;font-weight:700;color:var(--text-3);font-variant-numeric:tabular-nums
+}
+.gate-legend .gk-desc{grid-column:1/-1;font-size:10.5px;line-height:1.4;color:var(--text-3)}
+.relation-legend{display:grid;grid-template-columns:1fr;gap:5px;margin-top:5px}
+.relation-legend span{gap:7px;color:var(--text-2)}
+.relation-key{width:44px;height:10px;flex:none;overflow:visible}
 
 .caps{display:flex;flex-wrap:wrap;gap:5px}
 .cap{
@@ -226,47 +273,56 @@ a{color:var(--accent)}
 }
 .btn-ghost:hover{background:var(--surface-2);color:var(--text)}
 .dep-toggle{
-  width:100%;display:flex;align-items:center;gap:9px;margin-top:12px;padding:9px 10px;
-  border:1px solid var(--border);border-radius:9px;background:var(--surface);text-align:left
+  display:inline-flex;align-items:center;gap:8px;padding:7px 10px;
+  border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);
+  font-size:11.5px;font-weight:600;white-space:nowrap
 }
 .dep-toggle:hover{border-color:var(--border-strong);background:var(--surface-2)}
 .dep-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.dep-toggle .dep-copy{display:flex;flex-direction:column;min-width:0}
-.dep-toggle .dep-name{font-size:11.5px;font-weight:600;color:var(--text)}
-.dep-toggle .dep-count{font-size:10.5px;color:var(--text-3)}
 .dep-toggle .dep-sw{
-  width:30px;height:18px;margin-left:auto;border-radius:20px;background:var(--surface-3);
+  width:30px;height:18px;border-radius:20px;background:var(--surface-3);
   position:relative;flex:none;transition:background .15s
 }
 .dep-toggle .dep-sw::after{
   content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;
   background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.28);transition:transform .15s
 }
-.dep-toggle[aria-pressed="true"]{border-color:var(--data-line);background:var(--data-bg)}
-.dep-toggle[aria-pressed="true"] .dep-sw{background:var(--data-line)}
+.dep-toggle[aria-pressed="true"]{border-color:var(--rec-line);background:var(--rec-bg);color:var(--rec-text)}
+.dep-toggle[aria-pressed="true"] .dep-sw{background:var(--ok)}
 .dep-toggle[aria-pressed="true"] .dep-sw::after{transform:translateX(12px)}
 
 /* ---------- canvas ---------- */
-.canvas{position:relative;padding-left:118px}
+.canvas{--left-spine-gap:154px;position:relative;padding-left:118px}
 .wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0}
 .row{
-  position:relative;display:grid;
+  position:relative;display:grid;container-type:inline-size;
   grid-template-columns:minmax(0,128px) minmax(0,1fr) minmax(0,176px);
   gap:12px;align-items:center;margin-bottom:34px;z-index:1
 }
 .row .cell{display:flex;gap:11px;flex-wrap:wrap;min-width:0}
-.row .cell.center{justify-content:center}
+.row .cell.center{justify-content:center;column-gap:17px;row-gap:14px}
 .row .cell.center > .node{flex:1 1 154px}
-.row .cell.left{justify-content:flex-end}
-.row .cell.right{justify-content:flex-start}
-.row .cell.with-serving{display:block}
-.node-cluster{display:flex;gap:11px;flex-wrap:wrap;justify-content:center;min-width:0}
-.node-cluster > .node{flex:1 1 154px}
-.lane{
-  position:absolute;left:-114px;top:-9px;font-size:9.5px;font-weight:700;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--text-3);writing-mode:vertical-rl;transform:rotate(180deg);
-  max-height:120px
+.row.parallel-row .cell.center{
+  box-sizing:border-box;padding:16px 88px 16px 20px
 }
+.row .cell.left{
+  justify-content:flex-end;
+  transform:translateX(max(-80px,calc(50cqw - 277px - var(--left-spine-gap))))
+}
+.row .cell.left > .node{width:250px;min-width:250px;max-width:250px}
+.row .cell.right{justify-content:flex-start}
+.canvas.with-data-sources .row{
+  grid-template-columns:minmax(0,206px) minmax(0,154px) 80px minmax(0,1fr) minmax(0,176px);
+  width:calc(100% + 118px);margin-left:-118px
+}
+.canvas.with-data-sources .cell.data{grid-column:1;align-self:stretch;justify-content:flex-start}
+.canvas.with-data-sources .cell.left{
+  grid-column:2;
+  transform:translateX(max(-80px,calc(50cqw - 353px - var(--left-spine-gap))))
+}
+.canvas.with-data-sources .cell.center{grid-column:4}
+.canvas.with-data-sources .cell.right{grid-column:5}
+.canvas.with-data-sources .cell:empty{display:none}
 
 /* ---------- node ---------- */
 .node{
@@ -284,6 +340,18 @@ a{color:var(--accent)}
   font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
   border:1px solid var(--warn);color:var(--warn);border-radius:20px;padding:1px 6px
 }
+.node .gatechip{
+  font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  border:1px solid var(--gate-color,var(--gate-request));color:var(--gate-color,var(--gate-request));
+  background:var(--surface);border-radius:20px;padding:1px 6px
+}
+/* A deployment gate is standing configuration, not a per-query decision.
+   Muted and dashed so the two kinds separate before the label is read. */
+.node[data-gate-timing="deployment"] .gatechip{border-style:dashed;font-weight:650}
+.node .altchip{
+  font-size:9px;font-weight:650;letter-spacing:.025em;text-transform:uppercase;
+  border:1px dashed currentColor;color:var(--text-3);border-radius:20px;padding:1px 6px
+}
 .node.core{background:var(--core-bg);border-color:var(--core-line);color:var(--core-text)}
 .node.core .sb{color:var(--core-text);opacity:.72}
 .node.recommended{background:var(--rec-bg);border-color:var(--rec-line);color:var(--rec-text)}
@@ -292,6 +360,8 @@ a{color:var(--accent)}
 .node.optional .sb{color:var(--opt-text);opacity:.72}
 .node.control{background:var(--ctrl-bg);border-color:var(--ctrl-line);border-style:dashed;color:var(--ctrl-text);min-width:150px;max-width:200px}
 .node.control .sb{color:var(--ctrl-text);opacity:.72}
+.node.gated{box-shadow:inset 4px 0 var(--gate-color,var(--gate-request)),var(--shadow)}
+.node.gated:hover{box-shadow:inset 4px 0 var(--gate-color,var(--gate-request)),0 3px 6px rgba(16,23,37,.10),0 10px 22px rgba(16,23,37,.10)}
 .node.decision{border-radius:22px}
 .node.io{min-width:132px;text-align:center}
 .node.io .nm{font-size:12px}
@@ -303,46 +373,47 @@ a{color:var(--accent)}
   opacity:.88;transform:translateY(-1px);
   box-shadow:0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)
 }
+.node.gated.hover-connected:not(.off){box-shadow:inset 4px 0 var(--gate-color,var(--gate-request)),0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)}
 .wires path.hover-connected{stroke-width:2.2!important;opacity:1!important}
 .node[data-id="assembly"]{text-align:left}
 
+/* ---------- narrow-screen dependency representation ---------- */
+.mobile-dependency-intro,.mobile-transition,.mobile-recovery,
+.mobile-stage-marker,.mobile-selection,.mobile-dep-chips{display:none}
+.mobile-connected:not(.off){outline:2px solid var(--accent-soft);outline-offset:2px}
+
 /* ---------- serving dependencies ---------- */
-.serving-layer{
-  position:relative;width:fit-content;max-width:100%;margin:17px auto 0;
-  padding:30px 10px 10px;border:1px dashed var(--data-line);
-  border-radius:11px;background:color-mix(in srgb,var(--data-bg) 88%,transparent)
+.data-source-column{
+  display:flex;flex-direction:column;justify-content:center;gap:9px;width:206px;max-width:100%;min-width:0
 }
-.serving-layer::before{
-  content:"Serving data plane";position:absolute;top:8px;left:11px;font-size:9px;font-weight:700;
-  letter-spacing:.08em;text-transform:uppercase;color:var(--data-line)
-}
-.serving-layer .source-count{
-  position:absolute;top:7px;right:10px;font-size:9.5px;color:var(--text-3)
-}
-.source-grid{
-  display:grid;grid-template-columns:repeat(var(--source-cols,1),minmax(0,210px));
-  justify-content:center;width:fit-content;max-width:100%;gap:8px
-}
-.source-card{
+.data-source-node{
+  --source-line:var(--data-line);
   position:relative;display:flex;flex-direction:column;align-items:stretch;
-  width:100%;min-width:0;max-width:210px;padding:8px 9px;
-  border:1px solid var(--data-line);border-radius:8px;background:var(--data-bg);color:var(--data-text);
-  text-align:left;box-shadow:0 1px 2px rgba(16,23,37,.05);
+  width:100%;min-width:0;padding:17px 12px 12px;
+  border:1px solid var(--source-line);border-radius:50% / 13px;
+  background:var(--surface-2);color:var(--data-text);text-align:left;box-shadow:var(--shadow);
   transition:transform .12s,box-shadow .12s,opacity .18s,filter .18s
 }
-.source-card:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(16,23,37,.10)}
-.source-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.source-card .nm{font-size:11.5px;font-weight:600;line-height:1.3}
-.source-card .sb{font-size:10px;line-height:1.35;color:var(--text-3);margin-top:2px}
-.source-card .source-serves{font-size:9.5px;line-height:1.35;color:var(--data-line);margin-top:6px}
-.source-card .source-serves b{font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-.serving-layer[data-source-count="3"] .source-card:last-child{
-  grid-column:1/-1;justify-self:center;width:210px
+.data-source-node::before{
+  content:"";position:absolute;left:0;right:0;top:7px;height:11px;
+  border-bottom:1px solid var(--source-line);border-radius:50%;pointer-events:none;opacity:.72
 }
-.source-card.selected{outline:2px solid var(--accent);outline-offset:2px}
-.source-card.dimmed{opacity:.22}
-.source-card.hl{outline:2px solid var(--warn);outline-offset:2px}
-.source-card.hover-connected{
+.data-source-node:hover{transform:translateY(-1px);box-shadow:0 3px 6px rgba(16,23,37,.10),0 10px 22px rgba(16,23,37,.10)}
+.data-source-node:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.data-source-node .nm{font-size:11.5px;font-weight:600;line-height:1.3}
+.data-source-node .sb{font-size:9.5px;line-height:1.35;color:var(--text-3);margin-top:3px}
+.data-source-node .meta{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:7px}
+.data-plane-chip{
+  font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:1px 5px;border-radius:20px;border:1px solid currentColor;opacity:.72
+}
+.source-serves{font-size:9.5px;line-height:1.35;margin-top:7px;color:var(--data-line)}
+.source-serves b{font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.data-source-node.selected{outline:2px solid var(--accent);outline-offset:2px}
+.data-source-node.off{opacity:.32;filter:grayscale(.85)}
+.data-source-node.dimmed{opacity:.22}
+.data-source-node.hl{outline:2px solid var(--warn);outline-offset:2px}
+.data-source-node.hover-connected{
   opacity:.9;transform:translateY(-1px);
   box-shadow:0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)
 }
@@ -363,22 +434,41 @@ a{color:var(--accent)}
    .dimmed / .off and stop focus dimming from working on new nodes */
 @keyframes pop{0%{transform:scale(.92)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
 .node.isnew{animation:pop .38s ease-out}
-.node .offmark{position:absolute;inset:0;pointer-events:none;border-radius:var(--radius)}
-.node[data-on="0"] .offmark{
+.node .offmark,.data-source-node .offmark{position:absolute;inset:0;pointer-events:none}
+.node .offmark{border-radius:var(--radius)}
+.data-source-node .offmark{border-radius:50% / 13px}
+.node[data-on="0"] .offmark,.data-source-node[data-on="0"] .offmark{
   background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(125,135,152,.16) 6px 12px)
 }
 .elabel{
   position:absolute;z-index:2;transform:translate(-50%,-50%);
-  font-size:10px;font-weight:600;color:var(--text-3);background:var(--bg);
+  font-size:10px;font-weight:600;color:var(--line-label-color,var(--text-3));background:var(--bg);
   padding:1px 6px;border-radius:5px;white-space:nowrap;pointer-events:none
 }
-.elabel.loop{color:var(--wire-loop);transform:translate(0,-50%)}
+.stage-boundary{
+  position:absolute;z-index:0;border:1px dashed var(--wire-gate);border-radius:18px;
+  pointer-events:none;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wire-gate) 9%,transparent)
+}
+.stage-boundary .boundary-title,.stage-boundary .boundary-note{
+  position:absolute;left:14px;background:var(--surface);border:1px solid var(--wire-gate);
+  color:var(--wire-gate);border-radius:20px;padding:2px 8px;white-space:nowrap
+}
+.stage-boundary .boundary-title{
+  top:-12px;font-size:9px;font-weight:750;letter-spacing:.045em;text-transform:uppercase
+}
+.stage-boundary .boundary-note{bottom:-12px;font-size:9px;color:var(--text-2);border-color:var(--border)}
 
 /* ---------- hover preview ---------- */
 .hovercard{
   position:fixed;z-index:80;width:390px;max-width:calc(100vw - 24px);
-  background:var(--surface);border:1px solid var(--border-strong);border-radius:11px;
-  box-shadow:var(--shadow-lg);padding:12px 13px;pointer-events:none
+  background:var(--surface);background:color-mix(in srgb,var(--surface) 72%,transparent);
+  backdrop-filter:blur(5px) saturate(1.4);-webkit-backdrop-filter:blur(5px) saturate(1.4);
+  border:1px solid var(--border-strong);border-radius:11px;
+  box-shadow:var(--shadow-lg);padding:12px 13px;pointer-events:none;
+  max-height:calc(100vh - 16px);overflow:hidden
+}
+.hovercard .hc-title{
+  font-size:13px;font-weight:700;line-height:1.3;color:var(--text);margin-bottom:7px
 }
 .hovercard .hc-top{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:9px}
 .hovercard .hc-pill{
@@ -386,11 +476,21 @@ a{color:var(--accent)}
   border:1px solid var(--border);border-radius:6px;padding:2px 7px;white-space:nowrap
 }
 .hovercard .hc-group{text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
+.hovercard .hc-cond{text-transform:uppercase;letter-spacing:.05em;color:var(--warn)}
+.hovercard .hc-gate{
+  margin:0 0 8px;font-size:11.5px;line-height:1.45;color:var(--text-2);
+  border-left:3px solid var(--gate-color,var(--gate-request));padding-left:8px
+}
+.hovercard .hc-gate b{
+  font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text)
+}
 .hovercard .hc-desc{margin:0;font-size:12px;line-height:1.5;color:var(--text)}
-.hovercard .hc-ex,.hovercard .hc-notes{
+.hovercard .hc-ex,.hovercard .hc-notes,.hovercard .hc-rels{
   margin-top:10px;padding-top:9px;border-top:1px solid var(--border);
   font-size:11.5px;line-height:1.5;color:var(--text-2)
 }
+.hovercard .hc-rel+.hc-rel{margin-top:7px}
+.hovercard .hc-more{color:var(--text-3);font-style:italic}
 .hovercard .hc-notes ul{list-style:none;margin:0;padding:0}
 .hovercard .hc-notes li{margin-top:7px}
 .hovercard .hc-notes li:first-child{margin-top:0}
@@ -429,11 +529,20 @@ a{color:var(--accent)}
 .dh h2{font-size:17px;margin-bottom:5px;padding-right:26px}
 .dh .purpose{font-size:12.5px;color:var(--text-2)}
 .dh .chips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.dh .gate-note{
+  margin-top:11px;font-size:11.5px;line-height:1.5;color:var(--text-2);
+  border-left:3px solid var(--gate-color,var(--gate-request));padding-left:9px
+}
 .chip{
   font-size:11px;border:1px solid var(--border);border-radius:7px;padding:4px 8px;
   color:var(--text-2);background:var(--surface-2);display:inline-flex;gap:5px;align-items:center
 }
 .chip b{font-variant-numeric:tabular-nums;color:var(--text)}
+.chip .tagval{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+button.chip{cursor:pointer;font-family:inherit}
+button.chip:hover{border-color:var(--accent);color:var(--accent)}
+button.chip:hover b{color:var(--accent)}
+button.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .enable-btn{
   margin-left:auto;border:1px solid var(--border);background:var(--surface);border-radius:7px;
   padding:5px 10px;font-size:11.5px;font-weight:600;color:var(--text-2)
@@ -486,6 +595,7 @@ table.mini .met{color:var(--accent)}
 .ref{font-size:11px;border:1px solid var(--border);background:var(--surface-2);border-radius:6px;padding:4px 8px;color:var(--text-2)}
 .ref:hover{border-color:var(--accent);color:var(--accent)}
 .ref.isoff{opacity:.55;font-style:italic}
+.refdetail{display:block;margin-top:2px;font-size:9.5px;font-weight:500;color:var(--text-3)}
 .relnote{font-size:11.5px;color:var(--text-3);margin:0 0 8px;line-height:1.45}
 .reldep{
   font-size:11.5px;color:var(--text-2);background:var(--warn-bg);border-left:3px solid var(--warn);
@@ -562,6 +672,16 @@ table.mini .met{color:var(--accent)}
 @media (max-width:900px){
   .ctxbar{position:static}
   .side{top:0}
+  .canvas.with-data-sources .row{grid-template-columns:1fr;width:100%;margin-left:0}
+  .canvas.with-data-sources .cell.data,
+  .canvas.with-data-sources .cell.left,
+  .canvas.with-data-sources .cell.center,
+  .canvas.with-data-sources .cell.right{grid-column:1}
+  .canvas.with-data-sources .cell.left{transform:none}
+  .row.parallel-row .cell.center{padding-inline:54px}
+  .canvas.with-data-sources .data-source-column{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%
+  }
 }
 @media (max-width:700px){
   .hdr{position:static;padding:10px 14px;gap:10px}
@@ -569,27 +689,83 @@ table.mini .met{color:var(--accent)}
   .ctxbar{padding:12px 14px}
   .seg{display:flex;flex-wrap:wrap;width:100%}
   .seg button{flex:1 1 100%;justify-content:flex-start}
-  .ctx-desc{max-width:none}
   .app{grid-template-columns:1fr}
   .stage-area{order:1;padding:18px 14px 40px}
   .side{order:2;border-bottom:0;border-top:1px solid var(--border)}
   .canvas{padding-left:0}
-  .lane{display:none}
   .row{grid-template-columns:1fr;gap:10px;margin-bottom:26px;position:relative}
   .row .cell{justify-content:center!important}
+  .row .cell.left{transform:none}
+  .row .cell.left > .node{width:100%;min-width:0;max-width:none}
   .row .cell:empty{display:none}
   .row .cell.center > .node{flex:1 1 100%}
-  .node-cluster{display:grid;grid-template-columns:1fr;width:100%}
+  .row.parallel-row .cell.center{padding:0}
   .node{max-width:none;width:100%}
-  .serving-layer{margin-top:10px;padding:30px 9px 9px}
-  .source-grid{display:grid;grid-template-columns:1fr;width:100%}
-  .source-card{width:100%;min-width:0;max-width:none}
-  .serving-layer[data-source-count="3"] .source-card:last-child{grid-column:auto;width:100%}
+  .canvas.with-data-sources .data-source-column{display:flex;width:100%;gap:9px}
+  .data-source-node{width:100%;max-width:none;padding:17px 12px 12px}
+  .data-source-node .source-serves{display:none}
   .wires{display:none}
-  .row:not(:last-child)::after{
-    content:"";position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);
-    width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;
-    border-top:7px solid var(--wire)
+  .mobile-dependency-intro,.mobile-transition,.mobile-recovery,
+  .mobile-stage-marker,.mobile-selection,.mobile-dep-chips{display:flex}
+  .mobile-dependency-intro{
+    flex-direction:column;gap:8px;margin-bottom:18px;padding:12px 13px;
+    border:1px solid var(--border);border-radius:10px;background:var(--surface)
+  }
+  .mobile-dependency-intro strong{font-size:12px}
+  .mobile-dependency-intro p{margin:0;color:var(--text-2);font-size:11px}
+  .mobile-kind-list{display:flex;flex-wrap:wrap;gap:5px}
+  .mobile-kind{
+    display:inline-flex;align-items:center;gap:5px;padding:2px 6px;border:1px solid var(--border);
+    border-radius:20px;background:var(--surface-2);color:var(--text-2);font-size:9.5px
+  }
+  .mobile-rel-key{width:18px;height:7px;overflow:visible;flex:none}
+  .mobile-transition{
+    position:relative;flex-direction:column;gap:4px;margin:-14px 8px 18px;padding:8px 10px 8px 17px;
+    border-left:2px solid var(--wire);border-radius:0 8px 8px 0;background:var(--surface-2)
+  }
+  .mobile-transition::before{
+    content:"";position:absolute;left:-5px;bottom:-5px;width:7px;height:7px;
+    border-right:2px solid var(--wire);border-bottom:2px solid var(--wire);transform:rotate(45deg)
+  }
+  .mobile-transition-line{display:flex;align-items:flex-start;gap:7px;font-size:10.5px;color:var(--text-2)}
+  .mobile-transition-line b{color:var(--text);font-weight:650}
+  .mobile-recovery{
+    flex-direction:column;gap:7px;margin:-14px 4px 20px 24px;padding:10px 11px;
+    border:1px solid var(--wire-loop);border-left-width:3px;border-radius:8px;background:var(--warn-bg)
+  }
+  .mobile-recovery-title{font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.045em;color:var(--wire-loop)}
+  .mobile-recovery-path{font-size:10.5px;color:var(--text-2);line-height:1.45}
+  .mobile-recovery-path b{color:var(--text)}
+  .mobile-stage-marker{
+    flex-direction:column;gap:2px;margin:2px 0 18px;padding:8px 10px;
+    border:1px dashed var(--wire-gate);border-radius:9px;color:var(--wire-gate);background:var(--surface)
+  }
+  .mobile-stage-marker b{font-size:10px;text-transform:uppercase;letter-spacing:.045em}
+  .mobile-stage-marker span{font-size:10px;color:var(--text-2)}
+  .mobile-dep-chips{flex-wrap:wrap;gap:4px;margin-top:7px}
+  .mobile-dep-chip{
+    display:inline-flex;gap:3px;align-items:center;border:1px solid var(--dep-color,var(--border));
+    border-radius:6px;background:var(--surface);color:var(--dep-color,var(--text-2));padding:2px 5px;
+    font-size:9px;font-weight:650;line-height:1.35;text-transform:none
+  }
+  .mobile-selection{
+    flex:1 1 100%;width:100%;flex-direction:column;gap:9px;margin:2px 0 8px;padding:11px 12px;
+    border:2px solid var(--accent);border-radius:9px;background:var(--surface);box-shadow:var(--shadow)
+  }
+  .mobile-selection-head{display:flex;align-items:flex-start;gap:8px}
+  .mobile-selection-head strong{font-size:11.5px;line-height:1.35}
+  .mobile-selection-head button{margin-left:auto;border:0;background:none;color:var(--text-3);padding:0 2px}
+  .mobile-selection-group{display:flex;flex-direction:column;gap:5px}
+  .mobile-selection-label{font-size:9px;font-weight:750;text-transform:uppercase;letter-spacing:.045em;color:var(--text-3)}
+  .mobile-selection-row{display:flex;align-items:flex-start;gap:6px;font-size:10px;color:var(--text-2)}
+  .mobile-selection-row b{color:var(--text);font-weight:650}
+  .mobile-dep-ref{
+    border:1px solid var(--border);border-radius:5px;background:var(--surface-2);color:var(--text-2);
+    padding:2px 5px;font-size:9.5px;text-align:left
+  }
+  .mobile-details-btn{
+    align-self:flex-start;border:1px solid var(--accent);border-radius:6px;background:var(--accent-soft);
+    color:var(--accent);padding:4px 7px;font-size:10px;font-weight:650
   }
   .drawer{width:100vw}
   .step{grid-template-columns:1fr;gap:8px}
@@ -608,7 +784,7 @@ table.mini .met{color:var(--accent)}
 <header class="hdr">
   <div class="brand">
     <h1>Query Search Pipeline Explorer</h1>
-    <span class="sub">Progressive reference templates &middot; optional serving-data layer &middot; hybrid text &amp; image retrieval &middot; logical architecture, not frameworks</span>
+    <span class="sub">Progressive pipeline levels &middot; optional serving-data layer &middot; hybrid text &amp; image retrieval &middot; logical architecture, not frameworks</span>
   </div>
   <div class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-pipe" aria-controls="view-pipe" aria-selected="true" data-view="pipe">Pipelines</button>
@@ -623,12 +799,14 @@ table.mini .met{color:var(--accent)}
 
   <div class="ctxbar">
     <div class="ctx-row">
-      <div class="seg" role="group" aria-label="Template">
+      <div class="seg" role="group" aria-label="Pipeline level">
         <button data-tpl="1" aria-pressed="true"><span class="n">1</span>Core</button>
         <button data-tpl="2" aria-pressed="false"><span class="n">2</span>Core + recommended</button>
         <button data-tpl="3" aria-pressed="false"><span class="n">3</span>Full surface</button>
       </div>
-      <p class="ctx-desc" id="tplDesc"></p>
+      <button class="dep-toggle" id="servingToggle" aria-pressed="false" aria-controls="rows" aria-label="Show data sources">
+        <span>Show data sources</span><span class="dep-sw" aria-hidden="true"></span>
+      </button>
       <span class="pill new" id="diffPill" hidden></span>
     </div>
     <div class="trace">
@@ -679,32 +857,33 @@ table.mini .met{color:var(--accent)}
 
       <div class="panel">
         <h3>Legend</h3>
+        <div class="legend-label">Nodes</div>
         <div class="legendrow" style="gap:7px 12px">
-          <span><i style="background:var(--core-bg);border:1px solid var(--core-line)"></i>core &middot; template 1</span>
-          <span><i style="background:var(--rec-bg);border:1px solid var(--rec-line)"></i>recommended &middot; template 2</span>
-          <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full &middot; template 3</span>
+          <span><i style="background:var(--core-bg);border:1px solid var(--core-line)"></i>core</span>
+          <span><i style="background:var(--rec-bg);border:1px solid var(--rec-line)"></i>recommended</span>
+          <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full</span>
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
+          <span><i class="data-key"></i>data plane</span>
         </div>
-        <div class="legendrow" style="gap:7px 12px;margin-top:9px">
-          <span><i class="wkey" style="border-top:2px dashed var(--wire-ctrl)"></i>steers &mdash; request time</span>
-          <span><i class="wkey" style="border-top:2px dashed var(--wire-train)"></i>trains &mdash; offline</span>
-          <span><i class="wkey" style="border-top:2px dotted var(--wire-data)"></i>serves &mdash; external data</span>
-        </div>
+        <div class="legend-label" id="gateLegendLabel">Gate conditions</div>
+        <div class="gate-legend" id="gateLegend"></div>
+        <div class="legend-label">Relationships</div>
+        <div class="legendrow relation-legend" id="relationLegend"></div>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
-          Control-plane components steer a stage rather than transforming candidates.
-          A <em>trains</em> wire is not a request-time path: it means the target's model is
-          fitted from that data. Serving sources are logical indexes or stores, not prescribed products or deployments.
+          Flow moves requests or candidates. A gated stage runs only when its condition holds:
+          Retrieval routing owns every request gate, while a deployment gate is a standing
+          configuration choice with no runtime owner.
+          Branches select a decision outcome; returns retry an earlier stage.
+          Control-plane components steer without transforming candidates. Feeds carry telemetry; trains is offline.
+          Updates change durable profile state without implying model training.
+          Serving sources are logical indexes or stores, not prescribed products or deployments.
         </p>
-        <button class="dep-toggle" id="servingToggle" aria-pressed="false" aria-controls="rows" aria-label="Show serving dependencies">
-          <span class="dep-copy"><span class="dep-name">Serving dependencies</span><span class="dep-count" id="servingCount"></span></span>
-          <span class="dep-sw" aria-hidden="true"></span>
-        </button>
       </div>
 
       <div class="panel complist">
         <h3>Components <span class="pill" id="offCount" hidden></span></h3>
         <div id="compList"></div>
-        <button class="btn-ghost" id="resetBtn" style="margin-top:12px">Reset to template defaults</button>
+        <button class="btn-ghost" id="resetBtn" style="margin-top:12px">Reset level defaults</button>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
           Switch components off to compose a variant and watch the budget move. Core components are locked.
         </p>
@@ -726,7 +905,7 @@ table.mini .met{color:var(--accent)}
     <h2 style="font-size:20px;margin-bottom:8px">Build order</h2>
     <p class="build-intro">
       Ordered by value delivered per unit of cost, with the trigger condition that says <em>now</em> —
-      not a schedule. Steps 1&ndash;7 are Template&nbsp;2. Most systems should stop there and spend the
+      not a schedule. Steps 1&ndash;7 are the Core + recommended level. Most systems should stop there and spend the
       remaining effort on data quality, the evaluation set, and the index, which is where the returns
       usually are. Click any component to open its detail.
     </p>
@@ -754,7 +933,7 @@ table.mini .met{color:var(--accent)}
       <p>The explorer combines an interactive architecture map with implementation guidance and component-level design notes.</p>
       <div class="about-grid">
         <article class="about-card">
-          <h4>Progressive reference templates</h4>
+          <h4>Progressive pipeline levels</h4>
           <p>Move from a locked Core baseline, through the recommended production target, to the Full surface of specialised options. Each level reveals the additions it makes.</p>
         </article>
         <article class="about-card">
@@ -834,6 +1013,7 @@ table.mini .met{color:var(--accent)}
     <h2 id="dTitle"></h2>
     <p class="purpose" id="dPurpose"></p>
     <div class="chips" id="dChips"></div>
+    <p class="gate-note" id="dGate" hidden></p>
   </div>
   <div class="db" id="dBody"></div>
 </aside>
@@ -1134,7 +1314,7 @@ def({
   }],
   contract:{in:"intent, constraints, has_image", out:"{ legs_to_fire[], rerankers_to_fire[], route_id } (logged)"},
   notes:[
-    "Use inspectable static intent rules in the Recommended template. Learned or budget-aware routing is a later optimisation in the same component, not a separate request path.",
+    "Use inspectable static intent rules at the Core + recommended level. Learned or budget-aware routing is a later optimisation in the same component, not a separate request path.",
     "Routing errors may appear as relevance regressions rather than request failures. Log the selected route and activated stages for each query so routing decisions can be diagnosed."
   ],
   failures:[{f:"A leg or gated reranker is never routed to",s:"Looks like a corpus, index or model-quality problem",m:"route distribution; per-stage fire rate"}]
@@ -1559,16 +1739,17 @@ def({
 
 def({
   id:"personalisation", name:"Personalisation", group:"Final ranking", tier:"optional", intro:3,
-  sub:"user profile and history signals", lat:[3,15], cx:4, caps:["personal"],
-  purpose:"Adjust ranking using who is asking: prior behaviour, saved items, stated preferences.",
+  sub:"runtime profile lookup + incremental updates", lat:[3,15], cx:4, caps:["personal"],
+  purpose:"Read a durable user profile at request time and adjust ranking using prior behaviour, saved items and stated preferences. Profile state is updated from logged events outside the ranking request.",
   decisions:[{
     q:"How strong is the personalisation?",
     opts:["Re-rank the whole page","Adjust a few slots","Tie-break only"],
     def:"Adjust a few slots, always reserving unpersonalised ones",
     why:"Filter bubbles are the failure mode, and they are invisible in aggregate metrics because engagement goes up while discovery collapses."
   }],
-  contract:{in:"ranked candidates + user profile", out:"personalised ranking + which slots were affected"},
+  contract:{in:"ranked candidates + runtime user-profile lookup", out:"personalised ranking + which slots were affected"},
   notes:[
+    "Keep the request-time profile read separate from asynchronous profile updates. A new click may update future requests, but it must not mutate the ranking already being assembled.",
     "Maintain a persistent unpersonalised control group where traffic and experimentation constraints make it viable. Size and duration should reflect the statistical power available and the product cost of withholding personalisation.",
     "Monitor discovery and coverage as well as engagement. Personalisation can improve aggregate engagement while narrowing what users are able to find."
   ],
@@ -1615,7 +1796,7 @@ def({
     def:"Results plus relaxation, degradation and route state",
     why:"The UI cannot say “showing broader results” unless the pipeline tells it. This is a schema contract, not a nicety — it is the only defence against silent relaxation."
   }],
-  contract:{in:"final ranking", out:"{ results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id?, timings }"},
+  contract:{in:"final ranking", out:"response { results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id?, timings } + impression context { query_id, result_ids[], positions, route_id?, experiment_ids[] }"},
   dials:[{n:"Page size",v:"20"},{n:"Hydration",v:"batch, never per-result"}],
   notes:[
     "Revalidate mandatory eligibility and policy predicates before returning results. This is defence in depth; it does not make post-filtering an acceptable retrieval strategy.",
@@ -1645,17 +1826,20 @@ def({
 });
 
 def({
-  id:"behavioural", name:"Behavioural signals", group:"Results", tier:"recommended", control:true, intro:2,
-  sub:"clicks, saves, enquiries, reformulations", lat:[0,0], cx:3, caps:["learning"],
-  purpose:"The offline loop: capture clicks, saves, enquiries and reformulations, turn them into labels, and feed the trained components. Not in the request path.",
+  id:"behavioural", name:"Behavioural event log", group:"Results", tier:"recommended", control:true, intro:2,
+  sub:"impressions joined to clicks, saves and reformulations", lat:[0,0], cx:3, caps:["learning"],
+  purpose:"The telemetry sink and offline learning source: join position-aware impression context from Results assembly with client-side clicks, saves, enquiries and reformulations. It is not in the ranking request path.",
   decisions:[{
     q:"When do you start collecting?",
     opts:["When a model needs it","From day one"],
     def:"From day one",
     why:"You cannot retroactively collect it, and it is the gating dependency for learned fusion, LTR, personalisation and retriever fine-tuning. Instrument it before anything consumes it."
   }],
-  contract:{in:"impressions + interactions", out:"labelled judgements, hard negatives, training sets"},
-  notes:["Mine hard negatives carefully: an unlabelled relevant document mined as a hard negative actively teaches the retriever the wrong thing."],
+  contract:{in:"impression context from Results assembly + interaction events from clients", out:"joined telemetry, debiased judgements, profile events and versioned training sets"},
+  notes:[
+    "Client applications emit interaction events directly; the Results assembly feed supplies the query, result, position, route and experiment context required to interpret them.",
+    "Mine hard negatives carefully: an unlabelled relevant document mined as a hard negative actively teaches the retriever the wrong thing."
+  ],
   failures:[{f:"Position bias untreated",s:"Models that reproduce the current ranking",m:"interleaving experiments; debiased estimators"}]
 });
 
@@ -1957,14 +2141,14 @@ const TPL = {
     target:"~150 ms p95",
     desc:"The smallest pipeline that is <b>genuinely hybrid</b>: mandatory constraints pushed into one lexical and one dense leg, explicit candidate union, fixed RRF over their ranks, and results assembly. Ship it, and build the evaluation harness around it.",
     rows:[
-      {lane:"Query inputs", c:["q-text"]},
-      {lane:"Query processing", c:["normalise"]},
+      {c:["q-text"]},
+      {c:["normalise"]},
       {c:["understand"]},
-      {lane:"Constraint handling", c:["prefilter"]},
-      {lane:"Candidate retrieval", c:["lexical","textvec"]},
-      {lane:"Candidate generation", c:["union"]},
-      {lane:"Fusion", c:["fusion"]},
-      {lane:"Results", c:["assembly"]}
+      {c:["prefilter"]},
+      {c:["lexical","textvec"]},
+      {c:["union"]},
+      {c:["fusion"]},
+      {c:["assembly"]}
     ],
     extra:[]
   },
@@ -1974,22 +2158,22 @@ const TPL = {
     target:"~400 ms p95",
     desc:"The <b>default answer</b>. Adds rewriting, static routing, cross-modal text-to-image retrieval, bounded recovery, candidate pruning, cross-encoder reranking, operational deadlines, auditable final-ranking controls, and feedback instrumentation. Architect against this one.",
     rows:[
-      {lane:"Query inputs", c:["q-text"]},
-      {lane:"Query processing", c:["normalise"]},
+      {c:["q-text"]},
+      {c:["normalise"]},
       {c:["understand"]},
       {c:["rewrite"]},
-      {lane:"Constraint handling", c:["prefilter"], r:["routing"]},
-      {lane:"Candidate retrieval", c:["lexical","textvec","textimagevec"], r:["degradation"]},
-      {lane:"Candidate generation", c:["union"]},
-      {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
+      {c:["prefilter"], r:["routing"]},
+      {c:["lexical","textvec","textimagevec"], r:["degradation"]},
+      {c:["union"]},
+      {c:["sufficiency"], nextLabel:"sufficient"},
       {l:["relax","zerofallback"], c:["prune"]},
-      {lane:"Fusion", c:["fusion"]},
-      {lane:"Reranking", c:["crossenc"]},
-      {lane:"Final ranking", c:["business"]},
+      {c:["fusion"]},
+      {c:["crossenc"]},
+      {c:["business"]},
       {c:["freshness"]},
       {c:["diversity"]},
       {c:["dedup"]},
-      {lane:"Results", c:["assembly"], r:["behavioural"]}
+      {c:["assembly"], r:["behavioural"]}
     ],
     extra:BRANCHES
   },
@@ -1999,28 +2183,28 @@ const TPL = {
     target:"~600 ms p95, plus conditional work",
     desc:"Everything on the menu. <b>Do not read this as “execute every box”</b> — a simple navigational query should fire two legs and skip the VLM; image-to-image retrieval should fire only when an image is supplied. The dashed control plane decides which parts run.",
     rows:[
-      {lane:"Query inputs", l:["q-image"], c:["q-text"], r:["session"]},
-      {lane:"Query processing", c:["normalise"]},
+      {l:["q-image"], c:["q-text"], r:["session"]},
+      {c:["normalise"]},
       {c:["understand"], r:["confidence"]},
       {c:["rewrite"]},
       {c:["expand"]},
-      {lane:"Constraint handling", c:["prefilter"], r:["routing"]},
-      {lane:"Candidate retrieval", c:["lexical","textvec","textimagevec","imageimagevec","sparse","multivec","late"], r:["budget","degradation"]},
-      {lane:"Candidate generation", c:["union"]},
-      {lane:"Constraint handling", c:["sufficiency"], nextLabel:"sufficient"},
+      {c:["prefilter"], r:["routing"]},
+      {c:["lexical","textvec","textimagevec","imageimagevec","sparse","multivec","late"], r:["budget","degradation"]},
+      {c:["union"]},
+      {c:["sufficiency"], nextLabel:"sufficient"},
       {l:["relax","zerofallback"], c:["prune"]},
-      {lane:"Fusion", c:["fusion"], r:["fusionpolicy"]},
-      {lane:"Reranking", c:["semrerank"]},
+      {c:["fusion"], r:["fusionpolicy"]},
+      {c:["semrerank"]},
       {c:["latererank"]},
       {c:["crossenc"]},
       {c:["vlmrerank"]},
       {c:["ltr"]},
-      {lane:"Final ranking", c:["business"]},
+      {c:["business"]},
       {c:["freshness"]},
       {c:["personalisation"]},
       {c:["diversity"]},
       {c:["dedup"]},
-      {lane:"Results", c:["assembly"], r:["behavioural"]}
+      {c:["assembly"], r:["behavioural"]}
     ],
     extra:BRANCHES  /* control, data and training wires are generated from REL — see relEdges() */
   }
@@ -2110,6 +2294,12 @@ const RSERVING = {};
 Object.keys(SERVING_REL).forEach(sourceId=> SERVING_REL[sourceId].forEach(componentId=>{
   (RSERVING[componentId] = RSERVING[componentId] || []).push(sourceId);
 }));
+Object.keys(DATA_SOURCES).forEach(sourceId=>{
+  const intros = (SERVING_REL[sourceId]||[]).map(componentId=>S[componentId].intro);
+  const intro = Math.min(...intros);
+  DATA_SOURCES[sourceId].intro = intro;
+  DATA_SOURCES[sourceId].tier = intro===1 ? "core" : intro===2 ? "recommended" : "optional";
+});
 
 /* =======================================================================
    COMPONENT RELATIONSHIPS — the single source of truth.
@@ -2118,40 +2308,672 @@ Object.keys(SERVING_REL).forEach(sourceId=> SERVING_REL[sourceId].forEach(compon
 
    steers : request-time control. A changes how B behaves for THIS query.
    trains : offline dependency.   B's parameters are fitted from data A produces.
-            Drawn differently on purpose — behavioural signals do not steer
+            Drawn differently on purpose — behavioural events do not steer
             Learning-to-Rank at query time, they are what it is trained on.
    feeds  : plain data flow between stages that is not part of the spine.
+   updates: asynchronous state change. B's durable profile state is updated
+            from events A records; this is neither request-time flow nor training.
    ======================================================================= */
 const LEGS = ["lexical","sparse","textvec","textimagevec","imageimagevec","multivec","late"];
+
+/* A gate is an execution condition, not a control relationship.
+   Controllers still `steer`; the gated edge and card show where their route,
+   intent or policy decision conditionally enters the candidate path.
+
+   GATE_KINDS answers who decides a gate and when. `timing` carries the
+   distinction that matters most to a reader and that a bare label cannot:
+   a request gate is re-decided for every query, while a deployment gate is a
+   standing configuration choice about budget or available training data.
+   A kind may declare more than one condition — an image supplied with the
+   request and inferred visual intent are both properties of the query,
+   resolved by the same owner at the same point. */
+const GATE_TIMING_LABEL = Object.freeze({request:"per request", deployment:"deployment choice"});
+const GATE_KINDS = Object.freeze({
+  route: Object.freeze({
+    timing:"request", decidedBy:"routing", color:"var(--gate-request)",
+    conditions:Object.freeze({
+      "route selected":"Runs on some queries and not others, depending on what the query needs."
+    })
+  }),
+  intent: Object.freeze({
+    timing:"request", decidedBy:"routing", color:"var(--gate-request)",
+    conditions:Object.freeze({
+      "visual intent":"Runs only when the query is judged to need visual evidence.",
+      "image query":"Runs only when the request supplies an image to match against."
+    })
+  }),
+  budget: Object.freeze({
+    timing:"deployment", decidedBy:null, color:"var(--gate-config)",
+    conditions:Object.freeze({
+      "optional pass":"A cascade tier kept only when budget or training data justifies it \u2014 a deployment choice rather than a per-query decision. Skipped, it passes candidates through."
+    })
+  })
+});
+
+/* Latency, not execution: orthogonal to whether a gate lets the stage run. */
+const CONDITIONAL_NOTE =
+  "Cost varies with how much work this stage does on the requests where it runs.";
+
+/* Resolve each entry against the registry once, at definition time, so no
+   render site has to know the registry shape and an entry naming an unknown
+   kind or condition fails here rather than printing `undefined` onto a card.
+   `altOf` names the stage this one is an alternative placement of; validation
+   requires that naming to be reciprocal. */
+function defGate(from,kind,label,altOf){
+  const spec = GATE_KINDS[kind];
+  if(!spec) throw new Error("Unknown gate kind: "+kind);
+  const sentence = spec.conditions[label];
+  if(!sentence) throw new Error("Condition not declared by gate kind "+kind+": "+label);
+  return Object.freeze({from,kind,label,sentence,altOf,
+    timing:spec.timing, decidedBy:spec.decidedBy, color:spec.color});
+}
+
+const GATE_CONDITIONS = Object.freeze(Object.entries(GATE_KINDS).flatMap(([kind,spec])=>
+  Object.entries(spec.conditions).map(([label,sentence])=>Object.freeze({
+    label, sentence, kind, timing:spec.timing, decidedBy:spec.decidedBy, color:spec.color
+  }))
+));
+const GATE_CONDITION = Object.freeze(Object.fromEntries(
+  GATE_CONDITIONS.map(condition=>[condition.label,condition])));
+
+const GATED_EXECUTION = Object.freeze({
+  textimagevec:  defGate(2,"intent","visual intent"),
+  imageimagevec: defGate(3,"intent","image query"),
+  sparse:        defGate(3,"route","route selected"),
+  multivec:      defGate(3,"route","route selected"),
+  late:          defGate(3,"route","route selected","latererank"),
+  semrerank:     defGate(3,"budget","optional pass"),
+  latererank:    defGate(3,"route","route selected","late"),
+  vlmrerank:     defGate(3,"intent","visual intent"),
+  ltr:           defGate(3,"budget","optional pass")
+});
+const SELECTIVE_RERANK_CASCADE = Object.freeze([
+  "semrerank","latererank","crossenc","vlmrerank","ltr"
+]);
+const GATED_RERANKERS = Object.freeze([
+  "semrerank","latererank","vlmrerank","ltr"
+]);
+function executionGate(id,templateId){
+  const gate=GATED_EXECUTION[id];
+  return gate && templateId>=gate.from ? gate : null;
+}
 
 const REL = {
   "q-image":    { steers:["routing"], feeds:["imageimagevec"] },
   session:      { steers:["understand","rewrite","routing","personalisation"] },
   confidence:   { steers:["prefilter","relax"] },
-  routing:      { steers:LEGS.concat(["budget","latererank"]) },
+  routing:      { steers:LEGS.concat(["budget"]).concat(GATED_RERANKERS) },
   budget:       { steers:LEGS },
   degradation:  { steers:LEGS.concat(["latererank","crossenc","vlmrerank"]) },
   fusionpolicy: { steers:["fusion"] },
   assembly:     { feeds:["behavioural"] },
-  behavioural:  { trains:["fusionpolicy","personalisation","ltr"] }
+  behavioural:  { trains:["fusionpolicy","ltr"], updates:["personalisation"] }
 };
 
-const REL_KINDS = ["steers","trains","feeds"];
-const REL_LABEL = {
-  steers:{ fwd:"Steers", rev:"Steered by",
-           note:"Request-time control — changes how the stage behaves for this query." },
-  trains:{ fwd:"Trains", rev:"Trained by",
-           note:"Offline dependency — this component's parameters are fitted from that data, not steered by it at query time." },
-  feeds: { fwd:"Feeds", rev:"Fed by", note:"Data flow outside the main spine." }
-};
+const RELATION_DETAILS = Object.freeze({
+  "assembly|feeds|behavioural":Object.freeze({
+    label:"impression context", payload:"query, result positions, route and experiment context", timing:"per response telemetry"
+  }),
+  "behavioural|trains|fusionpolicy":Object.freeze({
+    label:"debiased training set", payload:"versioned judgements and route outcomes", timing:"offline model training"
+  }),
+  "behavioural|trains|ltr":Object.freeze({
+    label:"debiased training set", payload:"versioned judgements with position-aware features", timing:"offline model training"
+  }),
+  "behavioural|updates|personalisation":Object.freeze({
+    label:"profile events", payload:"clicks, saves, enquiries and stated preferences", timing:"asynchronous profile update"
+  })
+});
+function relationDetail(from,kind,to){
+  return RELATION_DETAILS[[from,kind,to].join("|")]||null;
+}
+
+const RELATION_TYPES = Object.freeze({
+  flow:{
+    fwd:"Flows to", rev:"Receives flow from",
+    description:"Request and candidate data moving through the main pipeline.",
+    aria:"Request and candidate flow",
+    color:"var(--wire)", dash:"", linecap:"butt", marker:"flow", opacity:1, width:1.6,
+    route:"spine", componentRelation:false,
+    legend:{visible:true,label:"flows — request / candidates"}
+  },
+  gated:{
+    fwd:"Conditionally enters", rev:"Conditionally receives from",
+    description:"Request-path entry used only when route, intent or policy activates the target stage.",
+    aria:"Gated request-path entry",
+    color:"var(--wire-gate)", dash:"8 3 2 3", linecap:"butt", marker:"gate", opacity:.96, width:1.6,
+    route:"spine", componentRelation:false,
+    legend:{visible:true,label:"gated — route / intent"}
+  },
+  branch:{
+    fwd:"Branches to", rev:"Reached when",
+    description:"A conditional path selected by a decision outcome.",
+    aria:"Conditional branch",
+    color:"var(--wire)", dash:"9 4", linecap:"butt", marker:"flow", opacity:1, width:1.5,
+    route:"branch", componentRelation:false,
+    legend:{visible:true,label:"branches — conditional"}
+  },
+  loop:{
+    fwd:"Retries through", rev:"Retried from",
+    description:"A bounded recovery path that returns candidates or predicates to an earlier stage.",
+    aria:"Recovery return",
+    color:"var(--wire-loop)", dash:"", linecap:"butt", marker:"loop", opacity:1, width:1.6,
+    route:"loop", componentRelation:false,
+    legend:{visible:true,label:"returns — recovery / retry"}
+  },
+  steers:{
+    fwd:"Steers", rev:"Steered by",
+    description:"Request-time control — changes how the stage behaves for this query.",
+    aria:"Request-time steering",
+    color:"var(--wire-ctrl)", dash:"3 4", linecap:"butt", marker:"control", opacity:.88, width:1.5,
+    route:"side", curve:.45, componentRelation:true,
+    legend:{visible:true,label:"steers — request time"}
+  },
+  feeds:{
+    fwd:"Feeds", rev:"Fed by",
+    description:"Data flow outside the main spine.",
+    aria:"Non-spine data feed",
+    color:"var(--wire-feed)", dash:"6 3 1 3", linecap:"round", marker:"feed", opacity:1, width:1.5,
+    route:"side", curve:.4, componentRelation:true,
+    legend:{visible:true,label:"feeds — non-spine data"}
+  },
+  trains:{
+    fwd:"Trains", rev:"Trained by",
+    description:"Offline dependency — the target's parameters are fitted from this data, not steered by it at query time.",
+    aria:"Offline training dependency",
+    color:"var(--wire-train)", dash:"12 4 2 4", linecap:"butt", marker:"train", opacity:1, width:1.5,
+    route:"side", curve:.45, componentRelation:true,
+    legend:{visible:true,label:"trains — offline"}
+  },
+  updates:{
+    fwd:"Updates", rev:"Updated from",
+    description:"Asynchronous state dependency — logged events update durable profile state for future requests.",
+    aria:"Asynchronous profile-state update",
+    color:"var(--wire-update)", dash:"4 2 1 2 1 5", linecap:"butt", marker:"update", opacity:1, width:1.5,
+    route:"side", curve:.42, componentRelation:true,
+    legend:{visible:true,label:"updates — profile state"}
+  },
+  serves:{
+    fwd:"Serves", rev:"Served by",
+    description:"A logical index or store queried or hydrated by the target component.",
+    aria:"External data serving relationship",
+    color:"var(--wire-data)", dash:"1 5", linecap:"round", marker:"data", opacity:.82, width:1.5,
+    route:"source", componentRelation:false,
+    legend:{visible:true,label:"serves — external data"}
+  }
+});
+
+const COMPONENT_RELATION_KINDS = Object.freeze(
+  Object.entries(RELATION_TYPES).filter(([,relation])=>relation.componentRelation).map(([kind])=>kind)
+);
 
 /* reverse index, built once */
 const RREL = {};
-Object.keys(REL).forEach(from=> REL_KINDS.forEach(kind=>
+Object.keys(REL).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
   (REL[from][kind]||[]).forEach(to=>{
     (RREL[to] = RREL[to] || {});
     (RREL[to][kind] = RREL[to][kind] || []).push(from);
   })));
+
+/* =======================================================================
+   DEPENDENCY BASELINE — logical endpoints, independent of SVG geometry.
+
+   Invariants:
+   - Core is the irreducible path; Recommended is the production target;
+     Full is a catalogue of gated capabilities, not an execute-all path.
+   - Showing data sources adds only source nodes and `serves` relationships.
+   - Disabling a component removes every relationship incident on that node.
+   - A data source is active only while at least one served component is active.
+
+   Later layout work may collapse several logical relationships into one drawn
+   path. This fixture deliberately protects the logical inventory instead.
+   ======================================================================= */
+
+const DEPENDENCY_KINDS = Object.freeze(Object.keys(RELATION_TYPES));
+const BASELINE_RETRIEVAL_LEGS = [
+  "lexical","sparse","textvec","textimagevec","imageimagevec","multivec","late"
+];
+const BASELINE_ALWAYS_RETRIEVAL_LEGS = ["lexical","textvec"];
+const BASELINE_GATED_FULL_RETRIEVAL_LEGS = [
+  "sparse","textimagevec","imageimagevec","multivec","late"
+];
+const BASELINE_GATED_RERANKERS = ["semrerank","latererank","vlmrerank","ltr"];
+
+function baselinePairs(...groups){
+  return groups.flatMap(([from,targets,label=""])=>
+    (Array.isArray(targets) ? targets : [targets]).map(to=>[from,to,label]));
+}
+
+const BASELINE_QUERY_START = baselinePairs(
+  ["q-text","normalise"],
+  ["normalise","understand"]
+);
+const BASELINE_RECOVERY = {
+  branch:baselinePairs(
+    ["sufficiency","relax","too few"],
+    ["sufficiency","zerofallback","zero"]
+  ),
+  loop:baselinePairs(
+    ["relax","prefilter","relaxed predicate"],
+    ["zerofallback","prefilter","recovery mode"]
+  )
+};
+
+const DEPENDENCY_BASELINE = {
+  1:{
+    flow:BASELINE_QUERY_START.concat(baselinePairs(
+      ["understand","prefilter"],
+      ["prefilter",["lexical","textvec"]],
+      ["lexical","union"],
+      ["textvec","union"],
+      ["union","fusion"],
+      ["fusion","assembly"]
+    )),
+    serves:baselinePairs(
+      ["ds-text","lexical"],
+      ["ds-doc-ann","textvec"],
+      ["ds-doc-store","assembly"]
+    )
+  },
+  2:{
+    flow:BASELINE_QUERY_START.concat(baselinePairs(
+      ["understand","rewrite"],
+      ["rewrite","prefilter"],
+      ["prefilter",["lexical","textvec"]],
+      ["lexical","union"],
+      ["textvec","union"],
+      ["textimagevec","union"],
+      ["union","sufficiency"],
+      ["sufficiency","prune","sufficient"],
+      ["prune","fusion"],
+      ["fusion","crossenc"],
+      ["crossenc","business"],
+      ["business","freshness"],
+      ["freshness","diversity"],
+      ["diversity","dedup"],
+      ["dedup","assembly"]
+    )),
+    gated:baselinePairs(["prefilter","textimagevec"]),
+    branch:BASELINE_RECOVERY.branch,
+    loop:BASELINE_RECOVERY.loop,
+    steers:baselinePairs(
+      ["routing",["lexical","textvec","textimagevec"]],
+      ["degradation",["lexical","textvec","textimagevec","crossenc"]]
+    ),
+    feeds:baselinePairs(["assembly","behavioural"]),
+    serves:baselinePairs(
+      ["ds-text","lexical"],
+      ["ds-doc-ann","textvec"],
+      ["ds-image-ann","textimagevec"],
+      ["ds-doc-store","assembly"]
+    )
+  },
+  3:{
+    flow:BASELINE_QUERY_START.concat(baselinePairs(
+      ["understand","rewrite"],
+      ["rewrite","expand"],
+      ["expand","prefilter"],
+      ["prefilter",BASELINE_ALWAYS_RETRIEVAL_LEGS],
+      ["lexical","union"],
+      ["sparse","union"],
+      ["textvec","union"],
+      ["textimagevec","union"],
+      ["imageimagevec","union"],
+      ["multivec","union"],
+      ["late","union"],
+      ["union","sufficiency"],
+      ["sufficiency","prune","sufficient"],
+      ["prune","fusion"],
+      ["latererank","crossenc"],
+      ["ltr","business"],
+      ["business","freshness"],
+      ["freshness","personalisation"],
+      ["personalisation","diversity"],
+      ["diversity","dedup"],
+      ["dedup","assembly"]
+    )),
+    gated:baselinePairs(
+      ["prefilter",BASELINE_GATED_FULL_RETRIEVAL_LEGS],
+      ["fusion","semrerank"],
+      ["semrerank","latererank"],
+      ["crossenc","vlmrerank"],
+      ["vlmrerank","ltr"]
+    ),
+    branch:BASELINE_RECOVERY.branch,
+    loop:BASELINE_RECOVERY.loop,
+    steers:baselinePairs(
+      ["q-image","routing"],
+      ["session",["understand","rewrite","routing","personalisation"]],
+      ["confidence",["prefilter","relax"]],
+      ["routing",BASELINE_RETRIEVAL_LEGS.concat(["budget"]).concat(BASELINE_GATED_RERANKERS)],
+      ["budget",BASELINE_RETRIEVAL_LEGS],
+      ["degradation",BASELINE_RETRIEVAL_LEGS.concat(["latererank","crossenc","vlmrerank"])],
+      ["fusionpolicy","fusion"]
+    ),
+    feeds:baselinePairs(
+      ["q-image","imageimagevec"],
+      ["assembly","behavioural"]
+    ),
+    trains:baselinePairs(
+      ["behavioural",["fusionpolicy","ltr"]]
+    ),
+    updates:baselinePairs(["behavioural","personalisation"]),
+    serves:baselinePairs(
+      ["ds-text","lexical"],
+      ["ds-doc-ann","textvec"],
+      ["ds-image-ann",["textimagevec","imageimagevec"]],
+      ["ds-sparse","sparse"],
+      ["ds-passage-ann","multivec"],
+      ["ds-token","late"],
+      ["ds-doc-store","assembly"]
+    )
+  }
+};
+
+function logicalDependencies(templateId,{showServing=false,off=new Set()}={}){
+  const template = TPL[templateId];
+  if(!template) throw new Error("Unknown pipeline template: "+templateId);
+
+  const present = new Set(tplStages(templateId));
+  const active = id=>present.has(id) && !off.has(id);
+  const dependencies = [];
+  const add = (from,to,kind,label="")=>dependencies.push({
+    from,to,kind,label,detail:relationDetail(from,kind,to)
+  });
+  const groups = template.rows
+    .map(row=>({ids:(row.c||[]).filter(active),label:row.nextLabel||""}))
+    .filter(group=>group.ids.length);
+
+  for(let i=0;i<groups.length-1;i++){
+    const fromGroup=groups[i], toGroup=groups[i+1];
+    fromGroup.ids.forEach(from=>toGroup.ids.forEach(to=>{
+      const kind=executionGate(to,templateId) ? "gated" : "flow";
+      add(from,to,kind,fromGroup.ids.length===1 && toGroup.ids.length===1 ? fromGroup.label : "");
+    }));
+  }
+
+  (template.extra||[]).forEach(([from,to,label,kind])=>{
+    if(active(from) && active(to)) add(from,to,kind,label||"");
+  });
+
+  Object.entries(REL).forEach(([from,relations])=>{
+    if(!active(from)) return;
+    COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
+      if(active(to)) add(from,to,kind);
+    }));
+  });
+
+  if(showServing){
+    Object.entries(SERVING_REL).forEach(([sourceId,consumers])=>
+      consumers.forEach(to=>{ if(active(to)) add(sourceId,to,"serves"); }));
+  }
+  return dependencies;
+}
+
+function dependencyKey({from,to,kind,label=""}){
+  return [kind,from,to,label].join("|");
+}
+
+function expectedDependencies(templateId,showServing){
+  const fixture = DEPENDENCY_BASELINE[templateId];
+  return DEPENDENCY_KINDS.flatMap(kind=>
+    kind==="serves" && !showServing ? [] :
+    (fixture[kind]||[]).map(([from,to,label=""])=>({from,to,kind,label})));
+}
+
+function assertDependencySet(actual,expected,context){
+  const actualKeys = actual.map(dependencyKey).sort();
+  const expectedKeys = expected.map(dependencyKey).sort();
+  const actualSet = new Set(actualKeys), expectedSet = new Set(expectedKeys);
+  const missing = expectedKeys.filter(key=>!actualSet.has(key));
+  const unexpected = actualKeys.filter(key=>!expectedSet.has(key));
+  const actualDuplicates = actualKeys.filter((key,index)=>key===actualKeys[index-1]);
+  const expectedDuplicates = expectedKeys.filter((key,index)=>key===expectedKeys[index-1]);
+  if(missing.length || unexpected.length || actualDuplicates.length || expectedDuplicates.length){
+    throw new Error("Dependency baseline mismatch for "+context+"\n"+
+      (missing.length ? "Missing: "+missing.join(", ")+"\n" : "")+
+      (unexpected.length ? "Unexpected: "+unexpected.join(", ")+"\n" : "")+
+      (actualDuplicates.length ? "Actual duplicates: "+actualDuplicates.join(", ")+"\n" : "")+
+      (expectedDuplicates.length ? "Fixture duplicates: "+expectedDuplicates.join(", ") : ""));
+  }
+}
+
+function validateDependencyBaseline(){
+  const expectedSourceCounts = {1:3,2:4,3:7};
+  const expectedServingCounts = {1:3,2:4,3:8};
+  const summary = {};
+
+  [1,2,3].forEach(templateId=>{
+    const templateStages = tplStages(templateId);
+    const hidden = logicalDependencies(templateId);
+    const shown = logicalDependencies(templateId,{showServing:true});
+    const serving = shown.filter(edge=>edge.kind==="serves");
+    const nonServing = shown.filter(edge=>edge.kind!=="serves");
+    const sourceCount = new Set(serving.map(edge=>edge.from)).size;
+
+    assertDependencySet(hidden,expectedDependencies(templateId,false),"template "+templateId+", sources hidden");
+    assertDependencySet(shown,expectedDependencies(templateId,true),"template "+templateId+", sources shown");
+    assertDependencySet(nonServing,hidden,"template "+templateId+", source visibility invariant");
+
+    if(sourceCount!==expectedSourceCounts[templateId] || serving.length!==expectedServingCounts[templateId]){
+      throw new Error("Serving baseline mismatch for template "+templateId+
+        ": expected "+expectedSourceCounts[templateId]+" sources / "+expectedServingCounts[templateId]+
+        " edges, got "+sourceCount+" sources / "+serving.length+" edges");
+    }
+
+    templateStages.forEach(componentId=>{
+      const disabled = logicalDependencies(templateId,{showServing:true,off:new Set([componentId])});
+      if(disabled.some(edge=>edge.from===componentId || edge.to===componentId)){
+        throw new Error("Disabled component remains connected in template "+templateId+": "+componentId);
+      }
+    });
+
+    Object.entries(SERVING_REL).forEach(([sourceId,consumers])=>{
+      const templateConsumers = consumers.filter(id=>templateStages.includes(id));
+      if(!templateConsumers.length) return;
+      const disabled = logicalDependencies(templateId,{showServing:true,off:new Set(templateConsumers)});
+      if(disabled.some(edge=>edge.kind==="serves" && edge.from===sourceId)){
+        throw new Error("Inactive source remains connected in template "+templateId+": "+sourceId);
+      }
+    });
+
+    summary[templateId] = Object.freeze({
+      hiddenEdges:hidden.length,
+      shownEdges:shown.length,
+      sourceNodes:sourceCount,
+      servingEdges:serving.length
+    });
+  });
+
+  return Object.freeze(summary);
+}
+
+function validateRelationshipModel(){
+  const templateIds = Object.keys(TPL).map(Number);
+  const usedKinds = new Set(["flow","gated","serves"]);
+  const componentRelations = [];
+  const servingRelations = [];
+
+  const requireComponent = (id,context)=>{
+    if(!S[id]) throw new Error("Unknown component in "+context+": "+id);
+  };
+  const assertUnique = (relations,context)=>{
+    const seen = new Set();
+    relations.forEach(({from,to,kind})=>{
+      const key=[kind,from,to].join("|");
+      if(seen.has(key)) throw new Error("Duplicate "+context+" relationship: "+key);
+      seen.add(key);
+    });
+  };
+
+  /* defGate() already ties every entry to a declared kind and condition.
+     What it cannot see is whether the registry itself is coherent. */
+  Object.entries(GATE_KINDS).forEach(([kind,spec])=>{
+    if(!GATE_TIMING_LABEL[spec.timing]) throw new Error("Unknown gate timing for kind: "+kind);
+    if(!spec.color) throw new Error("Gate kind has no colour: "+kind);
+    if(!Object.keys(spec.conditions).length) throw new Error("Gate kind declares no condition: "+kind);
+    if(spec.decidedBy) requireComponent(spec.decidedBy,"gate decider");
+  });
+  Object.entries(GATED_EXECUTION).forEach(([id,gate])=>{
+    requireComponent(id,"gated execution");
+    if(!Number.isInteger(gate.from) || !TPL[gate.from] || !gate.label){
+      throw new Error("Invalid gated-execution definition: "+id);
+    }
+    if(!tplStages(gate.from).includes(id)){
+      throw new Error("Gated component is absent from its first gated template: "+id);
+    }
+    /* A named decider must actually steer what it gates, or the card claims an
+       authority the relationship model does not grant it. */
+    if(gate.decidedBy && !(REL[gate.decidedBy]?.steers||[]).includes(id)){
+      throw new Error("Gate decider does not steer its gated component: "+id);
+    }
+    /* An alternative placement is a claim about a pair. Requiring both halves
+       keeps one card from advertising a swap the other never offers. */
+    if(gate.altOf){
+      requireComponent(gate.altOf,"gate alternative");
+      if(gate.altOf===id) throw new Error("Gate names itself as its alternative: "+id);
+      if(GATED_EXECUTION[gate.altOf]?.altOf!==id){
+        throw new Error("Gate alternative is not reciprocal: "+id+" \u2194 "+gate.altOf);
+      }
+    }
+  });
+  if(new Set(SELECTIVE_RERANK_CASCADE).size!==SELECTIVE_RERANK_CASCADE.length){
+    throw new Error("Duplicate component in selective rerank cascade");
+  }
+  SELECTIVE_RERANK_CASCADE.forEach(id=>{
+    requireComponent(id,"selective rerank cascade");
+    if(S[id].group!=="Reranking") throw new Error("Non-reranking component in selective cascade: "+id);
+  });
+  if(new Set(GATED_RERANKERS).size!==GATED_RERANKERS.length){
+    throw new Error("Duplicate component in gated reranker set");
+  }
+  GATED_RERANKERS.forEach(id=>{
+    requireComponent(id,"gated reranker set");
+    if(!SELECTIVE_RERANK_CASCADE.includes(id) || !executionGate(id,3)){
+      throw new Error("Invalid gated reranker: "+id);
+    }
+  });
+
+  Object.entries(REL).forEach(([from,relations])=>{
+    requireComponent(from,"REL source");
+    Object.keys(relations).forEach(kind=>{
+      if(!COMPONENT_RELATION_KINDS.includes(kind)){
+        throw new Error("Unsupported component relationship kind: "+kind);
+      }
+    });
+    COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
+      requireComponent(to,"REL target");
+      usedKinds.add(kind);
+      componentRelations.push({from,to,kind});
+      const coexists = templateIds.some(templateId=>{
+        const stages = tplStages(templateId);
+        return stages.includes(from) && stages.includes(to);
+      });
+      if(!coexists) throw new Error("Relationship endpoints never coexist: "+kind+"|"+from+"|"+to);
+    }));
+  });
+  assertUnique(componentRelations,"component");
+
+  const routedRerankers=new Set((REL.routing?.steers||[]).filter(id=>S[id]?.group==="Reranking"));
+  if(GATED_RERANKERS.some(id=>!routedRerankers.has(id)) ||
+     [...routedRerankers].some(id=>!GATED_RERANKERS.includes(id))){
+    throw new Error("Retrieval routing must target every gated reranker, and no deterministic reranker");
+  }
+
+  const componentKeys=new Set(componentRelations.map(({from,to,kind})=>[from,kind,to].join("|")));
+  Object.entries(RELATION_DETAILS).forEach(([key,detail])=>{
+    if(!componentKeys.has(key)) throw new Error("Relationship detail has no component relationship: "+key);
+    if(!detail.label || !detail.payload || !detail.timing){
+      throw new Error("Incomplete relationship detail: "+key);
+    }
+  });
+  componentRelations.filter(({from})=>from==="assembly" || from==="behavioural")
+    .forEach(({from,to,kind})=>{
+      if(!relationDetail(from,kind,to)){
+        throw new Error("Feedback relationship lacks transmission detail: "+[from,kind,to].join("|"));
+      }
+    });
+
+  templateIds.forEach(templateId=>(TPL[templateId].extra||[]).forEach(([from,to,,kind])=>{
+    requireComponent(from,"template "+templateId+" extra source");
+    requireComponent(to,"template "+templateId+" extra target");
+    usedKinds.add(kind);
+  }));
+
+  Object.keys(DATA_SOURCES).forEach(sourceId=>{
+    const consumers = SERVING_REL[sourceId];
+    if(!consumers || !consumers.length) throw new Error("Serving source has no consumers: "+sourceId);
+  });
+  Object.entries(SERVING_REL).forEach(([sourceId,consumers])=>{
+    if(!DATA_SOURCES[sourceId]) throw new Error("Unknown serving source: "+sourceId);
+    consumers.forEach(to=>{
+      requireComponent(to,"serving target");
+      servingRelations.push({from:sourceId,to,kind:"serves"});
+    });
+  });
+  assertUnique(servingRelations,"serving");
+
+  usedKinds.forEach(kind=>{
+    const relation = RELATION_TYPES[kind];
+    if(!relation) throw new Error("Missing relationship definition: "+kind);
+    ["fwd","rev","description","aria","color","marker","route"].forEach(field=>{
+      if(!relation[field]) throw new Error("Missing "+field+" for relationship: "+kind);
+    });
+    if(typeof relation.opacity!=="number" || typeof relation.width!=="number" ||
+       typeof relation.linecap!=="string"){
+      throw new Error("Incomplete visual definition for relationship: "+kind);
+    }
+    if(!relation.legend || typeof relation.legend.visible!=="boolean" || !relation.legend.label){
+      throw new Error("Incomplete legend definition for relationship: "+kind);
+    }
+  });
+
+  const expectedRREL = {};
+  componentRelations.forEach(({from,to,kind})=>{
+    (expectedRREL[to] = expectedRREL[to] || {});
+    (expectedRREL[to][kind] = expectedRREL[to][kind] || []).push(from);
+  });
+  const expectedRSERVING = {};
+  servingRelations.forEach(({from,to})=>
+    (expectedRSERVING[to] = expectedRSERVING[to] || []).push(from));
+  const normalized = index=>JSON.stringify(Object.fromEntries(
+    Object.entries(index).sort(([a],[b])=>a.localeCompare(b)).map(([id,relations])=>[
+      id,
+      Array.isArray(relations) ? [...relations].sort() : Object.fromEntries(
+        Object.entries(relations).sort(([a],[b])=>a.localeCompare(b))
+          .map(([kind,ids])=>[kind,[...ids].sort()]))
+    ])
+  ));
+  if(normalized(RREL)!==normalized(expectedRREL)) throw new Error("RREL is stale");
+  if(normalized(RSERVING)!==normalized(expectedRSERVING)) throw new Error("RSERVING is stale");
+
+  const markerColors = new Map();
+  usedKinds.forEach(kind=>{
+    const {marker,color}=RELATION_TYPES[kind];
+    if(markerColors.has(marker) && markerColors.get(marker)!==color){
+      throw new Error("Relationship marker uses conflicting colours: "+marker);
+    }
+    markerColors.set(marker,color);
+  });
+
+  return Object.freeze({
+    relationTypes:usedKinds.size,
+    componentRelations:componentRelations.length,
+    annotatedRelations:Object.keys(RELATION_DETAILS).length,
+    servingRelations:servingRelations.length,
+    gatedStages:Object.keys(GATED_EXECUTION).length,
+    reverseIndexes:2
+  });
+}
+
+const DEPENDENCY_BASELINE_RESULT = validateDependencyBaseline();
+const RELATIONSHIP_MODEL_RESULT = validateRelationshipModel();
+window.dependencyDiagnostics = Object.freeze({
+  inventory:(templateId,showServing=false,disabledIds=[])=>
+    logicalDependencies(templateId,{showServing,off:new Set(disabledIds)}),
+  validation:DEPENDENCY_BASELINE_RESULT,
+  modelValidation:RELATIONSHIP_MODEL_RESULT
+});
 
 /* components that cannot exist without a parent */
 const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency", imageimagevec:"q-image" };
@@ -2165,7 +2987,7 @@ const STEPS = [
    build:"A labelled set of 200–500 queries with graded relevance, pooled across legs so recall is measurable rather than assumed. Deterministic replay. A probe suite of ~30 queries with known rank-1 answers.",
    trigger:"Before anything else.",
    buys:"Every later decision becomes measurable instead of arguable. Without it, all the tradeoffs below are opinions."},
-  {n:1, t:1, title:"Template 1 spine, fixed RRF, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","fusion","assembly"],
+  {n:1, t:1, title:"Core spine, fixed RRF, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","fusion","assembly"],
    build:"Normalise, understand, enforce query and mandatory policy predicates, run two retrieval legs, collate candidates, apply fixed RRF, and assemble results.",
    trigger:"—",
    buys:"A working hybrid baseline with an explicit relevance ordering and honest numbers."},
@@ -2228,7 +3050,8 @@ const STEPS = [
    ======================================================================= */
 const state = {
   view:"pipe", tpl:1, prevTpl:null, showServing:false,
-  off:{1:new Set(),2:new Set(),3:new Set()}, sel:null, focus:null
+  off:{1:new Set(),2:new Set(),3:new Set()}, collapsedGroups:new Set(),
+  sel:null, focus:null
 };
 
 const $  = (s,r)=> (r||document).querySelector(s);
@@ -2244,24 +3067,30 @@ function isOff(id){ return state.off[state.tpl].has(id); }
 function isOn(id){ return !isOff(id); }
 function lockedFor(id){ return S[id].tier==="core"; }
 
-function activeSourceIds(componentIds=tplStages(state.tpl).filter(isOn)){
+function sourceIdsForConsumers(componentIds){
   const consumers = new Set(componentIds);
   return Object.keys(DATA_SOURCES).filter(sourceId=>
     (SERVING_REL[sourceId]||[]).some(componentId=>consumers.has(componentId)));
 }
 
-function activeConsumers(sourceId){
+function templateConsumers(sourceId){
   const present = new Set(tplStages(state.tpl));
-  return (SERVING_REL[sourceId]||[]).filter(id=>present.has(id) && isOn(id));
+  return (SERVING_REL[sourceId]||[]).filter(id=>present.has(id));
 }
 
-function sourceIdsForRow(rowIndex, componentIds){
-  return activeSourceIds(componentIds).filter(sourceId=>{
-    const consumers = new Set(activeConsumers(sourceId));
-    const hostRow = TPL[state.tpl].rows.findIndex(row=>
-      (row.c||[]).some(componentId=>consumers.has(componentId)));
-    return hostRow===rowIndex;
-  });
+function activeConsumers(sourceId){
+  return templateConsumers(sourceId).filter(isOn);
+}
+
+function activeSourceIds(){
+  return sourceIdsForConsumers(tplStages(state.tpl).filter(isOn));
+}
+
+function sourceIdsFor(componentIds){
+  const position = new Map(componentIds.map((id,index)=>[id,index]));
+  const firstConsumer = sourceId=>Math.min(...templateConsumers(sourceId)
+    .filter(id=>position.has(id)).map(id=>position.get(id)));
+  return sourceIdsForConsumers(componentIds).sort((a,b)=>firstConsumer(a)-firstConsumer(b));
 }
 
 function setOff(id,off){
@@ -2358,107 +3187,296 @@ function renderBudget(){
 }
 
 function renderServingToggle(){
-  const count = activeSourceIds().length;
   const button = $("#servingToggle");
   button.setAttribute("aria-pressed",String(state.showServing));
-  button.setAttribute("aria-label",(state.showServing?"Hide":"Show")+" serving dependencies");
-  $("#servingCount").textContent = count+" logical "+(count===1?"source":"sources")+
-    (state.showServing?" shown":" · collapsed");
+  button.setAttribute("aria-label","Show data sources");
 }
 
 /* =======================================================================
    CANVAS RENDER
    ======================================================================= */
-function nodeEl(id, newIds){
+const isNarrowLayout = () => window.matchMedia("(max-width:700px)").matches;
+const entityName = id => DATA_SOURCES[id]?.name || S[id]?.name || id;
+
+function mobileRelationKey(kind){
+  const relation=RELATION_TYPES[kind];
+  const dash=relation.dash ? ' stroke-dasharray="'+relation.dash+'"' : "";
+  return '<svg class="mobile-rel-key" viewBox="0 0 18 7" aria-hidden="true">'+
+    '<line x1="1" y1="3.5" x2="14" y2="3.5" style="stroke:'+relation.color+'" stroke-width="1.5"'+dash+
+      ' stroke-linecap="'+relation.linecap+'"/>'+
+    '<path d="M13,1 L18,3.5 L13,6 z" style="fill:'+relation.color+'"/></svg>';
+}
+
+function compactDependencyNames(ids){
+  const remaining=[...new Set(ids)], labels=[];
+  const extractGroup=(members,label,min=2)=>{
+    const matches=remaining.filter(id=>members.includes(id));
+    if(matches.length<min) return;
+    labels.push(label);
+    matches.forEach(id=>remaining.splice(remaining.indexOf(id),1));
+  };
+  extractGroup(LEGS,"retrieval legs",3);
+  extractGroup(GATED_RERANKERS,"gated rerankers",2);
+  labels.push(...remaining.map(entityName));
+  return labels.join(" · ");
+}
+
+function mobileDependencyChips(id,logical){
+  const groups=[];
+  const collect=(edges,direction)=>{
+    const byKind=new Map();
+    edges.forEach(edge=>{
+      if(!byKind.has(edge.kind)) byKind.set(edge.kind,[]);
+      byKind.get(edge.kind).push(direction==="out" ? edge.to : edge.from);
+    });
+    byKind.forEach((ids,kind)=>groups.push({
+      kind,
+      label:RELATION_TYPES[kind][direction==="out"?"fwd":"rev"],
+      names:compactDependencyNames(ids)
+    }));
+  };
+  collect(logical.filter(edge=>edge.from===id),"out");
+  collect(logical.filter(edge=>edge.to===id),"in");
+  if(!groups.length) return "";
+  return '<div class="mobile-dep-chips">'+groups.map(group=>
+    '<span class="mobile-dep-chip" data-relation-kind="'+group.kind+'" style="--dep-color:'+RELATION_TYPES[group.kind].color+'">'+
+      group.label+': '+group.names+'</span>').join("")+'</div>';
+}
+
+function mobileDependencyIntro(logical){
+  const kinds=[...new Set(logical.map(edge=>edge.kind))];
+  const el=document.createElement("section");
+  el.className="mobile-dependency-intro";
+  el.setAttribute("aria-label","Narrow-screen dependency view");
+  el.innerHTML='<strong>Dependency view · '+logical.length+' logical relationships</strong>'+
+    '<p>Connector curves are replaced by summaries below. Tap any card to list its incoming and outgoing dependencies.</p>'+
+    '<div class="mobile-kind-list">'+kinds.map(kind=>
+      '<span class="mobile-kind" data-relation-kind="'+kind+'">'+mobileRelationKey(kind)+RELATION_TYPES[kind].legend.label+'</span>').join("")+'</div>';
+  return el;
+}
+
+function mobileTransition(row,logical){
+  const fromIds=(row.c||[]).filter(isOn);
+  const pathEdges=logical.filter(edge=>fromIds.includes(edge.from) &&
+    (edge.kind==="flow" || edge.kind==="gated"));
+  if(!pathEdges.length) return null;
+  const groups=new Map();
+  pathEdges.forEach(edge=>{
+    if(!groups.has(edge.kind)) groups.set(edge.kind,[]);
+    groups.get(edge.kind).push(edge);
+  });
+  const el=document.createElement("div");
+  el.className="mobile-transition";
+  el.setAttribute("aria-label","Pipeline transition");
+  el.innerHTML=[...groups].map(([kind,edges])=>{
+    const from=[...new Set(edges.map(edge=>edge.from))];
+    const to=[...new Set(edges.map(edge=>edge.to))];
+    const prefix=from.length>1 ? '<b>'+compactDependencyNames(from)+'</b> ' : "";
+    const outcome=[...new Set(edges.map(edge=>edge.label).filter(Boolean))];
+    return '<div class="mobile-transition-line" data-relation-kind="'+kind+'">'+mobileRelationKey(kind)+'<span>'+prefix+
+      RELATION_TYPES[kind].fwd.toLowerCase()+' <b>'+compactDependencyNames(to)+'</b>'+
+      (outcome.length ? ' · '+outcome.join(" / ") : '')+'</span></div>';
+  }).join("");
+  return el;
+}
+
+function mobileRecovery(logical){
+  const branches=logical.filter(edge=>edge.from==="sufficiency" && edge.kind==="branch");
+  if(!branches.length) return null;
+  const el=document.createElement("section");
+  el.className="mobile-recovery";
+  el.setAttribute("aria-label","Recovery decision paths");
+  el.innerHTML='<div class="mobile-recovery-title">Recovery decision</div>'+branches.map(branch=>{
+    const returned=logical.find(edge=>edge.from===branch.to && edge.kind==="loop");
+    return '<div class="mobile-recovery-path"><b>'+branch.label+'</b> → '+entityName(branch.to)+
+      (returned ? ' → returns <b>'+returned.label+'</b> to '+entityName(returned.to) : '')+'</div>';
+  }).join("");
+  return el;
+}
+
+function mobileStageMarker(){
+  const el=document.createElement("div");
+  el.className="mobile-stage-marker";
+  el.innerHTML='<b>Selective rerank cascade</b><span>Gated passes · skipped stages pass candidates through</span>';
+  return el;
+}
+
+function mobileSelectionRows(edges,direction){
+  if(!edges.length) return '<div class="mobile-selection-row">None in the active pipeline.</div>';
+  return edges.map(edge=>{
+    const other=direction==="out" ? edge.to : edge.from;
+    const relation=RELATION_TYPES[edge.kind];
+    const detail=edge.detail ? ' · '+edge.detail.label+' · '+edge.detail.timing :
+      edge.label ? ' · '+edge.label : '';
+    return '<div class="mobile-selection-row" data-relation-kind="'+edge.kind+'">'+mobileRelationKey(edge.kind)+'<span><b>'+
+      relation[direction==="out"?"fwd":"rev"]+'</b> <button class="mobile-dep-ref" data-mobile-select="'+other+'">'+
+      entityName(other)+'</button>'+detail+'</span></div>';
+  }).join("");
+}
+
+function renderMobileSelection(id){
+  $$(".mobile-selection",rowsEl).forEach(panel=>panel.remove());
+  $$(".mobile-connected",rowsEl).forEach(card=>card.classList.remove("mobile-connected"));
+  if(!isNarrowLayout() || !id) return;
+  const card=DATA_SOURCES[id]
+    ? rowsEl.querySelector('.data-source-node[data-source-id="'+id+'"]')
+    : rowsEl.querySelector('.node[data-id="'+id+'"]');
+  if(!card){ state.sel=null; return; }
+
+  selectEntity(id);
+  const logical=logicalDependencies(state.tpl,{showServing:state.showServing,off:state.off[state.tpl]});
+  const incoming=logical.filter(edge=>edge.to===id);
+  const outgoing=logical.filter(edge=>edge.from===id);
+  [...incoming.map(edge=>edge.from),...outgoing.map(edge=>edge.to)].forEach(other=>{
+    const connected=DATA_SOURCES[other]
+      ? rowsEl.querySelector('.data-source-node[data-source-id="'+other+'"]')
+      : rowsEl.querySelector('.node[data-id="'+other+'"]');
+    connected?.classList.add("mobile-connected");
+  });
+
+  const panel=document.createElement("section");
+  panel.className="mobile-selection";
+  panel.setAttribute("aria-live","polite");
+  panel.setAttribute("aria-label","Dependencies for "+entityName(id));
+  panel.innerHTML='<div class="mobile-selection-head"><strong>Dependencies · '+entityName(id)+'</strong>'+
+    '<button type="button" data-mobile-close aria-label="Close dependency summary">×</button></div>'+
+    '<div class="mobile-selection-group"><div class="mobile-selection-label">Incoming</div>'+mobileSelectionRows(incoming,"in")+'</div>'+
+    '<div class="mobile-selection-group"><div class="mobile-selection-label">Outgoing</div>'+mobileSelectionRows(outgoing,"out")+'</div>'+
+    '<button type="button" class="mobile-details-btn" data-mobile-details>Open full component details</button>';
+  card.insertAdjacentElement("afterend",panel);
+  panel.querySelector("[data-mobile-close]").addEventListener("click",()=>{
+    state.sel=null; panel.remove(); selectEntity(null);
+    $$(".mobile-connected",rowsEl).forEach(el=>el.classList.remove("mobile-connected"));
+  });
+  panel.querySelector("[data-mobile-details]").addEventListener("click",()=>
+    DATA_SOURCES[id] ? openSourceDrawer(id) : openDrawer(id));
+  $$('[data-mobile-select]',panel).forEach(button=>button.addEventListener("click",()=>{
+    state.sel=button.dataset.mobileSelect;
+    renderMobileSelection(state.sel);
+    const selected=rowsEl.querySelector('.selected');
+    selected?.scrollIntoView({block:"nearest"});
+  }));
+}
+
+function activateEntity(id){
+  if(isNarrowLayout()){
+    state.sel=id;
+    renderMobileSelection(id);
+  } else if(DATA_SOURCES[id]) openSourceDrawer(id);
+  else openDrawer(id);
+}
+
+function nodeEl(id, newIds, logical){
   const s = S[id];
+  const gate = executionGate(id,state.tpl);
   const el = document.createElement("button");
   el.className = "node " + (s.control ? "control" : s.tier) +
-                 (s.decision ? " decision":"") + (s.io ? " io":"");
+                 (s.decision ? " decision":"") + (s.io ? " io":"") + (gate ? " gated":"");
   el.dataset.id = id;
   el.dataset.on = isOn(id) ? "1" : "0";
+  if(gate){
+    el.dataset.executionGate = gate.label;
+    el.dataset.gateKind      = gate.kind;
+    el.dataset.gateTiming    = gate.timing;
+    el.style.setProperty("--gate-color", gate.color);
+  }
   if(!isOn(id)) el.classList.add("off");
   if(newIds.has(id)) el.classList.add("isnew");
   if(state.sel===id) el.classList.add("selected");
   const meta =                                       // tier, group, then conditional state
-    '<span class="tierchip '+s.tier+'" title="First appears in template '+s.intro+' — '+TPL[s.intro].name+'">'+
+    '<span class="tierchip '+s.tier+'" title="First appears in '+TPL[s.intro].name+'">'+
       TIER_LABEL[s.intro]+'</span>' +
     '<span class="groupchip">'+s.group+'</span>' +
-    (s.conditional ? '<span class="condchip">conditional</span>' : "");
+    /* Gating and cost are orthogonal — when a stage runs, and what it costs
+       on the requests where it does. VLM rerank is both, and carries the
+       widest latency range in the diagram, so neither chip may hide the other. */
+    (gate ? '<span class="gatechip" title="'+escapeAttribute(gateSentence(gate))+'">'+
+      gate.label+'</span>' : "")+
+    (s.conditional ? '<span class="condchip" title="'+escapeAttribute(CONDITIONAL_NOTE)+
+      '">conditional</span>' : "")+
+    (gate?.altOf ? '<span class="altchip">alternative to '+S[gate.altOf].name+'</span>' : "");
   el.innerHTML =
     '<div class="nm">'+s.name+'</div>' +
     (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
     '<div class="meta">'+meta+'</div>' +
+    (s.control ? mobileDependencyChips(id,logical) : "")+
     '<span class="offmark"></span>';
-  el.addEventListener("click", ()=> openDrawer(id));
+  el.addEventListener("click", ()=> activateEntity(id));
   return el;
 }
 
-function sourceEl(id){
+function dataSourceEl(id,logical){
   const source = DATA_SOURCES[id];
-  const consumers = activeConsumers(id);
+  const consumers = templateConsumers(id);
+  const sourceOn = consumers.some(isOn);
   const el = document.createElement("button");
-  el.className = "source-card";
+  el.className = "data-source-node " + source.tier;
   el.dataset.sourceId = id;
+  el.dataset.on = sourceOn ? "1" : "0";
+  if(!sourceOn) el.classList.add("off");
   if(state.sel===id) el.classList.add("selected");
+  el.setAttribute("aria-label",source.name+", "+TIER_LABEL[source.intro]+", data plane"+
+    (sourceOn?"":"; inactive because all served components are disabled")+". Serves "+
+    consumers.map(componentId=>S[componentId].name).join(", "));
   el.innerHTML =
     '<div class="nm">'+source.name+'</div>'+
     '<div class="sb">'+source.sub+'</div>'+
-    '<div class="source-serves"><b>Serves</b> '+consumers.map(cid=>S[cid].name).join(" · ")+'</div>';
-  el.addEventListener("click", ()=> openSourceDrawer(id));
+    '<div class="meta"><span class="tierchip '+source.tier+'">'+TIER_LABEL[source.intro]+'</span>'+
+      '<span class="data-plane-chip">data plane</span></div>'+
+    '<div class="source-serves"><b>Serves</b> '+consumers.map(cid=>S[cid].name).join(" · ")+'</div>'+
+    mobileDependencyChips(id,logical)+
+    '<span class="offmark"></span>';
+  el.addEventListener("click", ()=> activateEntity(id));
   return el;
-}
-
-function servingLayerEl(sourceIds){
-  const layer = document.createElement("section");
-  layer.className = "serving-layer";
-  layer.dataset.sourceCount = sourceIds.length;
-  const columns = sourceIds.length===1 ? 1 : sourceIds.length<=4 ? 2 : 3;
-  layer.style.setProperty("--source-cols",columns);
-  layer.setAttribute("aria-label", "Serving data dependencies");
-  layer.innerHTML = '<span class="source-count">'+sourceIds.length+
-    ' logical '+(sourceIds.length===1?"source":"sources")+'</span><div class="source-grid"></div>';
-  const grid = $(".source-grid",layer);
-  sourceIds.forEach(id=>grid.appendChild(sourceEl(id)));
-  return layer;
 }
 
 function renderCanvas(){
   const t = state.tpl;
+  const logical = logicalDependencies(t,{showServing:state.showServing,off:state.off[t]});
   const prev = t>1 ? new Set(tplStages(t-1)) : new Set();
   const newIds = t>1 ? new Set(tplStages(t).filter(id=>!prev.has(id))) : new Set();
   const nNew = newIds.size;
   const pill = $("#diffPill");
-  if(t>1 && nNew){ pill.hidden=false; pill.textContent = "+ " + nNew + " new vs template " + (t-1); }
+  if(t>1 && nNew){ pill.hidden=false; pill.textContent = "+ " + nNew + " new vs " + TPL[t-1].name; }
   else pill.hidden = true;
 
-  $("#tplDesc").innerHTML = "<b>"+TPL[t].tagline+".</b> " + TPL[t].desc;
   rowsEl.innerHTML = "";
+  $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
+  canvas.classList.toggle("with-data-sources",state.showServing);
+  rowsEl.appendChild(mobileDependencyIntro(logical));
 
   TPL[t].rows.forEach((r,i)=>{
+    if((r.c||[]).includes("semrerank")) rowsEl.appendChild(mobileStageMarker());
     const row = document.createElement("div");
-    row.className = "row"; row.dataset.row = i;
-    if(r.lane) row.insertAdjacentHTML("beforeend", '<span class="lane">'+r.lane+'</span>');
-    ["l","c","r"].forEach(k=>{
+    const parallel = (r.c||[]).some(id=>S[id].parallel);
+    row.className = "row" + (parallel ? " parallel-row" : "");
+    if(parallel) row.dataset.parallelGroup = S[(r.c||[]).find(id=>S[id].parallel)].parallel;
+    row.dataset.row = i;
+    const rowSourceIds = state.showServing ? sourceIdsFor(r.c||[]) : [];
+    (state.showServing ? ["d","l","c","r"] : ["l","c","r"]).forEach(k=>{
       const cell = document.createElement("div");
-      cell.className = "cell " + (k==="l"?"left":k==="c"?"center":"right");
+      cell.className = "cell " + (k==="d"?"data":k==="l"?"left":k==="c"?"center":"right");
       if(k==="c") cell.dataset.cellRow = i;
-      const ids = r[k]||[];
-      const sourceIds = k==="c" && state.showServing
-        ? sourceIdsForRow(i,ids.filter(isOn)) : [];
-      if(sourceIds.length){
-        cell.classList.add("with-serving");
-        const cluster = document.createElement("div");
-        cluster.className = "node-cluster";
-        ids.forEach(id=>cluster.appendChild(nodeEl(id,newIds)));
-        cell.appendChild(cluster);
-        cell.appendChild(servingLayerEl(sourceIds));
+      const ids = k==="d" ? [] : (r[k]||[]);
+      if(k==="d" && rowSourceIds.length){
+        const column = document.createElement("div");
+        column.className = "data-source-column";
+        rowSourceIds.forEach(id=>column.appendChild(dataSourceEl(id,logical)));
+        cell.appendChild(column);
       } else {
-        ids.forEach(id=>cell.appendChild(nodeEl(id,newIds)));
+        ids.forEach(id=>cell.appendChild(nodeEl(id,newIds,logical)));
       }
       row.appendChild(cell);
     });
     rowsEl.appendChild(row);
+    const transition=mobileTransition(r,logical);
+    if(transition) rowsEl.appendChild(transition);
+    if((r.c||[]).includes("sufficiency")){
+      const recovery=mobileRecovery(logical);
+      if(recovery) rowsEl.appendChild(recovery);
+    }
   });
+  if(state.sel && isNarrowLayout()) renderMobileSelection(state.sel);
   applyFocus();
   requestAnimationFrame(drawWires);
 }
@@ -2471,151 +3489,527 @@ function rectOf(sel){
   return {x:r.left-cr.left, y:r.top-cr.top, w:r.width, h:r.height,
           cx:r.left-cr.left+r.width/2, cy:r.top-cr.top+r.height/2};
 }
-function nodeRect(id){
-  if(String(id).startsWith("row:")) return rectOf('[data-cell-row="'+id.slice(4)+'"]');
-  if(DATA_SOURCES[id]) return rectOf('.source-card[data-source-id="'+id+'"]');
-  return rectOf('.node[data-id="'+id+'"]');
+const PARALLEL_GROUPS = Object.freeze({
+  retrieval:Object.freeze({
+    label:"parallel retrieval",
+    ingressLabel:"retrieval fan-out",
+    egressLabel:"candidate fan-in",
+    controlPorts:Object.freeze({
+      routing:"gates legs",
+      budget:"allocates k",
+      degradation:"cuts or skips"
+    })
+  })
+});
+const STAGE_GROUPS = Object.freeze({
+  "selective-rerank-cascade":Object.freeze({
+    label:"selective rerank cascade",
+    members:SELECTIVE_RERANK_CASCADE,
+    padding:Object.freeze({x:22,y:28}),
+    controlPorts:Object.freeze({routing:"selects gated passes"}),
+    controlSides:Object.freeze({routing:"right"})
+  })
+});
+const RENDER_TARGET_TYPES = Object.freeze(["node","group","stage-group","source"]);
+let parallelLayoutCache = new Map();
+
+function makeRenderTarget(type,id,members,rowIndex){
+  if(!RENDER_TARGET_TYPES.includes(type)) throw new Error("Unknown render target type: "+type);
+  if(!id || !members.length) throw new Error("Render target requires an id and at least one member");
+  if(type==="group" && !Number.isInteger(rowIndex)) throw new Error("Group render target requires a row index: "+id);
+  return {type,id,rowIndex,members:[...members]};
+}
+function nodeRenderTarget(id){
+  return makeRenderTarget(DATA_SOURCES[id] ? "source" : "node",id,[id]);
+}
+function groupRenderTarget(id,rowIndex,members,portId=null,layoutMembers=members){
+  const target=makeRenderTarget("group",id,members,rowIndex);
+  target.portId=portId;
+  target.layoutMembers=[...layoutMembers];
+  return target;
+}
+function stageGroupRenderTarget(id,members,portId=null,layoutMembers=STAGE_GROUPS[id]?.members||members){
+  const target=makeRenderTarget("stage-group",id,members);
+  target.portId=portId;
+  target.layoutMembers=[...layoutMembers];
+  return target;
+}
+function renderTargetIds(target){ return target.members||[target.id]; }
+function parallelGroupName(target){ return target.id.replace(/^parallel:/,""); }
+function parallelGroupLayout(target){
+  const layoutMembers=target.layoutMembers||target.members;
+  const key=[target.id,target.rowIndex,...target.members,"layout",...layoutMembers].join("|");
+  if(parallelLayoutCache.has(key)) return parallelLayoutCache.get(key);
+
+  const cards=layoutMembers.map(id=>({id,rect:rectOf('.node[data-id="'+id+'"]')}))
+    .filter(card=>card.rect).sort((a,b)=>a.rect.y-b.rect.y || a.rect.x-b.rect.x);
+  if(!cards.length) return null;
+  const groupName=parallelGroupName(target);
+  const allCards=$$('.row[data-row="'+target.rowIndex+'"] .cell.center .node',canvas)
+    .filter(node=>S[node.dataset.id].parallel===groupName)
+    .map(node=>({id:node.dataset.id,rect:rectOf(node)}));
+
+  const visualRows=[];
+  cards.forEach(card=>{
+    let row=visualRows.find(candidate=>Math.abs(candidate.top-card.rect.y)<4);
+    if(!row){ row={top:card.rect.y,cards:[]}; visualRows.push(row); }
+    row.cards.push(card);
+  });
+  visualRows.forEach(row=>{
+    row.cards.sort((a,b)=>a.rect.x-b.rect.x);
+    row.top=Math.min(...row.cards.map(card=>card.rect.y));
+    row.bottom=Math.max(...row.cards.map(card=>card.rect.y+card.rect.h));
+    row.inY=row.top-6;
+    row.outY=row.bottom+6;
+  });
+
+  const rects=allCards.map(card=>card.rect);
+  const left=Math.min(...rects.map(rect=>rect.x));
+  const top=Math.min(...rects.map(rect=>rect.y));
+  const right=Math.max(...rects.map(rect=>rect.x+rect.w));
+  const bottom=Math.max(...rects.map(rect=>rect.y+rect.h));
+  const bounds={x:left,y:top,w:right-left,h:bottom-top,cx:(left+right)/2,cy:(top+bottom)/2};
+  const layout={
+    name:groupName,
+    spec:PARALLEL_GROUPS[groupName],
+    bounds,
+    rows:visualRows,
+    inletX:left-12,
+    outletX:right+12
+  };
+  parallelLayoutCache.set(key,layout);
+  return layout;
+}
+function stageGroupLayout(target){
+  const spec=STAGE_GROUPS[target.id];
+  if(!spec) return null;
+  const rects=(target.layoutMembers||spec.members).map(id=>rectOf('.node[data-id="'+id+'"]')).filter(Boolean);
+  if(!rects.length) return null;
+  const padding=spec.padding||{x:0,y:0};
+  const left=Math.min(...rects.map(rect=>rect.x))-padding.x;
+  const top=Math.min(...rects.map(rect=>rect.y))-padding.y;
+  const right=Math.max(...rects.map(rect=>rect.x+rect.w))+padding.x;
+  const bottom=Math.max(...rects.map(rect=>rect.y+rect.h))+padding.y;
+  return {
+    name:target.id,spec,
+    bounds:{x:left,y:top,w:right-left,h:bottom-top,cx:(left+right)/2,cy:(top+bottom)/2}
+  };
+}
+function renderGroupLayout(target){
+  return target.type==="stage-group" ? stageGroupLayout(target) : parallelGroupLayout(target);
+}
+function renderTargetRect(target){
+  if(target.type==="group" || target.type==="stage-group") return renderGroupLayout(target)?.bounds||null;
+  if(target.type==="source") return rectOf('.data-source-node[data-source-id="'+target.id+'"]');
+  return rectOf('.node[data-id="'+target.id+'"]');
+}
+function renderEdge(logicalEdges,toTarget=null,fromTarget=null,geometry="curve",caption=null){
+  const logical = Array.isArray(logicalEdges) ? logicalEdges : [logicalEdges];
+  const first = logical[0];
+  if(!first) throw new Error("Render edge requires at least one logical relationship");
+  const from=fromTarget||nodeRenderTarget(first.from);
+  const to=toTarget||nodeRenderTarget(first.to);
+  if(logical.some(edge=>edge.kind!==first.kind ||
+      !renderTargetIds(from).includes(edge.from) || !renderTargetIds(to).includes(edge.to))){
+    throw new Error("Collapsed render-edge endpoints do not match their render targets");
+  }
+  return {
+    from,to,
+    kind:first.kind,
+    label:first.label||null,
+    detail:first.detail||null,
+    caption,
+    geometry,
+    logical
+  };
 }
 
-/* Turn REL into drawable edges for this template. A source that steers three or
-   more members of one parallel group collapses to a single edge into that row,
-   which is what keeps the retrieval fan-out from becoming six overlapping wires. */
-function relEdges(t){
-  const rows = TPL[t].rows;
-  const present = new Set(tplStages(t));
-  const rowOf = id => rows.findIndex(r => (r.c||[]).includes(id));
-  const out = [];
-
-  Object.keys(REL).forEach(from=>{
-    if(!present.has(from) || !isOn(from)) return;
-    REL_KINDS.forEach(kind=>{
-      const targets = (REL[from][kind]||[]).filter(id=> present.has(id) && isOn(id));
-      if(!targets.length) return;
-      const kindName = kind==="trains" ? "train" : kind==="feeds" ? "feedback" : "ctrl";
-
-      const byGroup = {};
-      targets.forEach(id=>{
-        const g = S[id].parallel;
-        (byGroup[g||("@"+id)] = byGroup[g||("@"+id)] || []).push(id);
-      });
-      Object.keys(byGroup).forEach(g=>{
-        const ids = byGroup[g];
-        if(!g.startsWith("@") && ids.length>=3){
-          const ri = rowOf(ids[0]);
-          if(ri>=0){ out.push([from,"row:"+ri,"",kindName]); return; }
+function parallelPathRenderEdges(templateId,pathEdges){
+  const consumed=new Set(), collapsed=[];
+  TPL[templateId].rows.forEach((row,rowIndex)=>{
+    const parallelNames=[...new Set((row.c||[]).map(id=>S[id].parallel).filter(Boolean))];
+    parallelNames.forEach(parallel=>{
+      const members=(row.c||[]).filter(id=>S[id].parallel===parallel && isOn(id));
+      if(members.length<2) return;
+      const incoming=new Map(), outgoing=new Map();
+      pathEdges.forEach(edge=>{
+        if(members.includes(edge.to) && !members.includes(edge.from)){
+          if(!incoming.has(edge.from)) incoming.set(edge.from,[]);
+          incoming.get(edge.from).push(edge);
         }
-        ids.forEach(id=> out.push([from,id,"",kindName]));
+        if(members.includes(edge.from) && !members.includes(edge.to)){
+          const key=edge.kind+"|"+edge.to;
+          if(!outgoing.has(key)) outgoing.set(key,[]);
+          outgoing.get(key).push(edge);
+        }
+      });
+      incoming.forEach(edges=>{
+        if(edges.length<2) return;
+        edges.forEach(edge=>consumed.add(edge));
+        const byKind=new Map();
+        edges.forEach(edge=>{
+          if(!byKind.has(edge.kind)) byKind.set(edge.kind,[]);
+          byKind.get(edge.kind).push(edge);
+        });
+        byKind.forEach((kindEdges,kind)=>{
+          const targets=kindEdges.map(edge=>edge.to);
+          collapsed.push(renderEdge(kindEdges,
+            groupRenderTarget("parallel:"+parallel,rowIndex,targets,null,members),
+            null,kind==="gated" ? "parallel-in-gated" : "parallel-in"));
+        });
+      });
+      outgoing.forEach(edges=>{
+        if(edges.length<2) return;
+        edges.forEach(edge=>consumed.add(edge));
+        collapsed.push(renderEdge(edges,nodeRenderTarget(edges[0].to),
+          groupRenderTarget("parallel:"+parallel,rowIndex,edges.map(edge=>edge.from),null,members),
+          "parallel-out"));
       });
     });
   });
-  return out;
+  return pathEdges.filter(edge=>!consumed.has(edge)).map(edge=>renderEdge(edge)).concat(collapsed);
+}
+
+/* Several logical relationships may share one group-level drawn path. Keeping
+   those logical endpoints on the render edge preserves drawers, hover state and
+   future accessibility labels while allowing the geometry to stay uncluttered. */
+function componentRenderEdges(templateId,logicalEdges){
+  const rows = TPL[templateId].rows;
+  const grouped = new Map();
+  logicalEdges.forEach(edge=>{
+    const key=[edge.from,edge.kind].join("|");
+    if(!grouped.has(key)) grouped.set(key,[]);
+    grouped.get(key).push(edge);
+  });
+
+  const rendered = [];
+  grouped.forEach(edges=>{
+    const consumed=new Set();
+    Object.entries(STAGE_GROUPS).forEach(([groupId,spec])=>{
+      const portCaption=spec.controlPorts?.[edges[0].from];
+      if(!portCaption) return;
+      const members=edges.filter(edge=>spec.members.includes(edge.to));
+      if(!members.length) return;
+      members.forEach(edge=>consumed.add(edge));
+      rendered.push(renderEdge(members,
+        stageGroupRenderTarget(groupId,members.map(edge=>edge.to),edges[0].from),
+        null,"curve",portCaption));
+    });
+
+    const byParallel = new Map();
+    edges.filter(edge=>!consumed.has(edge)).forEach(edge=>{
+      const parallel=S[edge.to].parallel;
+      const key=parallel||("@"+edge.to);
+      if(!byParallel.has(key)) byParallel.set(key,[]);
+      byParallel.get(key).push(edge);
+    });
+    byParallel.forEach((members,parallel)=>{
+      if(!parallel.startsWith("@") && members.length>=2){
+        const rowIndex=rows.findIndex(row=>(row.c||[]).includes(members[0].to));
+        if(rowIndex>=0){
+          const spec=PARALLEL_GROUPS[parallel];
+          const portId=spec?.controlPorts[edges[0].from] ? edges[0].from : null;
+          rendered.push(renderEdge(members,
+            groupRenderTarget("parallel:"+parallel,rowIndex,members.map(edge=>edge.to),portId),
+            null,"curve",portId ? spec.controlPorts[portId] : null));
+          return;
+        }
+      }
+      members.forEach(edge=>rendered.push(renderEdge(edge)));
+    });
+  });
+  return rendered;
 }
 
 function edgeList(){
-  const t = TPL[state.tpl], edges = [];
-  const groups = t.rows.map((r,i)=>({ ids:(r.c||[]).filter(isOn), row:i, label:r.nextLabel }))
-                       .filter(g=>g.ids.length);
-  for(let i=0;i<groups.length-1;i++){
-    const a=groups[i], b=groups[i+1];
-    const hasHostedSources = state.showServing && sourceIdsForRow(a.row,a.ids).length;
-    const fromIds = hasHostedSources ? ["row:"+a.row] : a.ids;
-    fromIds.forEach(from=> b.ids.forEach(to=>{
-      const label = (a.ids.length===1 && b.ids.length===1) ? a.label : null;
-      edges.push({from,to,label,kind:"flow"});
-    }));
-  }
-  (t.extra||[]).concat(relEdges(state.tpl)).forEach(([from,to,label,kind])=>{
-    const okFrom = String(from).startsWith("row:") || isOn(from);
-    const okTo   = String(to).startsWith("row:")   || isOn(to);
-    if(okFrom && okTo) edges.push({from,to,label,kind});
+  const logical = logicalDependencies(state.tpl,{
+    showServing:state.showServing,
+    off:state.off[state.tpl]
   });
-  if(state.showServing){
-    activeSourceIds().forEach(sourceId=>{
-      activeConsumers(sourceId).forEach(componentId=>
-        edges.push({from:sourceId,to:componentId,label:null,kind:"serves"}));
-    });
+  const components = logical.filter(edge=>RELATION_TYPES[edge.kind].componentRelation);
+  const direct = logical.filter(edge=>!RELATION_TYPES[edge.kind].componentRelation && edge.kind!=="serves");
+  const serving = logical.filter(edge=>edge.kind==="serves");
+  const path=direct.filter(edge=>edge.kind==="flow" || edge.kind==="gated");
+  const otherDirect=direct.filter(edge=>edge.kind!=="flow" && edge.kind!=="gated");
+  return parallelPathRenderEdges(state.tpl,path).concat(otherDirect.map(edge=>renderEdge(edge)))
+    .concat(componentRenderEdges(state.tpl,components),serving.map(edge=>renderEdge(edge)));
+}
+
+function renderTargetName(target){
+  if(target.type==="stage-group"){
+    const label=STAGE_GROUPS[target.id]?.label||target.id;
+    return label+": "+renderTargetIds(target).map(id=>S[id].name).join(", ");
   }
-  return edges;
+  if(target.type==="group"){
+    return "parallel group: "+renderTargetIds(target).map(id=>S[id].name).join(", ");
+  }
+  return DATA_SOURCES[target.id] ? DATA_SOURCES[target.id].name : S[target.id].name;
+}
+function escapeAttribute(value){
+  return String(value).replace(/[&"<>]/g,char=>({"&":"&amp;","\"":"&quot;","<":"&lt;",">":"&gt;"})[char]);
+}
+function relationshipAriaLabel(edge){
+  const relation=RELATION_TYPES[edge.kind];
+  const gateConditions=edge.kind==="gated" ? [...new Set(renderTargetIds(edge.to)
+    .map(id=>executionGate(id,state.tpl)?.label).filter(Boolean))] : [];
+  return relation.aria+" from "+renderTargetName(edge.from)+" to "+renderTargetName(edge.to)+
+    (edge.label ? "; outcome: "+edge.label : "")+
+    (edge.caption ? "; group port: "+edge.caption : "")+
+    (edge.detail ? "; transmits "+edge.detail.payload+"; timing: "+edge.detail.timing : "")+
+    (gateConditions.length ? "; condition: "+gateConditions.join(" or ") : "");
+}
+
+function wirePathMarkup(edge,edgeIndex,d,style,{marker=true,semantic=true,part="primary"}={}){
+  const dash=style.dash ? ' stroke-dasharray="'+style.dash+'"' : "";
+  const linecap=style.linecap!=="butt" ? ' stroke-linecap="'+style.linecap+'"' : "";
+  const identity=semantic
+    ? ' data-edge-kind="'+edge.kind+'" data-logical-count="'+edge.logical.length+'" role="img" aria-label="'+
+      escapeAttribute(relationshipAriaLabel(edge))+'"'
+    : ' aria-hidden="true"';
+  return '<path data-edge-index="'+edgeIndex+'" data-edge-part="'+part+'"'+identity+' d="'+d+
+    '" style="fill:none;stroke:'+style.color+'" stroke-width="'+style.width+'"'+dash+linecap+
+    (marker ? ' marker-end="url(#ah-'+style.marker+')"' : "")+' opacity="'+style.opacity+'"/>';
+}
+
+function parallelFlowGeometry(edge,a,b){
+  const incoming=edge.geometry==="parallel-in" || edge.geometry==="parallel-in-gated";
+  const target=incoming ? edge.to : edge.from;
+  const layout=parallelGroupLayout(target);
+  if(!layout) return null;
+  const first=layout.rows[0], last=layout.rows[layout.rows.length-1];
+
+  if(incoming){
+    const branchIds=new Set(edge.logical.map(logical=>logical.to));
+    const dy=Math.max(18,(first.inY-(a.y+a.h))*.55);
+    const scaffold=edge.geometry==="parallel-in" ? [
+      'M'+a.cx+','+(a.y+a.h)+' C'+a.cx+','+(a.y+a.h+dy)+' '+layout.inletX+','+(first.inY-dy)+' '+layout.inletX+','+first.inY,
+      'M'+layout.inletX+','+first.inY+' V'+last.inY,
+      ...layout.rows.map(row=>'M'+layout.inletX+','+row.inY+' H'+row.cards[row.cards.length-1].rect.cx)
+    ].join(' ') : "";
+    const directional=layout.rows.flatMap(row=>row.cards.filter(card=>branchIds.has(card.id)).map(card=>
+      'M'+card.rect.cx+','+row.inY+' V'+card.rect.y)).join(' ');
+    return {
+      scaffold,directional,
+      label:edge.geometry==="parallel-in" ?
+        {text:layout.spec?.ingressLabel||layout.spec?.label||layout.name,
+          point:{x:Math.min(layout.bounds.cx,layout.inletX+70),y:first.inY-12}} : null
+    };
+  }
+
+  const scaffold=[
+    ...layout.rows.flatMap(row=>row.cards.map(card=>
+      'M'+card.rect.cx+','+(card.rect.y+card.rect.h)+' V'+row.outY)),
+    ...layout.rows.map(row=>'M'+row.cards[0].rect.cx+','+row.outY+' H'+layout.outletX),
+    'M'+layout.outletX+','+first.outY+' V'+last.outY
+  ].join(' ');
+  const dy=Math.max(18,(b.y-last.outY)*.55);
+  const directional='M'+layout.outletX+','+last.outY+' C'+layout.outletX+','+(last.outY+dy)+
+    ' '+b.cx+','+(b.y-dy)+' '+b.cx+','+b.y;
+  return {
+    scaffold,directional,
+    label:{text:layout.spec?.egressLabel||layout.spec?.label||layout.name,
+      point:{x:Math.max(layout.bounds.cx,layout.outletX-70),y:last.outY+12}}
+  };
+}
+
+function groupControlGeometry(edge,sourceRect){
+  const layout=renderGroupLayout(edge.to);
+  if(!layout) return null;
+  const ids=Object.keys(layout.spec?.controlPorts||{});
+  const slot=Math.max(1,ids.indexOf(edge.to.portId)+1)/(ids.length+1);
+  const bounds=layout.bounds;
+  let side,port,source;
+
+  const preferredSide=layout.spec?.controlSides?.[edge.to.portId];
+  if(preferredSide==="right"){
+    side="right";
+    port={x:bounds.x+bounds.w,y:bounds.y+bounds.h*slot};
+    source={x:sourceRect.x,y:sourceRect.cy};
+  } else if(sourceRect.y+sourceRect.h<=bounds.y){
+    side="top";
+    port={x:bounds.x+bounds.w*slot,y:bounds.y-14};
+    source={x:sourceRect.cx,y:sourceRect.y+sourceRect.h};
+  } else if(sourceRect.y>=bounds.y+bounds.h){
+    side="bottom";
+    port={x:bounds.x+bounds.w*slot,y:bounds.y+bounds.h+14};
+    source={x:sourceRect.cx,y:sourceRect.y};
+  } else if(sourceRect.cx>=bounds.cx){
+    side="right";
+    port={x:bounds.x+bounds.w+28,y:bounds.y+bounds.h*slot};
+    source={x:sourceRect.x,y:sourceRect.cy};
+  } else {
+    side="left";
+    port={x:bounds.x-28,y:bounds.y+bounds.h*slot};
+    source={x:sourceRect.x+sourceRect.w,y:sourceRect.cy};
+  }
+
+  const vertical=side==="top"||side==="bottom";
+  const span=vertical ? Math.abs(port.y-source.y) : Math.abs(port.x-source.x);
+  const bend=Math.max(18,span*.5);
+  const sign=(side==="top"||side==="left") ? 1 : -1;
+  const d=vertical
+    ? 'M'+source.x+','+source.y+' C'+source.x+','+(source.y+bend*sign)+' '+port.x+','+(port.y-bend*sign)+' '+port.x+','+port.y
+    : 'M'+source.x+','+source.y+' C'+(source.x+bend*sign)+','+source.y+' '+(port.x-bend*sign)+','+port.y+' '+port.x+','+port.y;
+  return {d,side};
+}
+
+function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,parallel="retrieval"){
+  const rowIndex=TPL[state.tpl].rows.findIndex(row=>(row.c||[]).some(id=>S[id].parallel===parallel));
+  if(rowIndex<0) return null;
+  const members=(TPL[state.tpl].rows[rowIndex].c||[])
+    .filter(id=>S[id].parallel===parallel && isOn(id));
+  if(members.length<2) return null;
+  const layout=parallelGroupLayout(groupRenderTarget("parallel:"+parallel,rowIndex,members));
+  if(!layout || sourceRect.y<layout.bounds.y+layout.bounds.h ||
+     targetRect.y+targetRect.h>layout.bounds.y) return null;
+
+  const laneX=layout.bounds.x-34-(sourceId==="zerofallback" ? 18 : 0);
+  const lowerY=layout.bounds.y+layout.bounds.h+22;
+  const upperY=layout.bounds.y-22;
+  const sx=sourceRect.x+sourceRect.w, sy=sourceRect.cy;
+  const tx=targetRect.x, ty=targetRect.cy;
+  return 'M'+sx+','+sy+' C'+laneX+','+sy+' '+laneX+','+lowerY+' '+laneX+','+lowerY+
+    ' L'+laneX+','+upperY+' C'+laneX+','+ty+' '+laneX+','+ty+' '+tx+','+ty;
+}
+
+function renderStageBoundaries(){
+  $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
+  if(state.tpl!==3) return;
+  const target=stageGroupRenderTarget("selective-rerank-cascade",GATED_RERANKERS);
+  const layout=stageGroupLayout(target);
+  if(!layout) return;
+  const {x:left,y:top,w:width,h:height}=layout.bounds;
+  const boundary=document.createElement("div");
+  boundary.className="stage-boundary";
+  boundary.dataset.group="selective-rerank-cascade";
+  boundary.style.left=left+"px";
+  boundary.style.top=top+"px";
+  boundary.style.width=width+"px";
+  boundary.style.height=height+"px";
+  boundary.innerHTML='<span class="boundary-title">Selective rerank cascade</span>'+
+    '<span class="boundary-note">gated passes · skipped stages pass candidates through</span>';
+  canvas.appendChild(boundary);
 }
 
 function drawWires(){
+  $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
   if(window.innerWidth<=700){ wires.innerHTML=""; $$(".elabel").forEach(e=>e.remove()); return; }
   const W = canvas.scrollWidth, H = canvas.scrollHeight;
   wires.setAttribute("width",W); wires.setAttribute("height",H);
   wires.setAttribute("viewBox","0 0 "+W+" "+H);
   $$(".elabel").forEach(e=>e.remove());
+  parallelLayoutCache = new Map();
 
-  let defs = '<defs>' +
-    ['flow:var(--wire)','loop:var(--wire-loop)','ctrl:var(--wire-ctrl)','train:var(--wire-train)','data:var(--wire-data)'].map(d=>{
-      const [k,c]=d.split(":");
-      return '<marker id="ah-'+k+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
-             '<path d="M0,0 L8,4 L0,8 z" style="fill:'+c+'"/></marker>';
-    }).join("") + '</defs>';
+  const markerColors = new Map();
+  Object.values(RELATION_TYPES).forEach(relation=>{
+    if(!markerColors.has(relation.marker)) markerColors.set(relation.marker,relation.color);
+  });
+  const defs = '<defs>' + Array.from(markerColors,([marker,color])=>
+    '<marker id="ah-'+marker+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
+    '<path d="M0,0 L8,4 L0,8 z" style="fill:'+color+'"/></marker>').join("") + '</defs>';
 
   let paths = "", labels = [];
   edgeList().forEach((e,edgeIndex)=>{
-    const a = nodeRect(e.from), b = nodeRect(e.to);
+    const a = renderTargetRect(e.from), b = renderTargetRect(e.to);
     if(!a||!b) return;
-    let d, stroke="var(--wire)", dash="", marker="flow", lx, ly;
+    const relation = RELATION_TYPES[e.kind];
+    let d, style=relation;
+
+    if(e.geometry==="parallel-in" || e.geometry==="parallel-in-gated" || e.geometry==="parallel-out"){
+      const geometry=parallelFlowGeometry(e,a,b);
+      if(!geometry) return;
+      if(geometry.scaffold) paths+=wirePathMarkup(e,edgeIndex,geometry.scaffold,relation,
+        {marker:false,semantic:false,part:"bus"});
+      paths+=wirePathMarkup(e,edgeIndex,geometry.directional,relation,
+        {marker:true,semantic:true,part:e.geometry});
+      if(geometry.label) labels.push({...geometry.label,bus:true,color:relation.color});
+      return;
+    }
+
+    if((e.to.type==="group" || e.to.type==="stage-group") && e.to.portId){
+      const geometry=groupControlGeometry(e,a);
+      if(!geometry) return;
+      paths+=wirePathMarkup(e,edgeIndex,geometry.d,relation);
+      labels.push({edgeIndex,text:e.caption,
+        position:geometry.side==="right"||geometry.side==="left" ? .52 : .35,
+        port:true,color:relation.color});
+      return;
+    }
 
     // An explicit kind routes itself. The geometric "runs upward" test is only a
     // fallback for spine edges, which carry no routing of their own — and it needs a
     // tolerance, because two cards centred in the same row differ by a few pixels
     // without the edge going anywhere.
-    const spine  = e.kind==="flow" || e.kind==="branch";
+    const spine  = relation.route==="spine" || relation.route==="branch";
     const runsUp = b.y < a.y - 24;
 
-    if(e.kind==="serves"){
-      stroke="var(--wire-data)"; dash='stroke-dasharray="2 5" stroke-linecap="round"'; marker="data";
-      const sx=a.cx, sy=a.y, tx=b.cx, ty=b.y+b.h;
-      const dy = Math.max(18,(sy-ty)*0.52);
-      d = "M"+sx+","+sy+" C"+sx+","+(sy-dy)+" "+tx+","+(ty+dy)+" "+tx+","+ty;
-    } else if(e.kind==="ctrl" || e.kind==="train"){
-      const train = e.kind==="train";
-      stroke = train ? "var(--wire-train)" : "var(--wire-ctrl)";
-      dash   = train ? 'stroke-dasharray="7 5"' : 'stroke-dasharray="3 4"';
-      marker = train ? "train" : "ctrl";
+    if(relation.route==="source"){
+      const horizontal = a.x+a.w <= b.x+6;
+      if(horizontal){
+        const sx=a.x+a.w, sy=a.cy, tx=b.x, ty=b.cy;
+        const dx=Math.max(18,(tx-sx)*.5);
+        d = "M"+sx+","+sy+" C"+(sx+dx)+","+sy+" "+(tx-dx)+","+ty+" "+tx+","+ty;
+      } else {
+        const sourceAbove = a.cy < b.cy;
+        const sx=a.cx, sy=sourceAbove?a.y+a.h:a.y;
+        const tx=b.cx, ty=sourceAbove?b.y:b.y+b.h;
+        const dy=Math.max(18,Math.abs(ty-sy)*.5)*(sourceAbove?1:-1);
+        d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
+      }
+    } else if(relation.route==="side"){
       const fromLeft = a.cx > b.cx;
       const sx = fromLeft ? a.x : a.x+a.w, sy = a.cy;
       const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
-      const k = Math.max(30, Math.abs(tx-sx)*0.45) * (fromLeft?-1:1);
+      const k = Math.max(30, Math.abs(tx-sx)*relation.curve) * (fromLeft?-1:1);
       d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
-    } else if(e.kind==="feedback"){
-      stroke="var(--wire-ctrl)"; dash='stroke-dasharray="1 5" stroke-linecap="round"'; marker="ctrl";
-      const fromLeft = a.cx > b.cx;
-      const sx = fromLeft ? a.x : a.x+a.w, sy = a.cy;
-      const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
-      const k = Math.max(30, Math.abs(tx-sx)*0.4) * (fromLeft?-1:1);
-      d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
-    } else if(e.kind==="loop" || (spine && runsUp)){
-      stroke="var(--wire-loop)"; marker="loop";
-      const gx = 62;
-      const sx=a.x, sy=a.cy, tx=b.x, ty=b.cy;
-      d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+ty+" "+tx+","+ty;
-      lx = gx+9; ly = (sy+ty)/2;
+    } else if(relation.route==="branch" && b.cx < a.cx - 24){
+      const sx=a.x, sy=a.cy, tx=b.x+b.w, ty=b.cy;
+      const dx=Math.max(24,(sx-tx)*.45);
+      d = "M"+sx+","+sy+" C"+(sx-dx)+","+sy+" "+(tx+dx)+","+ty+" "+tx+","+ty;
+    } else if(relation.route==="loop" || (spine && runsUp)){
+      style=RELATION_TYPES.loop;
+      const aroundGroup=recoveryGeometryAroundParallelGroup(a,b,renderTargetIds(e.from)[0]);
+      const besideMain = a.x+a.w < b.x;
+      if(aroundGroup){
+        d=aroundGroup;
+      } else if(besideMain){
+        const sx=a.x+a.w, sy=a.cy, tx=b.x;
+        const isFallback=renderTargetIds(e.from).includes("zerofallback");
+        const ty=b.cy+(isFallback?7:-7);
+        const spread=Math.max(48,Math.min(110,(tx-sx)*.58));
+        d = "M"+sx+","+sy+" C"+(sx+spread)+","+sy+" "+(tx-spread)+","+ty+" "+tx+","+ty;
+      } else {
+        const gx = 62;
+        const sx=a.x, sy=a.cy, tx=b.x, ty=b.cy;
+        d = "M"+sx+","+sy+" C"+gx+","+sy+" "+gx+","+ty+" "+tx+","+ty;
+      }
     } else {
       const sx=a.cx, sy=a.y+a.h, tx=b.cx, ty=b.y;
       const dy = Math.max(12,(ty-sy)*0.55);
       d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
-      if(e.kind==="branch"){
-        dash='stroke-dasharray="6 4"';
-        lx = sx + (tx-sx)*0.2; ly = sy + (ty-sy)*0.2;
-      } else { lx = (sx+tx)/2; ly = (sy+ty)/2; }
     }
-    paths += '<path data-edge-index="'+edgeIndex+'" d="'+d+'" style="fill:none;stroke:'+stroke+'" stroke-width="1.4" '+dash+
-             ' marker-end="url(#ah-'+marker+')" opacity="'+(e.kind==="ctrl"?".8":e.kind==="serves"?".72":"1")+'"/>';
-    if(e.label && lx!=null) labels.push({x:lx,y:ly,text:e.label,loop:e.kind==="loop"});
+    paths += wirePathMarkup(e,edgeIndex,d,style);
+    if(e.label) labels.push({edgeIndex,text:e.label,loop:e.kind==="loop",branch:e.kind==="branch",color:style.color});
+    if(e.detail) labels.push({edgeIndex,text:e.detail.label,relation:true,color:style.color,position:.56});
   });
   wires.innerHTML = defs + paths;
+  renderStageBoundaries();
   labels.forEach(l=>{
+    const path = l.edgeIndex==null ? null :
+      wires.querySelector('path[data-edge-index="'+l.edgeIndex+'"][data-edge-kind]');
+    if(!l.point && !path) return;
+    const point = l.point || path.getPointAtLength(path.getTotalLength()*(l.position||.5));
     const el = document.createElement("span");
-    el.className = "elabel" + (l.loop?" loop":"");
-    el.style.left = l.x+"px"; el.style.top = l.y+"px"; el.textContent = l.text;
+    el.className = "elabel" + (l.loop?" loop":"") + (l.branch?" branch":"")+
+      (l.bus?" bus":"")+(l.port?" port":"")+(l.relation?" relation":"");
+    if(l.color) el.style.setProperty("--line-label-color",l.color);
+    el.style.left = point.x+"px"; el.style.top = point.y+"px";
+    el.textContent = String(l.text).toLowerCase();
     canvas.appendChild(el);
   });
 }
 
-/* ---------- unified focus: facet | capability | latency phase ---------- */
+/* ---------- unified focus: facet | capability | latency phase | gate ---------- */
 const FOCUS = {
   facet:{
     match:(s,id)=> (s.handles||[]).includes(id),
@@ -2631,8 +4025,18 @@ const FOCUS = {
     match:(s,id)=>{ const p=PHASES.find(x=>x.id===id); return !!p && p.groups.includes(s.group); },
     describe:id=>{ const p=PHASES.find(x=>x.id===id);
       return "<b>"+p.label+"</b> — components spending time in this phase:"; }
+  },
+  gate:{
+    match:(s,id)=> executionGate(s.id,state.tpl)?.label===id,
+    describe:id=>{ const c=GATE_CONDITION[id];
+      return "<b>"+c.label.toUpperCase()+"</b> — "+gateSentence(c)+" Stages it gates:"; }
   }
 };
+
+/* Stages the given condition gates in the active template. */
+function gatedStagesFor(label){
+  return tplStages(state.tpl).filter(id=> executionGate(id,state.tpl)?.label===label);
+}
 
 function focusMatches(){
   if(!state.focus) return [];
@@ -2649,7 +4053,7 @@ function setFocus(kind, id){
 
 function applyFocus(){
   const hits = new Set(focusMatches());
-  const sourceHits = new Set(activeSourceIds(Array.from(hits)));
+  const sourceHits = new Set(sourceIdsForConsumers(Array.from(hits)));
   // nothing matches: leave the diagram alone rather than dimming everything,
   // which reads as a broken page. The focus panel explains why.
   const dim = state.focus && hits.size > 0;
@@ -2658,7 +4062,7 @@ function applyFocus(){
     if(!dim) return;
     n.classList.add(hits.has(n.dataset.id) ? "hl" : "dimmed");
   });
-  $$(".source-card").forEach(card=>{
+  $$(".data-source-node").forEach(card=>{
     card.classList.remove("hl","dimmed");
     if(!dim) return;
     card.classList.add(sourceHits.has(card.dataset.sourceId) ? "hl" : "dimmed");
@@ -2673,6 +4077,8 @@ function syncFocusUI(){
     el.setAttribute("aria-pressed", String(!!f && f.kind==="cap" && f.id===el.dataset.cap)));
   $$("#latLegend button").forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="phase" && f.id===el.dataset.phase)));
+  $$("#gateLegend button").forEach(el=>
+    el.setAttribute("aria-pressed", String(!!f && f.kind==="gate" && f.id===el.dataset.gateCondition)));
 
   const box = $("#focusBox");
   if(!f){ box.hidden = true; return; }
@@ -2682,7 +4088,7 @@ function syncFocusUI(){
   $("#focusList").innerHTML = hits.length
     ? hits.map(id=>'<button class="ref'+(isOff(id)?" isoff":"")+'" data-goto="'+id+'">'+
         S[id].name + (isOff(id)?" · off":"") + '</button>').join("")
-    : '<p class="fnone">No component in template '+state.tpl+' provides this. Switch template, or re-enable a component.</p>';
+    : '<p class="fnone">No component in '+TPL[state.tpl].name+' provides this. Switch level, or re-enable a component.</p>';
   $$("#focusList .ref").forEach(b=> b.addEventListener("click", ()=> openDrawer(b.dataset.goto)));
 }
 
@@ -2695,13 +4101,39 @@ const drawerSect = (title,body)=> '<div class="sect"><h4>'+title+'</h4>'+body+'<
 function selectEntity(id){
   state.sel = id;
   $$(".node").forEach(n=>n.classList.toggle("selected",n.dataset.id===id));
-  $$(".source-card").forEach(card=>
+  $$(".data-source-node").forEach(card=>
     card.classList.toggle("selected",card.dataset.sourceId===id));
+}
+
+/* The gate explanation, composed once. Anything with a sentence and an
+   optional decider can use it: a resolved gate or a GATE_CONDITION entry. */
+function gateSentence(gate){
+  return gate.decidedBy
+    ? gate.sentence+" Decided by "+S[gate.decidedBy].name+"."
+    : gate.sentence;
+}
+
+/* A header chip that leads somewhere is a button; one that does not stays a
+   span, so the affordance is never a lie. */
+function chipTag(goto,html){
+  return goto
+    ? '<button class="chip" data-goto="'+goto+'">'+html+'</button>'
+    : '<span class="chip">'+html+'</span>';
+}
+
+/* One drawer header serves components and data sources, so the gate note is
+   set from a single place — a source drawer must not inherit the last card's. */
+function setGateNote(gate){
+  const el = $("#dGate");
+  el.hidden = !gate;
+  el.textContent = gate ? gateSentence(gate) : "";
+  if(gate) el.style.setProperty("--gate-color", gate.color);
 }
 
 function openDrawer(id){
   const s = S[id];
   if(!s) return;
+  const gate = executionGate(id,state.tpl);
   hideHover();
   selectEntity(id);
 
@@ -2714,12 +4146,23 @@ function openDrawer(id){
 
   const locked = lockedFor(id), on = isOn(id);
   $("#dChips").innerHTML =
-    '<span class="chip">Introduced in <b>template '+s.intro+'</b></span>' +
+    '<span class="chip">Introduced in <b>'+TPL[s.intro].name+'</b></span>' +
     (s.lat && s.lat[1] ? '<span class="chip">'+(s.conditional?"Conditional ":"")+'p95 <b>'+s.lat[0]+"–"+s.lat[1]+' ms</b></span>' : "") +
     (s.cx ? '<span class="chip">Complexity <b>'+s.cx+'/5</b></span>' : "") +
     (s.model ? '<span class="chip">model in path</span>' : "") +
+    /* A request gate is one hop from the component that owns the decision.
+       A deployment gate has no owner to hop to, and the chip that leads
+       nowhere is exactly the point. */
+    (gate ? chipTag(gate.decidedBy,
+      'Gate <b class="tagval">'+gate.label+'</b> \u00b7 '+GATE_TIMING_LABEL[gate.timing]) : "") +
+    (gate?.altOf ? chipTag(gate.altOf,
+      'Alternative to <b>'+S[gate.altOf].name+'</b>') : "") +
     '<button class="enable-btn" id="dToggle" data-on="'+(on?1:0)+'"'+(locked?" disabled title=\"Core components cannot be switched off\"":"")+'>'+
       (locked ? "core · always on" : (on ? "✓ enabled" : "disabled — enable")) + '</button>';
+
+  setGateNote(gate);
+  $$("#dChips [data-goto]").forEach(b=>
+    b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
 
   const sect = drawerSect;
   let h = "";
@@ -2755,12 +4198,17 @@ function openDrawer(id){
   const relRow = (kind, ids, dir) => {
     const live = ids.filter(x=>S[x]);
     if(!live.length) return "";
+    const relation = RELATION_TYPES[kind];
     const offAndNeeded = dir==="rev" ? live.filter(isOff) : [];
-    return sect(REL_LABEL[kind][dir==="fwd"?"fwd":"rev"],
-      '<p class="relnote">'+REL_LABEL[kind].note+'</p>' +
-      '<div class="reflist">'+live.map(x=>
-        '<button class="ref'+(isOff(x)?" isoff":"")+'" data-goto="'+x+'">'+
-        S[x].name + (isOff(x)?" · off":"") + '</button>').join("")+'</div>' +
+    return sect(relation[dir==="fwd"?"fwd":"rev"],
+      '<p class="relnote">'+relation.description+'</p>' +
+      '<div class="reflist">'+live.map(x=>{
+        const detail=dir==="fwd" ? relationDetail(id,kind,x) : relationDetail(x,kind,id);
+        return '<button class="ref'+(isOff(x)?" isoff":"")+'" data-goto="'+x+'">'+
+          S[x].name + (isOff(x)?" · off":"") +
+          (detail ? '<span class="refdetail">'+detail.label+' — '+detail.payload+' · '+detail.timing+'</span>' : '')+
+          '</button>';
+      }).join("")+'</div>' +
       (offAndNeeded.length && kind==="trains"
         ? '<p class="reldep">'+S[id].name+' is trained from data '+
           offAndNeeded.map(x=>S[x].name).join(" and ")+
@@ -2768,8 +4216,8 @@ function openDrawer(id){
         : ""));
   };
   const fwd = REL[id] || {}, rev = RREL[id] || {};
-  REL_KINDS.forEach(k=>{ h += relRow(k, fwd[k]||[], "fwd"); });
-  REL_KINDS.forEach(k=>{ h += relRow(k, rev[k]||[], "rev"); });
+  COMPONENT_RELATION_KINDS.forEach(k=>{ h += relRow(k, fwd[k]||[], "fwd"); });
+  COMPONENT_RELATION_KINDS.forEach(k=>{ h += relRow(k, rev[k]||[], "rev"); });
 
   const sources = RSERVING[id] || [];
   if(sources.length) h += sect("Served by",
@@ -2779,7 +4227,7 @@ function openDrawer(id){
 
   const usedIn = [1,2,3].filter(t=>tplStages(t).includes(id));
   h += sect("Appears in", '<div class="reflist">'+usedIn.map(t=>
-        '<button class="ref" data-tpl="'+t+'">Template '+t+' · '+TPL[t].name+'</button>').join("")+'</div>');
+        '<button class="ref" data-tpl="'+t+'">'+TPL[t].name+'</button>').join("")+'</div>');
 
   $("#dBody").innerHTML = h;
   $$("#dBody .ref[data-goto]").forEach(b=> b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
@@ -2799,14 +4247,16 @@ function openSourceDrawer(id){
   selectEntity(id);
 
   $("#dTags").innerHTML =
-    '<span class="tag data">serving data</span><span class="tag grp">logical dependency</span>';
+    '<span class="tag '+source.tier+'">'+TIER_LABEL[source.intro]+'</span>'+
+    '<span class="tag data">data plane</span><span class="tag grp">logical dependency</span>';
   $("#dTitle").textContent = source.name;
   $("#dPurpose").textContent = source.purpose;
+  setGateNote(null);
 
   const consumers = SERVING_REL[id] || [];
   const active = activeConsumers(id);
   $("#dChips").innerHTML =
-    '<span class="chip">Logical source</span>'+
+    '<span class="chip">Introduced in <b>'+TPL[source.intro].name+'</b></span>'+
     '<span class="chip">Active consumers <b>'+active.length+'</b></span>'+
     '<span class="chip">Defined consumers <b>'+consumers.length+'</b></span>';
 
@@ -2817,7 +4267,7 @@ function openSourceDrawer(id){
   const serves = '<p class="relnote">Components that query or hydrate from this logical source.</p>'+
     '<div class="reflist">'+consumers.map(componentId=>{
       const unavailable = !present.has(componentId), off = present.has(componentId) && isOff(componentId);
-      const suffix = unavailable ? " · not in this template" : off ? " · off" : "";
+      const suffix = unavailable ? " · not in "+TPL[state.tpl].name : off ? " · off" : "";
       return '<button class="ref'+(unavailable||off?' isoff':'')+'" data-goto="'+componentId+'">'+
         S[componentId].name+suffix+'</button>';
     }).join("")+'</div>';
@@ -2832,7 +4282,7 @@ function openSourceDrawer(id){
     notes+
     drawerSect("Serves",serves)+
     drawerSect("Appears with",'<div class="reflist">'+templates.map(t=>
-      '<button class="ref" data-source-tpl="'+t+'">Template '+t+' · '+TPL[t].name+'</button>').join("")+'</div>');
+      '<button class="ref" data-source-tpl="'+t+'">'+TPL[t].name+'</button>').join("")+'</div>');
 
   $$("#dBody .ref[data-goto]").forEach(b=>b.addEventListener("click",()=>openDrawer(b.dataset.goto)));
   $$("#dBody .ref[data-source-tpl]").forEach(b=>b.addEventListener("click",()=>{
@@ -2845,7 +4295,9 @@ function openSourceDrawer(id){
 function closeDrawer(){
   drawer.classList.remove("open"); scrim.classList.remove("open");
   state.sel = null;
-  $$(".node,.source-card").forEach(el=>el.classList.remove("selected"));
+  $$(".node,.data-source-node").forEach(el=>el.classList.remove("selected"));
+  $$(".mobile-selection",rowsEl).forEach(panel=>panel.remove());
+  $$(".mobile-connected",rowsEl).forEach(el=>el.classList.remove("mobile-connected"));
 }
 
 /* =======================================================================
@@ -2860,16 +4312,36 @@ document.body.appendChild(hoverCard);
 let hoverTimer = null, hoverId = null;
 const finePointer = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-function endpointIds(endpoint){
-  if(!String(endpoint).startsWith("row:")) return [endpoint];
-  const row = TPL[state.tpl].rows[+String(endpoint).slice(4)];
-  return row ? (row.c||[]).filter(isOn) : [];
+/* The relationships worth previewing, in the order the card lists them. The
+   drawer renders these in full; here they collapse to names, because the card
+   is a preview of what is on the canvas rather than a reference page — hence
+   `scoped`, which drops components the current template does not draw. */
+const HOVER_RELATIONS = Object.freeze([
+  {label:"Served by",             pick:id=>RSERVING[id],      name:x=>DATA_SOURCES[x]?.name},
+  {label:RELATION_TYPES.steers.rev, pick:id=>RREL[id]?.steers, name:x=>S[x]?.name, scoped:true},
+  {label:RELATION_TYPES.steers.fwd, pick:id=>REL[id]?.steers,  name:x=>S[x]?.name, scoped:true}
+]);
+const HOVER_RELATION_LIMIT = 7;   // routing steers twelve stages; the drawer lists them all
+
+function hoverRelations(id){
+  const drawn = new Set(tplStages(state.tpl));
+  const rows = HOVER_RELATIONS.map(relation=>{
+    const names = (relation.pick(id) || [])
+      .filter(x => !relation.scoped || drawn.has(x))
+      .map(relation.name).filter(Boolean);
+    if(!names.length) return "";
+    const shown = names.slice(0,HOVER_RELATION_LIMIT).join(" \u00b7 ");
+    const rest  = names.length - HOVER_RELATION_LIMIT;
+    return '<div class="hc-rel"><span class="hc-lb">'+relation.label+'</span>'+shown+
+      (rest > 0 ? ' <span class="hc-more">+'+rest+' more</span>' : "")+'</div>';
+  }).join("");
+  return rows ? '<div class="hc-rels">'+rows+'</div>' : "";
 }
 
 function showHoverConnections(id){
   const connected = new Set(), connectedEdges = new Set();
   edgeList().forEach((edge,index)=>{
-    const from = endpointIds(edge.from), to = endpointIds(edge.to);
+    const from = renderTargetIds(edge.from), to = renderTargetIds(edge.to);
     if(from.includes(id)){
       to.forEach(target=>connected.add(target));
       connectedEdges.add(index);
@@ -2881,7 +4353,7 @@ function showHoverConnections(id){
   });
   $$(".node",rowsEl).forEach(node=>
     node.classList.toggle("hover-connected", connected.has(node.dataset.id)));
-  $$(".source-card",rowsEl).forEach(card=>
+  $$(".data-source-node",rowsEl).forEach(card=>
     card.classList.toggle("hover-connected", connected.has(card.dataset.sourceId)));
   $$("path[data-edge-index]",wires).forEach(path=>
     path.classList.toggle("hover-connected", connectedEdges.has(+path.dataset.edgeIndex)));
@@ -2903,6 +4375,7 @@ function showHover(el, id){
     if(drawer.classList.contains("open")) return;
     const consumers = activeConsumers(id);
     hoverCard.innerHTML =
+      '<div class="hc-title">'+source.name+'</div>'+
       '<div class="hc-top"><span class="hc-pill hc-group">Serving data</span>'+
         '<span class="hc-pill">'+consumers.length+' active '+(consumers.length===1?"consumer":"consumers")+'</span></div>'+
       '<p class="hc-desc">'+source.purpose+'</p>'+
@@ -2911,13 +4384,23 @@ function showHover(el, id){
   } else {
     const s = S[id];
     if(!s || drawer.classList.contains("open")) return;
-  const latency = s.lat[0]===s.lat[1] ? s.lat[0]+" ms" : s.lat[0]+"–"+s.lat[1]+" ms";
+    const gate = executionGate(id,state.tpl);
+    const latency = s.lat[0]===s.lat[1] ? s.lat[0]+" ms" : s.lat[0]+"–"+s.lat[1]+" ms";
     hoverCard.innerHTML =
+      '<div class="hc-title">'+s.name+'</div>'+
       '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
         '<span class="hc-pill">p95 '+latency+'</span>'+
-        '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span></div>'+
+        '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
+        /* Orthogonal to the gate, exactly as on the node card: when a stage
+           runs, and what it costs on the requests where it does. */
+        (s.conditional ? '<span class="hc-pill hc-cond">Conditional</span>' : "")+'</div>'+
+      /* The gate needs no pill of its own — this paragraph names it, and its
+         rail colour still separates request gates from deployment ones. */
+      (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'"><b>'+gate.label+
+        ' gate</b> \u2014 '+gateSentence(gate)+'</p>' : "")+
       '<p class="hc-desc">'+s.purpose+'</p>'+
       (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
+      hoverRelations(id)+
       (s.notes && s.notes.length ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+
         s.notes.map(n=>'<li>'+n+'</li>').join("")+'</ul></div>' : "");
   }
@@ -2934,7 +4417,7 @@ function showHover(el, id){
 
 rowsEl.addEventListener("mouseover", e=>{
   if(!finePointer() || drawer.classList.contains("open")) return;
-  const el = e.target.closest(".node,.source-card");
+  const el = e.target.closest(".node,.data-source-node");
   const id = el && (el.dataset.id || el.dataset.sourceId);
   if(!el || id === hoverId) return;
   hideHover();
@@ -2943,7 +4426,7 @@ rowsEl.addEventListener("mouseover", e=>{
   hoverTimer = setTimeout(()=> showHover(el, id), 250);
 });
 rowsEl.addEventListener("mouseout", e=>{
-  const el = e.target.closest(".node,.source-card");
+  const el = e.target.closest(".node,.data-source-node");
   if(!el || el.contains(e.relatedTarget)) return;
   hideHover();
 });
@@ -2957,10 +4440,10 @@ function renderCompList(){
   const groups = [];
   ids.forEach(id=>{ const g=S[id].group; if(!groups.includes(g)) groups.push(g); });
   const dot = t=> t==="core"?"var(--core-line)":t==="recommended"?"var(--rec-line)":"var(--opt-line)";
-  $("#compList").innerHTML = groups.map((g,i)=>{
+  $("#compList").innerHTML = groups.map(g=>{
     const gi = ids.filter(id=>S[id].group===g);
     const on = gi.filter(isOn).length;
-    return '<details'+(i<3?" open":"")+'><summary>'+g+'<span class="count">'+on+"/"+gi.length+'</span></summary>'+
+    return '<details data-group="'+g+'"'+(state.collapsedGroups.has(g)?"":" open")+'><summary>'+g+'<span class="count">'+on+"/"+gi.length+'</span></summary>'+
       gi.map(id=>{
         const s=S[id], locked=lockedFor(id);
         return '<button class="tog" data-id="'+id+'" data-on="'+(isOn(id)?1:0)+'" data-locked="'+(locked?1:0)+'">'+
@@ -2968,6 +4451,12 @@ function renderCompList(){
           '<span class="nm">'+s.name+'</span></button>';
       }).join("") + '</details>';
   }).join("");
+  $$("#compList details").forEach(group=>{
+    group.addEventListener("toggle", ()=>{
+      if(group.open) state.collapsedGroups.delete(group.dataset.group);
+      else state.collapsedGroups.add(group.dataset.group);
+    });
+  });
   $$("#compList .tog").forEach(b=>{
     b.addEventListener("click", (ev)=>{
       const id = b.dataset.id;
@@ -2997,7 +4486,7 @@ function renderBuild(){
       '<div class="grid" style="grid-template-columns:1fr"><div><div class="lb">Build</div>'+s.build+'</div></div>'+
       (chips ? '<div class="chips">'+chips+'</div>' : "") +
       '</div></div>';
-    return s.n===8 ? '<div class="divider">Steps 1–7 above are Template 2 — the production target. Everything below is Template 3 territory.</div>'+html : html;
+    return s.n===8 ? '<div class="divider">Steps 1–7 above are Core + recommended — the production target. Everything below is Full surface territory.</div>'+html : html;
   }).join("");
   $$("#steps .ref[data-goto]").forEach(b=> b.addEventListener("click",()=>{
     const id = b.dataset.goto;
@@ -3015,7 +4504,49 @@ function renderBuild(){
    WIRING
    ======================================================================= */
 function renderAll(){
-  hideHover(); renderCanvas(); renderBudget(); renderCompList(); renderServingToggle();
+  hideHover(); renderGateLegend(); renderCanvas(); renderBudget();
+  renderCompList(); renderServingToggle();
+}
+
+/* One row per condition present in the active template. Conditions the current
+   template cannot reach are omitted rather than shown as dead vocabulary. */
+function renderGateLegend(){
+  const rows = GATE_CONDITIONS
+    .map(condition=>({condition, ids:gatedStagesFor(condition.label)}))
+    .filter(row=>row.ids.length);
+  /* A template switch can retire the focused condition. Drop it here rather
+     than leaving a pressed row with nothing behind it. */
+  if(state.focus?.kind==="gate" && !rows.some(row=>row.condition.label===state.focus.id)){
+    state.focus = null;
+  }
+  $("#gateLegendLabel").hidden = !rows.length;
+  $("#gateLegend").hidden = !rows.length;
+  $("#gateLegend").innerHTML = rows.map(({condition,ids})=>
+    '<button data-gate-condition="'+escapeAttribute(condition.label)+'" aria-pressed="false"'+
+      ' data-gate-timing="'+condition.timing+'" style="--gate-color:'+condition.color+'">'+
+      '<span class="gk-chip">'+condition.label+'</span>'+
+      '<span class="gk-count">'+ids.length+'</span>'+
+      '<span class="gk-desc">'+condition.sentence+'</span>'+
+    '</button>').join("");
+  $$("#gateLegend button").forEach(b=>
+    b.addEventListener("click",()=> setFocus("gate", b.dataset.gateCondition)));
+}
+
+function renderRelationLegend(){
+  $("#relationLegend").innerHTML = Object.entries(RELATION_TYPES)
+    .filter(([,relation])=>relation.legend.visible)
+    .map(([kind,relation])=>{
+      const markerId="legend-arrow-"+kind;
+      const dash=relation.dash ? ' stroke-dasharray="'+relation.dash+'"' : "";
+      return '<span data-relation-kind="'+kind+'" title="'+escapeAttribute(relation.description)+'">'+
+        '<svg class="relation-key" viewBox="0 0 44 10" aria-hidden="true" focusable="false">'+
+          '<defs><marker id="'+markerId+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
+            '<path d="M0,0 L8,4 L0,8 z" style="fill:'+relation.color+'"/></marker></defs>'+
+          '<line x1="1" y1="5" x2="38" y2="5" style="stroke:'+relation.color+'" stroke-width="'+relation.width+'"'+dash+
+            ' stroke-linecap="'+relation.linecap+'" opacity="'+relation.opacity+'" marker-end="url(#'+markerId+')"/>'+
+        '</svg>'+relation.legend.label+'</span>';
+    })
+    .join("");
 }
 
 function setTpl(t){
@@ -3033,7 +4564,16 @@ function setView(v){
   if(v==="pipe") requestAnimationFrame(drawWires);
 }
 
-$$(".seg button").forEach(b=> b.addEventListener("click",()=> setTpl(+b.dataset.tpl)));
+$$(".seg button").forEach(b=>{
+  const t = +b.dataset.tpl, template = TPL[t];
+  const tip = document.createElement("span");
+  tip.className = "tpl-tip"; tip.id = "tplTip"+t; tip.setAttribute("role","tooltip");
+  tip.innerHTML = "<b>"+template.tagline+".</b> "+template.desc;
+  b.setAttribute("aria-label",template.name);
+  b.setAttribute("aria-describedby",tip.id);
+  b.appendChild(tip);
+  b.addEventListener("click",()=> setTpl(t));
+});
 $$(".tabs button").forEach(b=> b.addEventListener("click",()=> setView(b.dataset.view)));
 $("#resetBtn").addEventListener("click", ()=>{ state.off[state.tpl] = new Set(); renderAll(); });
 $("#servingToggle").addEventListener("click",()=>{
@@ -3065,9 +4605,16 @@ $("#clearFocus").addEventListener("click", ()=> setFocus(state.focus.kind, state
 
 let rt;
 new ResizeObserver(()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); }).observe(canvas);
-window.addEventListener("resize", ()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); });
+let responsiveNarrow=isNarrowLayout();
+window.addEventListener("resize", ()=>{
+  clearTimeout(rt);
+  const narrow=isNarrowLayout();
+  if(narrow!==responsiveNarrow){ responsiveNarrow=narrow; rt=setTimeout(renderAll,90); }
+  else rt=setTimeout(drawWires,90);
+});
 if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=> setTimeout(drawWires,50));
 
+renderRelationLegend();
 renderBuild();
 renderAll();
 </script>
