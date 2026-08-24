@@ -3511,9 +3511,14 @@ function rectOf(sel){
 }
 const PARALLEL_GROUPS = Object.freeze({
   retrieval:Object.freeze({
-    label:"parallel retrieval",
     ingressLabel:"retrieval fan-out",
+    ingressGatedLabel:"conditional legs",
     egressLabel:"candidate fan-in",
+    padding:Object.freeze({x:22,y:20}),
+    boundary:Object.freeze({
+      title:"Retrieval components",
+      note:"legs run concurrently \u00b7 the group costs its slowest member"
+    }),
     controlPorts:Object.freeze({
       routing:"gates legs",
       budget:"allocates k",
@@ -3526,12 +3531,24 @@ const STAGE_GROUPS = Object.freeze({
     label:"selective rerank cascade",
     members:SELECTIVE_RERANK_CASCADE,
     padding:Object.freeze({x:22,y:28}),
+    boundary:Object.freeze({
+      title:"Selective rerank cascade",
+      note:"gated passes \u00b7 skipped stages pass candidates through"
+    }),
     controlPorts:Object.freeze({routing:"selects gated passes"}),
     controlSides:Object.freeze({routing:"right"})
   })
 });
 const RENDER_TARGET_TYPES = Object.freeze(["node","group","stage-group","source"]);
 let parallelLayoutCache = new Map();
+
+function paddedBounds(rects,padding={x:0,y:0}){
+  const left=Math.min(...rects.map(rect=>rect.x))-padding.x;
+  const top=Math.min(...rects.map(rect=>rect.y))-padding.y;
+  const right=Math.max(...rects.map(rect=>rect.x+rect.w))+padding.x;
+  const bottom=Math.max(...rects.map(rect=>rect.y+rect.h))+padding.y;
+  return {x:left,y:top,w:right-left,h:bottom-top,cx:(left+right)/2,cy:(top+bottom)/2};
+}
 
 function makeRenderTarget(type,id,members,rowIndex){
   if(!RENDER_TARGET_TYPES.includes(type)) throw new Error("Unknown render target type: "+type);
@@ -3556,47 +3573,24 @@ function stageGroupRenderTarget(id,members,portId=null,layoutMembers=STAGE_GROUP
 }
 function renderTargetIds(target){ return target.members||[target.id]; }
 function parallelGroupName(target){ return target.id.replace(/^parallel:/,""); }
+/* The group is a padded box around every leg in the row, not around the legs a
+   given edge happens to touch: the dashed boundary is the shared identity that
+   lets one wire in and one wire out stand for the whole fan. */
 function parallelGroupLayout(target){
   const layoutMembers=target.layoutMembers||target.members;
   const key=[target.id,target.rowIndex,...target.members,"layout",...layoutMembers].join("|");
   if(parallelLayoutCache.has(key)) return parallelLayoutCache.get(key);
 
-  const cards=layoutMembers.map(id=>({id,rect:rectOf('.node[data-id="'+id+'"]')}))
-    .filter(card=>card.rect).sort((a,b)=>a.rect.y-b.rect.y || a.rect.x-b.rect.x);
-  if(!cards.length) return null;
+  if(!layoutMembers.some(id=>rectOf('.node[data-id="'+id+'"]'))) return null;
   const groupName=parallelGroupName(target);
-  const allCards=$$('.row[data-row="'+target.rowIndex+'"] .cell.center .node',canvas)
+  const spec=PARALLEL_GROUPS[groupName];
+  const rects=$$('.row[data-row="'+target.rowIndex+'"] .cell.center .node',canvas)
     .filter(node=>S[node.dataset.id].parallel===groupName)
-    .map(node=>({id:node.dataset.id,rect:rectOf(node)}));
+    .map(node=>rectOf(node)).filter(Boolean);
+  if(!rects.length) return null;
 
-  const visualRows=[];
-  cards.forEach(card=>{
-    let row=visualRows.find(candidate=>Math.abs(candidate.top-card.rect.y)<4);
-    if(!row){ row={top:card.rect.y,cards:[]}; visualRows.push(row); }
-    row.cards.push(card);
-  });
-  visualRows.forEach(row=>{
-    row.cards.sort((a,b)=>a.rect.x-b.rect.x);
-    row.top=Math.min(...row.cards.map(card=>card.rect.y));
-    row.bottom=Math.max(...row.cards.map(card=>card.rect.y+card.rect.h));
-    row.inY=row.top-6;
-    row.outY=row.bottom+6;
-  });
-
-  const rects=allCards.map(card=>card.rect);
-  const left=Math.min(...rects.map(rect=>rect.x));
-  const top=Math.min(...rects.map(rect=>rect.y));
-  const right=Math.max(...rects.map(rect=>rect.x+rect.w));
-  const bottom=Math.max(...rects.map(rect=>rect.y+rect.h));
-  const bounds={x:left,y:top,w:right-left,h:bottom-top,cx:(left+right)/2,cy:(top+bottom)/2};
-  const layout={
-    name:groupName,
-    spec:PARALLEL_GROUPS[groupName],
-    bounds,
-    rows:visualRows,
-    inletX:left-12,
-    outletX:right+12
-  };
+  const bounds=paddedBounds(rects,spec?.padding);
+  const layout={name:groupName,spec,bounds};
   parallelLayoutCache.set(key,layout);
   return layout;
 }
@@ -3605,15 +3599,7 @@ function stageGroupLayout(target){
   if(!spec) return null;
   const rects=(target.layoutMembers||spec.members).map(id=>rectOf('.node[data-id="'+id+'"]')).filter(Boolean);
   if(!rects.length) return null;
-  const padding=spec.padding||{x:0,y:0};
-  const left=Math.min(...rects.map(rect=>rect.x))-padding.x;
-  const top=Math.min(...rects.map(rect=>rect.y))-padding.y;
-  const right=Math.max(...rects.map(rect=>rect.x+rect.w))+padding.x;
-  const bottom=Math.max(...rects.map(rect=>rect.y+rect.h))+padding.y;
-  return {
-    name:target.id,spec,
-    bounds:{x:left,y:top,w:right-left,h:bottom-top,cx:(left+right)/2,cy:(top+bottom)/2}
-  };
+  return {name:target.id,spec,bounds:paddedBounds(rects,spec.padding)};
 }
 function renderGroupLayout(target){
   return target.type==="stage-group" ? stageGroupLayout(target) : parallelGroupLayout(target);
@@ -3779,58 +3765,53 @@ function relationshipAriaLabel(edge){
     (gateConditions.length ? "; condition: "+gateConditions.join(" or ") : "");
 }
 
-function wirePathMarkup(edge,edgeIndex,d,style,{marker=true,semantic=true,part="primary"}={}){
+function wirePathMarkup(edge,edgeIndex,d,style,part="primary"){
   const dash=style.dash ? ' stroke-dasharray="'+style.dash+'"' : "";
   const linecap=style.linecap!=="butt" ? ' stroke-linecap="'+style.linecap+'"' : "";
-  const identity=semantic
-    ? ' data-edge-kind="'+edge.kind+'" data-logical-count="'+edge.logical.length+'" role="img" aria-label="'+
-      escapeAttribute(relationshipAriaLabel(edge))+'"'
-    : ' aria-hidden="true"';
-  return '<path data-edge-index="'+edgeIndex+'" data-edge-part="'+part+'"'+identity+' d="'+d+
+  return '<path data-edge-index="'+edgeIndex+'" data-edge-part="'+part+'"'+
+    ' data-edge-kind="'+edge.kind+'" data-logical-count="'+edge.logical.length+'" role="img" aria-label="'+
+    escapeAttribute(relationshipAriaLabel(edge))+'" d="'+d+
     '" style="fill:none;stroke:'+style.color+'" stroke-width="'+style.width+'"'+dash+linecap+
-    (marker ? ' marker-end="url(#ah-'+style.marker+')"' : "")+' opacity="'+style.opacity+'"/>';
+    ' marker-end="url(#ah-'+style.marker+')" opacity="'+style.opacity+'"/>';
 }
+
+/* The fan enters and leaves the dashed boundary once. A rail with a stub per leg
+   only restated what the box already says, and it was the densest thing on the
+   canvas; which legs are conditional stays legible on the gate chips of the cards. */
+const GROUP_PORT_OFFSETS = Object.freeze({flow:-14,gated:96});
 
 function parallelFlowGeometry(edge,a,b){
   const incoming=edge.geometry==="parallel-in" || edge.geometry==="parallel-in-gated";
-  const target=incoming ? edge.to : edge.from;
-  const layout=parallelGroupLayout(target);
+  const layout=parallelGroupLayout(incoming ? edge.to : edge.from);
   if(!layout) return null;
-  const first=layout.rows[0], last=layout.rows[layout.rows.length-1];
+  const bounds=layout.bounds, spec=layout.spec;
 
   if(incoming){
-    const branchIds=new Set(edge.logical.map(logical=>logical.to));
-    const dy=Math.max(18,(first.inY-(a.y+a.h))*.55);
-    const scaffold=edge.geometry==="parallel-in" ? [
-      'M'+a.cx+','+(a.y+a.h)+' C'+a.cx+','+(a.y+a.h+dy)+' '+layout.inletX+','+(first.inY-dy)+' '+layout.inletX+','+first.inY,
-      'M'+layout.inletX+','+first.inY+' V'+last.inY,
-      ...layout.rows.map(row=>'M'+layout.inletX+','+row.inY+' H'+row.cards[row.cards.length-1].rect.cx)
-    ].join(' ') : "";
-    const directional=layout.rows.flatMap(row=>row.cards.filter(card=>branchIds.has(card.id)).map(card=>
-      'M'+card.rect.cx+','+row.inY+' V'+card.rect.y)).join(' ');
+    const gated=edge.geometry==="parallel-in-gated";
+    const portX=bounds.cx+GROUP_PORT_OFFSETS[gated ? "gated" : "flow"];
+    const sy=a.y+a.h;
+    const dy=Math.max(14,(bounds.y-sy)*.55);
+    const label=gated ? spec?.ingressGatedLabel : spec?.ingressLabel;
     return {
-      scaffold,directional,
-      label:edge.geometry==="parallel-in" ?
-        {text:layout.spec?.ingressLabel||layout.spec?.label||layout.name,
-          point:{x:Math.min(layout.bounds.cx,layout.inletX+70),y:first.inY-12}} : null
+      directional:'M'+a.cx+','+sy+' C'+a.cx+','+(sy+dy)+' '+portX+','+(bounds.y-dy)+' '+portX+','+bounds.y,
+      label:label ? {text:label,point:{x:portX+(gated ? 66 : -66),y:(sy+bounds.y)/2}} : null
     };
   }
 
-  const scaffold=[
-    ...layout.rows.flatMap(row=>row.cards.map(card=>
-      'M'+card.rect.cx+','+(card.rect.y+card.rect.h)+' V'+row.outY)),
-    ...layout.rows.map(row=>'M'+row.cards[0].rect.cx+','+row.outY+' H'+layout.outletX),
-    'M'+layout.outletX+','+first.outY+' V'+last.outY
-  ].join(' ');
-  const dy=Math.max(18,(b.y-last.outY)*.55);
-  const directional='M'+layout.outletX+','+last.outY+' C'+layout.outletX+','+(last.outY+dy)+
-    ' '+b.cx+','+(b.y-dy)+' '+b.cx+','+b.y;
+  const outY=bounds.y+bounds.h;
+  const portX=bounds.cx+GROUP_PORT_OFFSETS.flow;
+  const dy=Math.max(14,(b.y-outY)*.55);
+  const label=spec?.egressLabel;
   return {
-    scaffold,directional,
-    label:{text:layout.spec?.egressLabel||layout.spec?.label||layout.name,
-      point:{x:Math.max(layout.bounds.cx,layout.outletX-70),y:last.outY+12}}
+    directional:'M'+portX+','+outY+' C'+portX+','+(outY+dy)+' '+b.cx+','+(b.y-dy)+' '+b.cx+','+b.y,
+    label:label ? {text:label,point:{x:Math.max(portX,b.cx)+70,y:(outY+b.y)/2}} : null
   };
 }
+
+/* Control wires terminate on the dashed boundary itself. Stopping short of it
+   left the arrowhead floating in the gutter, which reads as a wire pointing at
+   nothing once the group is drawn as a box. */
+const PORT_MARGIN = 24;
 
 function groupControlGeometry(edge,sourceRect){
   const layout=renderGroupLayout(edge.to);
@@ -3838,48 +3819,57 @@ function groupControlGeometry(edge,sourceRect){
   const ids=Object.keys(layout.spec?.controlPorts||{});
   const slot=Math.max(1,ids.indexOf(edge.to.portId)+1)/(ids.length+1);
   const bounds=layout.bounds;
-  let side,port,source;
 
-  const preferredSide=layout.spec?.controlSides?.[edge.to.portId];
-  if(preferredSide==="right"){
-    side="right";
-    port={x:bounds.x+bounds.w,y:bounds.y+bounds.h*slot};
-    source={x:sourceRect.x,y:sourceRect.cy};
-  } else if(sourceRect.y+sourceRect.h<=bounds.y){
-    side="top";
-    port={x:bounds.x+bounds.w*slot,y:bounds.y-14};
-    source={x:sourceRect.cx,y:sourceRect.y+sourceRect.h};
-  } else if(sourceRect.y>=bounds.y+bounds.h){
-    side="bottom";
-    port={x:bounds.x+bounds.w*slot,y:bounds.y+bounds.h+14};
-    source={x:sourceRect.cx,y:sourceRect.y};
-  } else if(sourceRect.cx>=bounds.cx){
-    side="right";
-    port={x:bounds.x+bounds.w+28,y:bounds.y+bounds.h*slot};
-    source={x:sourceRect.x,y:sourceRect.cy};
-  } else {
-    side="left";
-    port={x:bounds.x-28,y:bounds.y+bounds.h*slot};
-    source={x:sourceRect.x+sourceRect.w,y:sourceRect.cy};
-  }
+  const side=layout.spec?.controlSides?.[edge.to.portId] ||
+    (sourceRect.y+sourceRect.h<=bounds.y ? "top" :
+     sourceRect.y>=bounds.y+bounds.h ? "bottom" :
+     sourceRect.cx>=bounds.cx ? "right" : "left");
+  const vertical=side==="top" || side==="bottom";
 
-  const vertical=side==="top"||side==="bottom";
+  /* A controller standing alongside the group gets a port at its own height, so
+     the wire runs straight at the border instead of kinking towards a fixed
+     slot. Sources clear of the group keep the evenly spaced slots, mirrored to
+     the near half of a top or bottom edge so the wire does not have to skim the
+     whole width of the group to reach its port. */
+  const beside=sourceRect.cy>bounds.y+PORT_MARGIN && sourceRect.cy<bounds.y+bounds.h-PORT_MARGIN;
+  const along=sourceRect.cx>=bounds.cx ? 1-slot : slot;
+  const port=vertical
+    ? {x:bounds.x+bounds.w*along, y:side==="top" ? bounds.y : bounds.y+bounds.h}
+    : {x:side==="right" ? bounds.x+bounds.w : bounds.x,
+       y:beside ? sourceRect.cy : bounds.y+bounds.h*slot};
+  const source=vertical
+    ? {x:sourceRect.cx, y:side==="top" ? sourceRect.y+sourceRect.h : sourceRect.y}
+    : {x:side==="right" ? sourceRect.x : sourceRect.x+sourceRect.w, y:sourceRect.cy};
+
   const span=vertical ? Math.abs(port.y-source.y) : Math.abs(port.x-source.x);
   const bend=Math.max(18,span*.5);
   const sign=(side==="top"||side==="left") ? 1 : -1;
   const d=vertical
     ? 'M'+source.x+','+source.y+' C'+source.x+','+(source.y+bend*sign)+' '+port.x+','+(port.y-bend*sign)+' '+port.x+','+port.y
     : 'M'+source.x+','+source.y+' C'+(source.x+bend*sign)+','+source.y+' '+(port.x-bend*sign)+','+port.y+' '+port.x+','+port.y;
-  return {d,side};
+  /* A short run at the border is shorter than its own caption, so that caption
+     sits above the wire rather than blotting it out. */
+  const label=beside && !vertical
+    ? {point:{x:(source.x+port.x)/2,y:source.y-12}}
+    : {position:vertical ? .35 : .52};
+  return {d,side,label};
 }
 
-function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,parallel="retrieval"){
+/* The render target for a parallel group as it stands in the active template —
+   the same collapsed group the fan edges, the boundary and the recovery lane all
+   have to agree on. */
+function activeParallelTarget(parallel){
   const rowIndex=TPL[state.tpl].rows.findIndex(row=>(row.c||[]).some(id=>S[id].parallel===parallel));
   if(rowIndex<0) return null;
   const members=(TPL[state.tpl].rows[rowIndex].c||[])
     .filter(id=>S[id].parallel===parallel && isOn(id));
-  if(members.length<2) return null;
-  const layout=parallelGroupLayout(groupRenderTarget("parallel:"+parallel,rowIndex,members));
+  return members.length<2 ? null : groupRenderTarget("parallel:"+parallel,rowIndex,members);
+}
+
+function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,parallel="retrieval"){
+  const target=activeParallelTarget(parallel);
+  if(!target) return null;
+  const layout=parallelGroupLayout(target);
   if(!layout || sourceRect.y<layout.bounds.y+layout.bounds.h ||
      targetRect.y+targetRect.h>layout.bounds.y) return null;
 
@@ -3892,23 +3882,38 @@ function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,para
     ' L'+laneX+','+upperY+' C'+laneX+','+ty+' '+laneX+','+ty+' '+tx+','+ty;
 }
 
+/* Every group whose members are a set the reader should treat as one region gets
+   the same dashed boundary, so a wire that stops at the border is unambiguous. */
+function boundaryLayouts(){
+  const layouts=[];
+  if(state.tpl===3){
+    const cascade=stageGroupLayout(stageGroupRenderTarget("selective-rerank-cascade",GATED_RERANKERS));
+    if(cascade) layouts.push({id:"selective-rerank-cascade",layout:cascade});
+  }
+  Object.keys(PARALLEL_GROUPS).forEach(parallel=>{
+    const target=activeParallelTarget(parallel);
+    const layout=target && parallelGroupLayout(target);
+    if(layout) layouts.push({id:"parallel:"+parallel,layout});
+  });
+  return layouts.filter(entry=>entry.layout.spec?.boundary);
+}
+
 function renderStageBoundaries(){
   $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
-  if(state.tpl!==3) return;
-  const target=stageGroupRenderTarget("selective-rerank-cascade",GATED_RERANKERS);
-  const layout=stageGroupLayout(target);
-  if(!layout) return;
-  const {x:left,y:top,w:width,h:height}=layout.bounds;
-  const boundary=document.createElement("div");
-  boundary.className="stage-boundary";
-  boundary.dataset.group="selective-rerank-cascade";
-  boundary.style.left=left+"px";
-  boundary.style.top=top+"px";
-  boundary.style.width=width+"px";
-  boundary.style.height=height+"px";
-  boundary.innerHTML='<span class="boundary-title">Selective rerank cascade</span>'+
-    '<span class="boundary-note">gated passes · skipped stages pass candidates through</span>';
-  canvas.appendChild(boundary);
+  boundaryLayouts().forEach(({id,layout})=>{
+    const {x:left,y:top,w:width,h:height}=layout.bounds;
+    const {title,note}=layout.spec.boundary;
+    const boundary=document.createElement("div");
+    boundary.className="stage-boundary";
+    boundary.dataset.group=id;
+    boundary.style.left=left+"px";
+    boundary.style.top=top+"px";
+    boundary.style.width=width+"px";
+    boundary.style.height=height+"px";
+    boundary.innerHTML='<span class="boundary-title">'+title+'</span>'+
+      (note ? '<span class="boundary-note">'+note+'</span>' : "");
+    canvas.appendChild(boundary);
+  });
 }
 
 function drawWires(){
@@ -3938,10 +3943,7 @@ function drawWires(){
     if(e.geometry==="parallel-in" || e.geometry==="parallel-in-gated" || e.geometry==="parallel-out"){
       const geometry=parallelFlowGeometry(e,a,b);
       if(!geometry) return;
-      if(geometry.scaffold) paths+=wirePathMarkup(e,edgeIndex,geometry.scaffold,relation,
-        {marker:false,semantic:false,part:"bus"});
-      paths+=wirePathMarkup(e,edgeIndex,geometry.directional,relation,
-        {marker:true,semantic:true,part:e.geometry});
+      paths+=wirePathMarkup(e,edgeIndex,geometry.directional,relation,e.geometry);
       if(geometry.label) labels.push({...geometry.label,bus:true,color:relation.color});
       return;
     }
@@ -3950,9 +3952,7 @@ function drawWires(){
       const geometry=groupControlGeometry(e,a);
       if(!geometry) return;
       paths+=wirePathMarkup(e,edgeIndex,geometry.d,relation);
-      labels.push({edgeIndex,text:e.caption,
-        position:geometry.side==="right"||geometry.side==="left" ? .52 : .35,
-        port:true,color:relation.color});
+      labels.push({edgeIndex,text:e.caption,port:true,color:relation.color,...geometry.label});
       return;
     }
 

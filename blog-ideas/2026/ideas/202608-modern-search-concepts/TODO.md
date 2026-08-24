@@ -4,7 +4,8 @@ Note: this list is for humans, not for AI agents.
 
 ## Minor fixes
 
-- Change the retrieval fan-out and candidate fan-in to be in a dashed "retreival components" box similar to "selective rerank cascade" and reduce the number of fan-in and fan-out lines. Other steering lines can still point to specific components in the dashed box if needed for specificity.
+- Remove Conditional pill from hoverover since it's redundant.
+- Remove all mentions of timings and ms. This is a logical query search pipeline, not a physical architecture tied to specific server performances. Keep it clean and focused on the logical distributed search algorithm, not performance metrics which will be experimentally determined later.
 - (?) Only show line labels on highlighting a source or target node for that line.
 - (?) Hover over (or click?) a line pops up a tooltip with the line label, source and target node labels, and short description of the relationship.
 - (?) Separate html from datasructures
