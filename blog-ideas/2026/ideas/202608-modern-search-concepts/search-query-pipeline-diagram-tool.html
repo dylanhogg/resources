@@ -331,9 +331,11 @@ a{color:var(--accent)}
 /* A deployment gate is standing configuration, not a per-query decision.
    Muted and dashed so the two kinds separate before the label is read. */
 .node[data-gate-timing="deployment"] .gatechip{border-style:dashed;font-weight:650}
+/* No longer a category label but a component name, so it drops the uppercasing
+   the other chips use — a proper noun is harder to read shouted. */
 .node .altchip{
-  font-size:9px;font-weight:650;letter-spacing:.025em;text-transform:uppercase;
-  border:1px dashed currentColor;color:var(--text-3);border-radius:20px;padding:1px 6px
+  font-size:9.5px;font-weight:600;letter-spacing:.01em;
+  border:1px dashed currentColor;color:var(--text-3);border-radius:20px;padding:1px 7px
 }
 .node.core{background:var(--core-bg);border-color:var(--core-line);color:var(--core-text)}
 .node.core .sb{color:var(--core-text);opacity:.72}
@@ -511,6 +513,10 @@ a{color:var(--accent)}
   color:var(--text-2);background:var(--surface-2);display:inline-flex;gap:5px;align-items:center
 }
 .chip b{font-variant-numeric:tabular-nums;color:var(--text)}
+button.chip{cursor:pointer;font-family:inherit}
+button.chip:hover{border-color:var(--accent);color:var(--accent)}
+button.chip:hover b{color:var(--accent)}
+button.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .enable-btn{
   margin-left:auto;border:1px solid var(--border);background:var(--surface);border-radius:7px;
   padding:5px 10px;font-size:11.5px;font-weight:600;color:var(--text-2)
@@ -2297,7 +2303,7 @@ const GATE_KINDS = Object.freeze({
   route: Object.freeze({
     timing:"request", decidedBy:"routing", color:"var(--gate-request)",
     conditions:Object.freeze({
-      "route-selected":"Runs only when retrieval routing selects it for this query."
+      "route-selected":"Runs only for queries whose route includes it."
     })
   }),
   intent: Object.freeze({
@@ -2321,13 +2327,15 @@ const CONDITIONAL_NOTE =
 
 /* Resolve each entry against the registry once, at definition time, so no
    render site has to know the registry shape and an entry naming an unknown
-   kind or condition fails here rather than printing `undefined` onto a card. */
-function defGate(from,kind,label,note){
+   kind or condition fails here rather than printing `undefined` onto a card.
+   `altOf` names the stage this one is an alternative placement of; validation
+   requires that naming to be reciprocal. */
+function defGate(from,kind,label,altOf){
   const spec = GATE_KINDS[kind];
   if(!spec) throw new Error("Unknown gate kind: "+kind);
   const sentence = spec.conditions[label];
   if(!sentence) throw new Error("Condition not declared by gate kind "+kind+": "+label);
-  return Object.freeze({from,kind,label,sentence,note,
+  return Object.freeze({from,kind,label,sentence,altOf,
     timing:spec.timing, decidedBy:spec.decidedBy, color:spec.color});
 }
 
@@ -2336,9 +2344,9 @@ const GATED_EXECUTION = Object.freeze({
   imageimagevec: defGate(3,"intent","image query"),
   sparse:        defGate(3,"route","route-selected"),
   multivec:      defGate(3,"route","route-selected"),
-  late:          defGate(3,"route","route-selected","alternative placement"),
+  late:          defGate(3,"route","route-selected","latererank"),
   semrerank:     defGate(3,"budget","optional pass"),
-  latererank:    defGate(3,"route","route-selected","alternative placement"),
+  latererank:    defGate(3,"route","route-selected","late"),
   vlmrerank:     defGate(3,"intent","visual intent"),
   ltr:           defGate(3,"budget","optional pass")
 });
@@ -2781,6 +2789,15 @@ function validateRelationshipModel(){
        authority the relationship model does not grant it. */
     if(gate.decidedBy && !(REL[gate.decidedBy]?.steers||[]).includes(id)){
       throw new Error("Gate decider does not steer its gated component: "+id);
+    }
+    /* An alternative placement is a claim about a pair. Requiring both halves
+       keeps one card from advertising a swap the other never offers. */
+    if(gate.altOf){
+      requireComponent(gate.altOf,"gate alternative");
+      if(gate.altOf===id) throw new Error("Gate names itself as its alternative: "+id);
+      if(GATED_EXECUTION[gate.altOf]?.altOf!==id){
+        throw new Error("Gate alternative is not reciprocal: "+id+" \u2194 "+gate.altOf);
+      }
     }
   });
   if(new Set(SELECTIVE_RERANK_CASCADE).size!==SELECTIVE_RERANK_CASCADE.length){
@@ -3340,7 +3357,7 @@ function nodeEl(id, newIds, logical){
       gate.label+'</span>' : "")+
     (s.conditional ? '<span class="condchip" title="'+escapeAttribute(CONDITIONAL_NOTE)+
       '">conditional</span>' : "")+
-    (gate?.note ? '<span class="altchip">'+gate.note+'</span>' : "");
+    (gate?.altOf ? '<span class="altchip">alternative to '+S[gate.altOf].name+'</span>' : "");
   el.innerHTML =
     '<div class="nm">'+s.name+'</div>' +
     (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
@@ -4039,12 +4056,22 @@ function selectEntity(id){
     card.classList.toggle("selected",card.dataset.sourceId===id));
 }
 
+/* A header chip that leads somewhere is a button; one that does not stays a
+   span, so the affordance is never a lie. */
+function chipTag(goto,html){
+  return goto
+    ? '<button class="chip" data-goto="'+goto+'">'+html+'</button>'
+    : '<span class="chip">'+html+'</span>';
+}
+
 /* One drawer header serves components and data sources, so the gate note is
    set from a single place — a source drawer must not inherit the last card's. */
 function setGateNote(gate){
   const el = $("#dGate");
   el.hidden = !gate;
-  el.textContent = gate ? gate.sentence : "";
+  el.textContent = !gate ? ""
+    : gate.decidedBy ? gate.sentence+" Decided by "+S[gate.decidedBy].name+"."
+    : gate.sentence;
   if(gate) el.style.setProperty("--gate-color", gate.color);
 }
 
@@ -4068,13 +4095,19 @@ function openDrawer(id){
     (s.lat && s.lat[1] ? '<span class="chip">'+(s.conditional?"Conditional ":"")+'p95 <b>'+s.lat[0]+"–"+s.lat[1]+' ms</b></span>' : "") +
     (s.cx ? '<span class="chip">Complexity <b>'+s.cx+'/5</b></span>' : "") +
     (s.model ? '<span class="chip">model in path</span>' : "") +
-    (gate ? '<span class="chip">Gate <b>'+gate.label+'</b> \u00b7 '+
-      GATE_TIMING_LABEL[gate.timing]+'</span>' : "") +
-    (gate?.note ? '<span class="chip"><b>'+gate.note+'</b></span>' : "") +
+    /* A request gate is one hop from the component that owns the decision.
+       A deployment gate has no owner to hop to, and the chip that leads
+       nowhere is exactly the point. */
+    (gate ? chipTag(gate.decidedBy,
+      'Gate <b>'+gate.label+'</b> \u00b7 '+GATE_TIMING_LABEL[gate.timing]) : "") +
+    (gate?.altOf ? chipTag(gate.altOf,
+      'Alternative to <b>'+S[gate.altOf].name+'</b>') : "") +
     '<button class="enable-btn" id="dToggle" data-on="'+(on?1:0)+'"'+(locked?" disabled title=\"Core components cannot be switched off\"":"")+'>'+
       (locked ? "core · always on" : (on ? "✓ enabled" : "disabled — enable")) + '</button>';
 
   setGateNote(gate);
+  $$("#dChips [data-goto]").forEach(b=>
+    b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
 
   const sect = drawerSect;
   let h = "";

@@ -554,6 +554,52 @@ distinguishable without reading the label. Endpoint inventories are unchanged by
 
 ## Phase 10 — Attribute the gating decision
 
+**Status: Complete — 2026-08-24**
+
+Implemented in `search-query-pipeline-diagram-tool.html`:
+
+- The drawer gate chip is now a button that opens its `decidedBy` component, and the gate note
+  names that component in prose: "Decided by Retrieval routing."
+- Budget gates render the same chip as a plain span with no "Decided by" line, so the
+  asymmetry appears twice — once as a missing link, once as a missing sentence.
+- Added `chipTag(goto, html)`, which returns a button when there is somewhere to go and a span
+  otherwise, so no header chip can present an affordance that does nothing.
+- Replaced the free-text `note:"alternative placement"` with `altOf`, naming the paired
+  component. Late-interaction retrieval and Late-interaction rerank each name and link the
+  other, on the card and in the drawer.
+- Added reciprocity validation: an `altOf` target must exist, must not be the stage itself,
+  and must name it back.
+- Wired `#dChips [data-goto]` clicks. The existing delegation covered only `#dBody`, so header
+  refs would have been inert.
+- Dropped the uppercasing from `.altchip`. It now carries a proper noun rather than a category
+  label, and a shouted component name is harder to read.
+
+Verification:
+
+- Logical inventories unchanged: Core 9/12, Core + recommended 31/35, Full 79/87.
+- Gated card counts unchanged: Core 0, Core + recommended 1, Full 9.
+- Clicking the gate chip on Learned sparse retrieval opens Retrieval routing. Clicking the
+  alternative chip moves between the two late-interaction stages and back.
+- Learning-to-Rank and Semantic rerank expose zero header links.
+- Negative tests against the reciprocity clause: a self-reference, a one-way claim, a pair
+  pointing at a third stage, and an unknown target each throw; the real pair passes.
+- Gate chip titles remain present on every gated card in every template and both themes.
+- Opening a gated component, then a data source, leaves no stale note or link.
+- No console errors; light and dark inspected.
+
+Discoveries:
+
+- The route condition sentence had to be reworded from "Runs only when retrieval routing
+  selects it for this query" to "Runs only for queries whose route includes it." Once the note
+  appends "Decided by Retrieval routing" uniformly, the original named the owner twice.
+- Both request-time kinds link to the same component, because Retrieval routing steers all
+  seven of them. The route/intent split remains a distinction about what drives the decision,
+  not who owns it. If that shared destination proves confusing in use, the fix is to reconsider
+  the kind boundary, not to add a second decider the relationship model does not support.
+- Naming the decider in the note and linking it from the chip were kept as one affordance each
+  rather than making the note text a second link. Two link targets for one destination in
+  adjacent elements read as clutter without adding reach.
+
 "Route-selected" invites the question _selected by what?_ Retrieval routing already declares
 `rerankers_to_fire[]` in its contract and steers every gated reranker, but no gate surface
 names it. This phase closes plan question 2 in the UI rather than only in the data.
