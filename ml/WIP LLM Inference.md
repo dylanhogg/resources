@@ -1,5 +1,11 @@
 # LLM Inference
 
+## Determinism
+
+- Understanding and Mitigating Numerical Sources of Nondeterminism in LLM Inference - https://arxiv.org/abs/2506.09501
+- vLLM Batch Invariance - https://docs.vllm.ai/en/stable/features/batch_invariance/
+- Defeating Nondeterminism in LLM Inference (Thinking Machines) - https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/
+
 ## Libraries
 
 ### vLLM
