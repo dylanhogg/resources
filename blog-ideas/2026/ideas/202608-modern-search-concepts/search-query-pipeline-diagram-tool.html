@@ -179,12 +179,8 @@ a{color:var(--accent)}
 .metric .val{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums}
 .bar{height:7px;border-radius:4px;background:var(--surface-3);overflow:hidden;display:flex}
 .bar i{display:block;height:100%}
-.bar i.lo{background:var(--accent)}
-.bar i.hi{background:var(--accent);opacity:.35}
 .bar i.cx{background:linear-gradient(90deg,var(--rec-line),var(--warn))}
 .metric .note{font-size:11px;color:var(--text-3);margin-top:4px}
-.stack{display:flex;gap:2px;height:9px;border-radius:4px;overflow:hidden;background:var(--surface-3)}
-.stack i{height:100%}
 .legendrow{display:flex;flex-wrap:wrap;gap:5px 10px;margin-top:6px}
 .legendrow span,.legendrow button{font-size:10.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:4px}
 .legendrow button{border:0;background:none;padding:2px 4px;border-radius:5px;margin:-2px -4px}
@@ -206,7 +202,7 @@ a{color:var(--accent)}
   border:1px solid var(--gate-color);color:var(--gate-color);background:var(--surface);
   border-radius:20px;padding:1px 6px
 }
-.gate-legend button[data-gate-timing="deployment"] .gk-chip{border-style:dashed;font-weight:650}
+.gate-legend button[data-gate-scope="deployment"] .gk-chip{border-style:dashed;font-weight:650}
 .gate-legend .gk-count{
   font-size:9.5px;font-weight:700;color:var(--text-3);font-variant-numeric:tabular-nums
 }
@@ -347,7 +343,7 @@ a{color:var(--accent)}
 }
 /* A deployment gate is standing configuration, not a per-query decision.
    Muted and dashed so the two kinds separate before the label is read. */
-.node[data-gate-timing="deployment"] .gatechip{border-style:dashed;font-weight:650}
+.node[data-gate-scope="deployment"] .gatechip{border-style:dashed;font-weight:650}
 .node .altchip{
   font-size:9px;font-weight:650;letter-spacing:.025em;text-transform:uppercase;
   border:1px dashed currentColor;color:var(--text-3);border-radius:20px;padding:1px 6px
@@ -827,16 +823,10 @@ table.mini .met{color:var(--accent)}
         <div class="reflist" id="focusList"></div>
       </div>
       <div class="panel">
-        <h3>Estimated budget <span class="pill" id="stageCount"></span></h3>
+        <h3>Pipeline shape <span class="pill" id="stageCount"></span></h3>
         <div class="metric">
-          <div class="top"><span class="name">Latency, p95</span><span class="val" id="latVal"></span></div>
-          <div class="bar"><i class="lo" id="latLo"></i><i class="hi" id="latHi"></i></div>
-          <div class="note" id="latNote"></div>
-        </div>
-        <div class="metric">
-          <div class="top"><span class="name">Where it goes</span></div>
-          <div class="stack" id="latStack"></div>
-          <div class="legendrow" id="latLegend"></div>
+          <div class="top"><span class="name">Stages by phase</span></div>
+          <div class="legendrow" id="phaseLegend"></div>
         </div>
         <div class="metric">
           <div class="top"><span class="name">Build &amp; run complexity</span><span class="val" id="cxVal"></span></div>
@@ -887,7 +877,7 @@ table.mini .met{color:var(--accent)}
         <div id="compList"></div>
         <button class="btn-ghost" id="resetBtn" style="margin-top:12px">Reset level defaults</button>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
-          Switch components off to compose a variant and watch the budget move. Core components are locked.
+          Switch components off to compose a variant and watch the shape change. Core components are locked.
         </p>
       </div>
     </aside>
@@ -940,7 +930,7 @@ table.mini .met{color:var(--accent)}
         </article>
         <article class="about-card">
           <h4>Composable pipeline variants</h4>
-          <p>Switch non-core components on or off to test a pipeline shape. The sidebar updates estimated p95 latency, build-and-run complexity, request-path model count, and capability coverage.</p>
+          <p>Switch non-core components on or off to test a pipeline shape. The sidebar updates the phase mix, build-and-run complexity, request-path model count, and capability coverage.</p>
         </article>
         <article class="about-card">
           <h4>Query-facet and capability tracing</h4>
@@ -980,7 +970,7 @@ table.mini .met{color:var(--accent)}
         <article class="about-step">
           <div>
             <h4>Advance to Core + recommended</h4>
-            <p>Review the newly added stages as a likely production target. Toggle alternatives deliberately and watch the comparative budget and capability effects.</p>
+            <p>Review the newly added stages as a likely production target. Toggle alternatives deliberately and watch the comparative complexity and capability effects.</p>
           </div>
         </article>
         <article class="about-step">
@@ -992,7 +982,7 @@ table.mini .met{color:var(--accent)}
         <article class="about-step">
           <div>
             <h4>Record the resulting design</h4>
-            <p>Capture the chosen stages, boundaries, assumptions, degradation order, latency allocation, and evaluation plan. The useful output is the reasoning behind a pipeline—not the diagram alone.</p>
+            <p>Capture the chosen stages, boundaries, assumptions, degradation order, and evaluation plan. The useful output is the reasoning behind a pipeline—not the diagram alone.</p>
           </div>
         </article>
       </div>
@@ -1000,9 +990,9 @@ table.mini .met{color:var(--accent)}
 
     <div class="about-note">
       <b>Interpretation guardrail.</b> This is a logical architecture explorer, not a vendor recommendation,
-      ingestion or index-building pipeline, deployment topology, capacity model, or guaranteed latency calculator.
-      One service may host several logical indexes. The estimates are comparative prompts; benchmark the selected
-      design against your own traffic, index, hardware, models, and quality targets.
+      ingestion or index-building pipeline, deployment topology, capacity model, or performance predictor.
+      One service may host several logical indexes. The complexity index is a comparative prompt; benchmark the
+      selected design against your own traffic, index, hardware, models, and quality targets.
     </div>
   </main>
 </section>
@@ -1025,7 +1015,7 @@ table.mini .met{color:var(--accent)}
 
 /* =======================================================================
    DATA — logical components of a query-time hybrid multimodal pipeline.
-   lat: [lo,hi] p95 ms. cx: build+run complexity, 1 (trivial) .. 5 (heavy).
+   cx: build+run complexity, 1 (trivial) .. 5 (heavy).
    ======================================================================= */
 
 const FACETS = [
@@ -1067,7 +1057,7 @@ const TIER_LABEL = {1:"core", 2:"recommended", 3:"full"};
 /* ---------- inputs ---------- */
 def({
   id:"q-text", name:"Text query", group:"Query inputs", tier:"core", io:true, intro:1,
-  sub:"the raw string", lat:[0,0], cx:0,
+  sub:"the raw string", cx:0,
   purpose:"The raw user string, before any processing. Everything downstream is a transformation of this, and every transformation is a place relevance can be lost.",
   decisions:[{
     q:"What arrives with the query?",
@@ -1082,7 +1072,7 @@ def({
 
 def({
   id:"q-image", name:"Image query", group:"Query inputs", tier:"optional", io:true, intro:3,
-  sub:"validated upload or image reference", lat:[0,0], cx:2,
+  sub:"validated upload or image reference", cx:2,
   purpose:"Accept, validate and normalise an uploaded or reference image for downstream encoding. Its presence is also a strong routing signal that the request contains visual intent.",
   decisions:[{
     q:"How does an image query combine with the text query?",
@@ -1098,7 +1088,7 @@ def({
 /* ---------- query processing ---------- */
 def({
   id:"normalise", name:"Query normalisation", group:"Query processing", tier:"core", intro:1,
-  sub:"NFKC, case, punctuation, tokenisation", lat:[1,5], cx:1,
+  sub:"NFKC, case, punctuation, tokenisation", cx:1,
   purpose:"Deterministic clean-up: unicode normalisation, case folding, punctuation and whitespace handling, tokenisation that matches the index. Cheap, boring, and the foundation everything else caches on.",
   decisions:[{
     q:"Normalise before or after understanding?",
@@ -1118,14 +1108,14 @@ def({
 
 def({
   id:"understand", name:"Query understanding", group:"Query processing", tier:"core", intro:1,
-  sub:"intent, entities, constraint extraction", lat:[4,15], cx:3, caps:["constraints"],
+  sub:"intent, entities, constraint extraction", cx:3, caps:["constraints"],
   handles:["sleeps6","price","geo"],
   purpose:"Turn a string into structure: an intent class, entities, and the constraints that will become filter predicates. Everything the constraint-handling group does depends on the quality of this stage.",
   decisions:[{
     q:"What mechanism extracts structure?",
     opts:["Rules and grammars","Small classifier + NER","LLM extraction"],
     def:"Start with rules plus a small classifier",
-    why:"An LLM in the hot path costs 100–400 ms and makes every downstream stage non-deterministic, which breaks replayable evaluation. Move to an LLM only once you can cache it and have an eval set proving it helps."
+    why:"An LLM in the hot path is slow and makes every downstream stage non-deterministic, which breaks replayable evaluation. Move to an LLM only once you can cache it and have an eval set proving it helps."
   },{
     q:"Is a constraint hard or soft?",
     opts:["Everything is a hard filter","Split by extraction confidence","Everything is a ranking boost"],
@@ -1133,7 +1123,8 @@ def({
     why:"Treating every extraction as a hard filter is the single largest cause of unnecessary zero-result queries. Treating none as filters makes stated requirements unenforceable."
   }],
   contract:{in:"normalised_query", out:"{ intent, entities[], constraints[{field, op, value, confidence}], residual_text }"},
-  dials:[{n:"Latency (rules)",v:"4–15 ms"},{n:"Latency (LLM)",v:"100–400 ms",note:"Cache-or-don't-ship territory."}],
+  dials:[{n:"Extraction mechanism",v:"rules + small classifier",note:"An LLM here is cache-or-don't-ship territory."},
+         {n:"Field schema",v:"allow-listed names, operators and value types"}],
   notes:["Treat extracted structure as untrusted input. Validate field names, operators, value types, ranges and locale-dependent units against an allow-listed schema before compiling a retrieval predicate."],
   failures:[
     {f:"Extracts a constraint that was not one",s:"Good documents filtered out silently",m:"constraint-extraction precision on a labelled query set"},
@@ -1143,7 +1134,7 @@ def({
 
 def({
   id:"rewrite", name:"Query rewriting", group:"Query processing", tier:"recommended", intro:2,
-  sub:"spelling, synonyms, constraint-stripped query", lat:[5,25], cx:2, model:true,
+  sub:"spelling, synonyms, constraint-stripped query", cx:2, model:true,
   purpose:"Produce the query text each retrieval leg should actually see: spelling corrected, synonyms canonicalised, and — critically — a constraint-stripped variant for Text vector retrieval and Text-to-image vector retrieval.",
   decisions:[{
     q:"Do all legs get the same query text?",
@@ -1164,7 +1155,7 @@ def({
 
 def({
   id:"expand", name:"Query expansion", group:"Query processing", tier:"optional", intro:3,
-  sub:"synonyms, PRF, HyDE, LLM variants", lat:[20,120], cx:3, model:true, caps:["vocab"],
+  sub:"synonyms, PRF, HyDE, LLM variants", cx:3, model:true, caps:["vocab"],
   purpose:"Generate additional query forms to reach documents that use different vocabulary — pseudo-relevance feedback, a hypothetical answer document (HyDE), or LLM-generated paraphrases.",
   decisions:[{
     q:"Which expansion family?",
@@ -1188,7 +1179,7 @@ def({
 
 def({
   id:"session", name:"Session & context", group:"Query processing", tier:"optional", control:true, intro:3,
-  sub:"prior turns, clicks, anaphora", lat:[2,10], cx:4, caps:["adaptive"],
+  sub:"prior turns, clicks, anaphora", cx:4, caps:["adaptive"],
   purpose:"Carry prior turns, clicks and filters into the current query: resolve anaphora (“ones with a jetty”), inherit constraints, and inform routing.",
   decisions:[{
     q:"How is context inherited?",
@@ -1204,7 +1195,7 @@ def({
 /* ---------- constraint handling ---------- */
 def({
   id:"confidence", name:"Constraint confidence", group:"Constraint handling", tier:"optional", control:true, intro:3,
-  sub:"per-constraint extraction confidence", lat:[0,3], cx:3,
+  sub:"per-constraint extraction confidence", cx:3,
   purpose:"Score how sure you are of each extracted constraint, so the pre-filter can split them into hard predicates and soft ranking boosts — and so relaxation knows what to give up first.",
   decisions:[{
     q:"What produces the confidence?",
@@ -1220,7 +1211,7 @@ def({
 
 def({
   id:"prefilter", name:"Metadata pre-filter", group:"Constraint handling", tier:"core", intro:1,
-  sub:"compile constraints and mandatory policy", lat:[1,5], cx:2, caps:["constraints"],
+  sub:"compile constraints and mandatory policy", cx:2, caps:["constraints"],
   handles:["sleeps6","price","geo"],
   purpose:"Compile extracted query constraints and mandatory system predicates — authorization, eligibility, compliance, safety and legal suppression — into a filter pushed down into every retriever.",
   decisions:[{
@@ -1244,7 +1235,7 @@ def({
 
 def({
   id:"sufficiency", name:"Result sufficiency check", group:"Constraint handling", tier:"recommended", decision:true, intro:2,
-  sub:"enough candidates above the quality floor?", lat:[1,3], cx:2, caps:["recovery"],
+  sub:"enough candidates above the quality floor?", cx:2, caps:["recovery"],
   purpose:"The gate that decides whether retrieval succeeded. Not a count check — a check that enough candidates cleared a quality floor.",
   decisions:[{
     q:"Where does the check sit?",
@@ -1265,7 +1256,7 @@ def({
 
 def({
   id:"relax", name:"Constraint relaxation", group:"Constraint handling", tier:"recommended", intro:2,
-  sub:"ordered ladder, bounded passes", lat:[5,20], conditional:true, cx:3, caps:["recovery"],
+  sub:"ordered ladder, bounded passes", conditional:true, cx:3, caps:["recovery"],
   conditionalOn:"Runs only when the sufficiency check reports too few candidates, at one retrieval round trip per pass.",
   handles:["geo","price"],
   purpose:"A bounded, ordered ladder that gives up one constraint category per pass and re-runs retrieval, rather than failing an over-constrained query.",
@@ -1278,7 +1269,7 @@ def({
     q:"How many passes?",
     opts:["1","2","Until something is found"],
     def:"2, hard-capped",
-    why:"Each pass is a full retrieval round trip. Three passes plus a cross-encoder is how you ship a 700 ms p99."
+    why:"Each pass is a full retrieval round trip. Three passes plus a cross-encoder is how a bounded recovery path becomes an unbounded one."
   }],
   contract:{in:"predicate + sufficiency verdict", out:"recompiled predicate + relaxed_constraints[] recorded on the response"},
   dials:[{n:"max_passes",v:"2"},{n:"Numeric tolerance step",v:"10–25%"},{n:"Geo band step",v:"one band"}],
@@ -1291,7 +1282,7 @@ def({
 
 def({
   id:"zerofallback", name:"Zero-result fallback", group:"Constraint handling", tier:"recommended", intro:2,
-  sub:"drop hard filters, semantic-only, suggestions", lat:[10,40], conditional:true, cx:2, caps:["recovery"],
+  sub:"drop hard filters, semantic-only, suggestions", conditional:true, cx:2, caps:["recovery"],
   conditionalOn:"Runs only when the relaxation ladder is exhausted and the query would otherwise return nothing.",
   purpose:"A distinct retrieval mode for when the ladder is exhausted: drop the hard predicate entirely, retrieve semantically, and offer spelling and relaxation suggestions.",
   decisions:[{
@@ -1308,7 +1299,7 @@ def({
 /* ---------- retrieval control ---------- */
 def({
   id:"routing", name:"Retrieval routing", group:"Candidate retrieval", tier:"recommended", control:true, intro:2,
-  sub:"which legs and gated rerankers fire", lat:[0,3], cx:4, caps:["adaptive"],
+  sub:"which legs and gated rerankers fire", cx:4, caps:["adaptive"],
   purpose:"The control plane's core decision: which retrieval legs and gated rerankers to activate for this query, based on intent, constraint shape, whether an image was supplied, and where similar queries historically fail.",
   decisions:[{
     q:"What drives the routing decision?",
@@ -1316,32 +1307,19 @@ def({
     def:"Static rules on intent class",
     why:"Routing failures are invisible — a rule that never fires the right visual leg looks exactly like a corpus problem. Start with rules you can read, and log every decision."
   }],
-  contract:{in:"intent, constraints, has_image", out:"{ legs_to_fire[], rerankers_to_fire[], route_id } (logged)"},
+  contract:{in:"intent, constraints, has_image", out:"{ legs_to_fire[], leg_depth{}, rerankers_to_fire[], route_id } (logged)"},
   notes:[
-    "Use inspectable static intent rules at the Core + recommended level. Learned or budget-aware routing is a later optimisation in the same component, not a separate request path.",
+    "Use inspectable static intent rules at the Core + recommended level. Learned or depth-aware routing is a later optimisation in the same component, not a separate request path.",
+    "Per-leg candidate depth is part of the route decision: spend depth on the legs the route expects to decide the answer, rather than firing every leg at the same depth.",
     "Routing errors may appear as relevance regressions rather than request failures. Log the selected route and activated stages for each query so routing decisions can be diagnosed."
   ],
   failures:[{f:"A leg or gated reranker is never routed to",s:"Looks like a corpus, index or model-quality problem",m:"route distribution; per-stage fire rate"}]
 });
 
-def({
-  id:"budget", name:"Candidate budget allocation", group:"Candidate retrieval", tier:"optional", control:true, intro:3,
-  sub:"per-leg k under a latency budget", lat:[0,2], cx:3, caps:["adaptive"],
-  purpose:"Distribute a fixed latency and candidate budget across the active legs, spending depth where it will change the result.",
-  decisions:[{
-    q:"How is k allocated?",
-    opts:["Equal k per leg","Weighted by historical leg contribution","Predicted per query"],
-    def:"Equal to start, then weight by measured contribution",
-    why:"Budget allocation and routing interact strongly. Tune them together or not at all — independently tuned, each will appear to make things worse."
-  }],
-  contract:{in:"active legs + latency budget", out:"{ leg: k } allocation"},
-  dials:[{n:"Total candidate budget",v:"300–600"},{n:"Latency budget",v:"the number the whole design hangs on"}]
-});
-
 /* ---------- retrieval legs ---------- */
 def({
   id:"lexical", name:"Lexical & metadata retrieval", group:"Candidate retrieval", tier:"core", intro:1,
-  sub:"BM25 over text fields + filters", lat:[10,40], cx:2, parallel:"retrieval",
+  sub:"BM25 over text fields + filters", cx:2, parallel:"retrieval",
   caps:["exact"], handles:["waterfront","sleeps6","price"],
   purpose:"BM25 or equivalent over the text fields, with the filter predicate pushed down. The leg that handles exact strings, rare terms, model numbers and anything the user quoted.",
   decisions:[{
@@ -1358,7 +1336,7 @@ def({
 
 def({
   id:"sparse", name:"Learned sparse retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
-  sub:"SPLADE-style term expansion", lat:[20,60], cx:4, model:true, parallel:"retrieval",
+  sub:"SPLADE-style term expansion", cx:4, model:true, parallel:"retrieval",
   caps:["vocab","exact"],
   purpose:"Dense-like recall in a sparse, inspectable space: the model expands query and document into weighted terms, so you keep lexical-style debuggability while covering vocabulary mismatch.",
   decisions:[{
@@ -1368,13 +1346,13 @@ def({
     why:"It occupies the same conceptual slot as the dense leg for most queries. The reason to pay for both is debuggability plus a genuinely different failure profile — not additive recall you have not measured."
   }],
   contract:{in:"query + predicate + k", out:"ranked [doc_id, sparse_score, expanded_terms]"},
-  dials:[{n:"Expansion cap",v:"tune for latency",note:"Query-side expansion drives cost superlinearly on a big index."}],
-  failures:[{f:"Expansion too aggressive",s:"Latency worse than BM25 with no precision gain",m:"per-leg latency and per-leg contribution to top-10"}]
+  dials:[{n:"Expansion cap",v:"tune for index cost",note:"Query-side expansion drives cost superlinearly on a big index."}],
+  failures:[{f:"Expansion too aggressive",s:"Costs more than BM25 with no precision gain",m:"per-leg contribution to top-10"}]
 });
 
 def({
   id:"textvec", name:"Text vector retrieval", group:"Candidate retrieval", tier:"core", intro:1,
-  sub:"ANN over text embeddings", lat:[10,40], cx:2, model:true, parallel:"retrieval",
+  sub:"ANN over text embeddings", cx:2, model:true, parallel:"retrieval",
   caps:["paraphrase"], handles:["quiet","waterfront"],
   purpose:"Approximate nearest neighbour search over document-level text embeddings. Handles paraphrase and intent that never matches lexically.",
   decisions:[{
@@ -1396,7 +1374,7 @@ def({
 
 def({
   id:"textimagevec", name:"Text-to-image vector retrieval", group:"Candidate retrieval", tier:"recommended", intro:2,
-  sub:"text-tower ANN over image embeddings", lat:[10,40], cx:3, model:true,
+  sub:"text-tower ANN over image embeddings", cx:3, model:true,
   modelKey:"visual-dual-tower", modelLabel:"Visual dual-tower retrieval", parallel:"retrieval",
   caps:["crossmodal"], handles:["fireplace","waterfront"],
   purpose:"Search document image embeddings with the constraint-stripped text query encoded by the model's text tower. This finds visual attributes that never appear in document text, without requiring an uploaded image.",
@@ -1423,7 +1401,7 @@ def({
 
 def({
   id:"imageimagevec", name:"Image-to-image vector retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
-  sub:"image-tower ANN over image embeddings", lat:[10,40], cx:2, model:true,
+  sub:"image-tower ANN over image embeddings", cx:2, model:true,
   modelKey:"visual-dual-tower", modelLabel:"Visual dual-tower retrieval", parallel:"retrieval",
   caps:["visualsim"],
   purpose:"Search document image embeddings with an uploaded or reference image encoded by the model's image tower. It is a separate, image-bearing query leg, while typed text continues to supply meaning and constraints.",
@@ -1454,17 +1432,17 @@ def({
 const LATE_MODE_OVERLAP = Object.freeze({
   f:"Both late-interaction modes enabled",
   s:"Ideally mutually exclusive: MaxSim is paid for at retrieval and again over the shortlist, with little incremental gain",
-  m:"co-fire rate; ablate recall, nDCG and latency with each mode alone"
+  m:"co-fire rate; ablate recall and nDCG with each mode alone"
 });
 const RETRIEVAL_REPRESENTATION_OVERLAP = Object.freeze({
   f:"Passage and late-interaction retrieval both enabled",
   s:"Two expensive legs solve the same multi-facet evidence problem but contribute few unique relevant documents",
-  m:"unique relevant-document contribution per leg; recall gained per millisecond"
+  m:"unique relevant-document contribution per leg"
 });
 
 def({
   id:"multivec", name:"Multi-vector / passage retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
-  sub:"chunk hits rolled up to documents", lat:[15,50], cx:4, model:true, parallel:"retrieval",
+  sub:"chunk hits rolled up to documents", cx:4, model:true, parallel:"retrieval",
   caps:["longdoc","multifacet"], handles:["quiet"],
   purpose:"Embed passages rather than documents, retrieve at passage level, and roll hits up to the parent document. Localises evidence inside long, heterogeneous documents.",
   decisions:[{
@@ -1488,7 +1466,7 @@ def({
 
 def({
   id:"late", name:"Late-interaction retrieval", group:"Candidate retrieval", tier:"optional", intro:3,
-  sub:"ColBERT-style token-level MaxSim", lat:[30,90], cx:5, model:true, parallel:"retrieval",
+  sub:"ColBERT-style token-level MaxSim", cx:5, model:true, parallel:"retrieval",
   caps:["multifacet","paraphrase"], handles:["quiet","waterfront","fireplace"],
   purpose:"Run MaxSim over a full token-level index, so each query facet can retrieve its own evidence anywhere in the corpus instead of competing inside one averaged document vector.",
   decisions:[{
@@ -1506,20 +1484,20 @@ def({
   dials:[{n:"Index size multiplier",v:"10–100× uncompressed",note:"Measure the compressed representation you will actually serve."},{n:"k_late",v:"100–300"},{n:"Candidate cells / probes",v:"tuned against exact MaxSim recall"}],
   notes:[
     "Full-index late-interaction retrieval requires a dedicated token-level index. The assumed document or passage vector index cannot serve this retrieval method.",
-    "Late-interaction retrieval overlaps with multi-vector passage retrieval. Whether using both is redundant or complementary requires workload-specific evidence; decide with an ablation that includes retrieval quality, latency, and index cost."
+    "Late-interaction retrieval overlaps with multi-vector passage retrieval. Whether using both is redundant or complementary requires workload-specific evidence; decide with an ablation that includes retrieval quality and index cost."
   ],
   failures:[
     LATE_MODE_OVERLAP,
     RETRIEVAL_REPRESENTATION_OVERLAP,
     {f:"Token index treated as already available",s:"Storage, memory and indexing cost arrives after the architecture has committed",m:"compressed index bytes per token; memory residency and cost per corpus doubling"},
     {f:"Metadata predicate applied after retrieval",s:"Selective queries return too few candidates unless k is made prohibitively large",m:"recall@k bucketed by filter selectivity"},
-    {f:"Index cost underestimated",s:"Storage and memory blow the infrastructure budget",m:"index size and query cost per corpus doubling"}]
+    {f:"Index cost underestimated",s:"Storage and memory blow the index size and memory assumptions",m:"index size and query cost per corpus doubling"}]
 });
 
 /* ---------- candidate generation ---------- */
 def({
   id:"union", name:"Candidate union", group:"Candidate generation", tier:"core", intro:1,
-  sub:"merge by doc_id, keep per-leg ranks", lat:[2,8], cx:1,
+  sub:"merge by doc_id, keep per-leg ranks", cx:1,
   purpose:"Merge the per-leg result sets into one candidate set keyed by document, preserving where each candidate came from.",
   decisions:[{
     q:"What survives the merge?",
@@ -1542,8 +1520,8 @@ def({
 
 def({
   id:"prune", name:"Candidate pruning", group:"Candidate generation", tier:"recommended", intro:2,
-  sub:"cap per leg, score floor, cut to rerank depth", lat:[1,5], cx:1,
-  purpose:"Cut the candidate set to what the rerank budget can actually afford, before spending money on it.",
+  sub:"cap per leg, score floor, cut to rerank depth", cx:1,
+  purpose:"Cut the candidate set to the depth the rerank tier is configured for, before spending work on it.",
   decisions:[{
     q:"Prune by rank or by score?",
     opts:["Top-N per leg","Per-leg calibrated score floors","Both"],
@@ -1558,7 +1536,7 @@ def({
 /* ---------- fusion ---------- */
 def({
   id:"fusion", name:"Fusion", group:"Fusion", tier:"core", intro:1,
-  sub:"Reciprocal Rank Fusion by default", lat:[1,5], cx:2, caps:["precision"],
+  sub:"Reciprocal Rank Fusion by default", cx:2, caps:["precision"],
   purpose:"Score the unioned candidate set into one ordering using the retained per-leg ranks. One stage with a strategy slot — not a chain of stages.",
   decisions:[{
     q:"Which fusion strategy?",
@@ -1585,7 +1563,7 @@ def({
 
 def({
   id:"fusionpolicy", name:"Fusion policy", group:"Fusion", tier:"optional", control:true, intro:3,
-  sub:"strategy and weights per query class", lat:[0,2], cx:4, caps:["adaptive"],
+  sub:"strategy and weights per query class", cx:4, caps:["adaptive"],
   purpose:"Select the Fusion strategy and leg weights per query rather than fixing them globally. Rules or a learned policy configure the Core Fusion stage; they do not replace it or create a parallel fusion path.",
   decisions:[{
     q:"What selects the strategy?",
@@ -1600,23 +1578,23 @@ def({
 /* ---------- reranking ---------- */
 def({
   id:"semrerank", name:"Semantic rerank", group:"Reranking", tier:"optional", intro:3,
-  sub:"optional bi-encoder budget-protection tier", lat:[5,20], cx:2, model:true,
+  sub:"optional bi-encoder narrowing tier", cx:2, model:true,
   purpose:"An optional first tier of the rerank funnel: refresh scores with a bi-encoder over the fused shortlist only when doing so can narrow the set the expensive cross-encoder has to see.",
   decisions:[{
     q:"Is this tier needed at all?",
     opts:["Always run it","Skip when fusion output is already calibrated"],
     def:"Skip it if the cross-encoder can afford the full fused depth",
-    why:"It exists to protect the cross-encoder's budget. If the budget is not tight, it is a stage that reorders almost nothing — and a stage that reorders nothing is a stage to delete."
+    why:"It exists to narrow what the cross-encoder has to see. If the cross-encoder can already afford the full fused depth, it is a stage that reorders almost nothing — and a stage that reorders nothing is a stage to delete."
   }],
   contract:{in:"fused top ~200–400", out:"re-scored top ~100–200"},
   dials:[{n:"Input depth",v:"200–400"},{n:"Output depth",v:"100–200"}],
-  notes:["Treat this as a measured budget intervention, not a default cascade tier. Keep it only when it materially reduces cross-encoder work without erasing relevant candidates."],
-  failures:[{f:"Reorders almost nothing",s:"Pure added latency",m:"rank churn between stages"}]
+  notes:["Treat this as a measured narrowing step, not a default cascade tier. Keep it only when it materially reduces cross-encoder work without erasing relevant candidates."],
+  failures:[{f:"Reorders almost nothing",s:"Pure added work",m:"rank churn between stages"}]
 });
 
 def({
   id:"latererank", name:"Late-interaction rerank", group:"Reranking", tier:"optional", intro:3,
-  sub:"MaxSim over a fused shortlist", lat:[20,80], cx:3, model:true,
+  sub:"MaxSim over a fused shortlist", cx:3, model:true,
   caps:["multifacet","paraphrase","precision"], handles:["quiet","waterfront","fireplace"],
   purpose:"Apply token-level MaxSim after fusion and pruning, using a bounded shortlist rather than searching a full token index. This improves multi-facet ordering at much lower infrastructure cost, but cannot recover a document the retrieval legs missed.",
   decisions:[{
@@ -1628,26 +1606,26 @@ def({
     q:"How are document token embeddings served?",
     opts:["Stored compressed representations","Cached after first use","Encode every document per request"],
     def:"Stored compressed representations",
-    why:"Encoding every shortlisted document in the request path turns a bounded MaxSim stage into an encoding bottleneck and makes latency depend on document length."
+    why:"Encoding every shortlisted document in the request path turns a bounded MaxSim stage into an encoding bottleneck and makes stage cost depend on document length."
   }],
   contract:{in:"fused shortlist + query token embeddings", out:"shortlist with maxsim_score and per-token evidence appended"},
   dials:[{n:"Input depth",v:"100–200"},{n:"Output depth",v:"50–100"},{n:"Document representation",v:"stored and compressed"}],
   notes:[
     "Late-interaction reranking can reorder the retrieved candidates, but it cannot improve candidate recall.",
-    "Avoid combining late-interaction reranking with full-index late-interaction retrieval unless an ablation shows that the second MaxSim pass provides enough additional value to justify its latency."
+    "Avoid combining late-interaction reranking with full-index late-interaction retrieval unless an ablation shows that the second MaxSim pass provides enough additional value to justify its cost."
   ],
   failures:[
     LATE_MODE_OVERLAP,
     {f:"Expected to repair retrieval recall",s:"Relevant documents remain absent because they never entered the shortlist",m:"recall at rerank input, measured separately from final nDCG"},
-    {f:"Unablated rerank cascade",s:"Semantic, MaxSim and cross-encoder stages repeatedly reorder the same candidates",m:"incremental nDCG and rank churn per stage; latency per candidate"},
-    {f:"Documents encoded on every request",s:"Latency scales with shortlist size and document length",m:"encoding vs MaxSim latency; cache-hit rate"}]
+    {f:"Unablated rerank cascade",s:"Semantic, MaxSim and cross-encoder stages repeatedly reorder the same candidates",m:"incremental nDCG and rank churn per stage; cost per candidate"},
+    {f:"Documents encoded on every request",s:"Cost scales with shortlist size and document length",m:"encoding vs MaxSim cost share; cache-hit rate"}]
 });
 
 def({
   id:"crossenc", name:"Cross-encoder rerank", group:"Reranking", tier:"recommended", intro:2,
-  sub:"joint query-document scoring", lat:[50,150], cx:3, model:true, caps:["precision"],
+  sub:"joint query-document scoring", cx:3, model:true, caps:["precision"],
   handles:["quiet","waterfront"],
-  purpose:"Score query and document jointly rather than independently. Usually the single largest relevance jump available, and the main latency dial in the whole pipeline.",
+  purpose:"Score query and document jointly rather than independently. Usually the single largest relevance jump available, and the main cost dial in the whole pipeline.",
   decisions:[{
     q:"What rerank depth?",
     opts:["25","50","100","200"],
@@ -1657,40 +1635,40 @@ def({
     q:"What text does it see?",
     opts:["Title only","Title + description","All fields concatenated"],
     def:"Title + the most informative field, truncated deliberately",
-    why:"Long inputs drive the p99 far above the p95, and most of the discriminating signal is in the first few hundred tokens."
+    why:"Long inputs cost far more than short ones, and most of the discriminating signal is in the first few hundred tokens."
   }],
   contract:{in:"top-K fused candidates + query", out:"re-scored top-K with rerank_score appended (never overwritten)"},
-  dials:[{n:"Depth",v:"100"},{n:"Cost",v:"~0.5–1.5 ms/doc on GPU"},{n:"Max input tokens",v:"cap it explicitly"}],
+  dials:[{n:"Depth",v:"100"},{n:"Max input tokens",v:"cap it explicitly"}],
   notes:[
     "A cross-encoder can only reorder retrieved candidates; it cannot recover relevant documents that retrieval failed to return.",
     "Assess the cross-encoder relative to a retrieval-only baseline. If recall@200 is strong but nDCG@10 remains weak, reranking is a plausible intervention. If recall@200 is also weak, improve retrieval first."
   ],
   failures:[
     {f:"Overturns a good fused list",s:"nDCG@10 falls while recall@100 is unchanged",m:"nDCG@10 with and without rerank, same candidate set"},
-    {f:"Latency spikes on long documents",s:"p99 far above p95",m:"rerank latency by document token length"}]
+    {f:"Cost scales with document length",s:"Long documents dominate the rerank stage",m:"stage cost by document token length"}]
 });
 
 def({
   id:"vlmrerank", name:"VLM rerank", group:"Reranking", tier:"optional", intro:3,
-  sub:"query vs document images, top-M only", lat:[80,500], conditional:true, cx:4, model:true,
-  conditionalOn:"Runs over the top 10\u201320 candidates only, at 80\u2013500 ms per call.",
+  sub:"query vs document images, top-M only", conditional:true, cx:4, model:true,
+  conditionalOn:"Runs over the top 10\u201320 candidates only.",
   caps:["visual"], handles:["fireplace","waterfront"],
   purpose:"A vision-language model judging the query against the document's actual images. The only component that can verify a fine visual claim rather than approximate it.",
   decisions:[{
     q:"How many candidates does it see?",
     opts:["Top 50","Top 10–20","All reranked"],
     def:"Top 10–20, gated on visual intent",
-    why:"At 50–500 ms per call this is the most expensive component on the menu. It should be gated by routing, cached hard, and dropped first under load."
+    why:"This is the most expensive component on the menu. It should be gated by routing, cached hard, and dropped first under load."
   }],
   contract:{in:"top-M candidates + their images + query", out:"visual relevance score / verdict per candidate"},
   dials:[{n:"Depth",v:"10–20"},{n:"Cache TTL",v:"hours to days"},{n:"Gate",v:"visual intent or image query only"}],
-  failures:[{f:"Ungated VLM calls",s:"p95 latency doubles for no gain on non-visual queries",m:"VLM fire rate by intent class; latency attribution"}],
+  failures:[{f:"Ungated VLM calls",s:"Cost doubles for no gain on non-visual queries",m:"VLM fire rate by intent class; cost attribution"}],
   example:"Confirms the fireplace is actually a wood fireplace rather than a gas insert — a distinction no embedding reliably makes."
 });
 
 def({
   id:"ltr", name:"Learning-to-Rank", group:"Reranking", tier:"optional", intro:3,
-  sub:"GBDT over retrieval, behaviour, quality features", lat:[5,20], cx:5, model:true,
+  sub:"GBDT over retrieval, behaviour, quality features", cx:5, model:true,
   caps:["learning","precision"],
   purpose:"A trained model that blends every upstream signal — retrieval scores, rerank scores, behavioural features, quality and freshness — into the final relevance ordering.",
   decisions:[{
@@ -1713,7 +1691,7 @@ def({
 /* ---------- final ranking ---------- */
 def({
   id:"business", name:"Business ranking", group:"Final ranking", tier:"recommended", intro:2,
-  sub:"quality tiers, promotions, soft policy", lat:[1,5], cx:2,
+  sub:"quality tiers, promotions, soft policy", cx:2,
   purpose:"Apply soft, auditable preferences the business owns — quality tiers, capped promotions and other non-mandatory boosts — after relevance ranking.",
   decisions:[{
     q:"Rules or model?",
@@ -1728,7 +1706,7 @@ def({
 
 def({
   id:"freshness", name:"Freshness & temporal", group:"Final ranking", tier:"recommended", intro:2,
-  sub:"recency decay or time-window boost", lat:[1,3], cx:1, caps:["fresh"],
+  sub:"recency decay or time-window boost", cx:1, caps:["fresh"],
   purpose:"Express time preference: decay old documents, boost recent ones, or hard-filter to a window when the query implies one.",
   decisions:[{
     q:"How is time applied?",
@@ -1744,7 +1722,7 @@ def({
 
 def({
   id:"personalisation", name:"Personalisation", group:"Final ranking", tier:"optional", intro:3,
-  sub:"runtime profile lookup + incremental updates", lat:[3,15], cx:4, caps:["personal"],
+  sub:"runtime profile lookup + incremental updates", cx:4, caps:["personal"],
   purpose:"Read a durable user profile at request time and adjust ranking using prior behaviour, saved items and stated preferences. Profile state is updated from logged events outside the ranking request.",
   decisions:[{
     q:"How strong is the personalisation?",
@@ -1763,7 +1741,7 @@ def({
 
 def({
   id:"diversity", name:"Diversity", group:"Final ranking", tier:"recommended", intro:2,
-  sub:"MMR or per-attribute capping", lat:[2,8], cx:2, caps:["diversity"],
+  sub:"MMR or per-attribute capping", cx:2, caps:["diversity"],
   purpose:"Stop the top of the page collapsing onto one cluster — one seller, one location, one near-identical variant.",
   decisions:[{
     q:"MMR or attribute caps?",
@@ -1778,7 +1756,7 @@ def({
 
 def({
   id:"dedup", name:"Deduplication", group:"Final ranking", tier:"recommended", intro:2,
-  sub:"near-duplicate collapse", lat:[2,10], cx:2,
+  sub:"near-duplicate collapse", cx:2,
   purpose:"Collapse near-identical documents so the page shows distinct options, keeping the highest-ranked representative.",
   decisions:[{
     q:"What is the duplicate key?",
@@ -1793,7 +1771,7 @@ def({
 
 def({
   id:"assembly", name:"Results assembly", group:"Results", tier:"core", io:true, intro:1,
-  sub:"hydrate fields, images, highlights, paging", lat:[15,40], cx:2,
+  sub:"hydrate fields, images, highlights, paging", cx:2,
   purpose:"Hydrate the final ranking into a response: fields, images, snippets and highlights, pagination — plus the honesty metadata about what the pipeline did.",
   decisions:[{
     q:"What does the response disclose?",
@@ -1801,20 +1779,20 @@ def({
     def:"Results plus relaxation, degradation and route state",
     why:"The UI cannot say “showing broader results” unless the pipeline tells it. This is a schema contract, not a nicety — it is the only defence against silent relaxation."
   }],
-  contract:{in:"final ranking", out:"response { results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id?, timings } + impression context { query_id, result_ids[], positions, route_id?, experiment_ids[] }"},
+  contract:{in:"final ranking", out:"response { results[], relaxation_passes, relaxed_constraints[], degraded_legs[], route_id? } + impression context { query_id, result_ids[], positions, route_id?, experiment_ids[] }"},
   dials:[{n:"Page size",v:"20"},{n:"Hydration",v:"batch, never per-result"}],
   notes:[
     "Revalidate mandatory eligibility and policy predicates before returning results. This is defence in depth; it does not make post-filtering an acceptable retrieval strategy.",
     "When routing or degradation is absent, return an empty degraded_legs[] and omit route_id rather than inventing control state.",
     "Pagination should use a stable cursor or ranking snapshot. Offset pagination over a ranking that can change through freshness, personalisation or index updates can produce skipped or repeated results."
   ],
-  failures:[{f:"Hydration is the hidden latency",s:"Fast search, slow response",m:"per-stage latency attribution"}]
+  failures:[{f:"Hydration is the hidden cost",s:"Fast search, slow response",m:"per-stage cost attribution"}]
 });
 
 /* ---------- cross-cutting control ---------- */
 def({
   id:"degradation", name:"Degradation controller", group:"Reranking", tier:"recommended", control:true, intro:2,
-  sub:"deadlines, partial results", lat:[0,2], cx:3,
+  sub:"deadlines, partial results", cx:3,
   purpose:"Give every leg and rerank tier an independent deadline, and proceed with whatever returned instead of failing the request.",
   decisions:[{
     q:"What is the degradation order?",
@@ -1824,7 +1802,7 @@ def({
   }],
   contract:{in:"stage deadlines", out:"partial results + degraded_legs[] on the response"},
   notes:[
-    "Prefer timely partial results to a slow or failed response. The earlier 300 ms and 2 s figures are illustrative only; set actual stage deadlines from product service objectives, workload behaviour, and user expectations.",
+    "Prefer timely partial results to a slow or failed response. Set actual stage deadlines from product service objectives, workload behaviour, and user expectations.",
     "Never degrade silently. Record and return the degraded legs so that load-related changes in relevance can be identified rather than appearing as unexplained regressions."
   ],
   failures:[{f:"Silent degradation",s:"Unexplained relevance drops correlated with load",m:"degraded_legs rate vs relevance metrics"}]
@@ -1832,7 +1810,7 @@ def({
 
 def({
   id:"behavioural", name:"Behavioural event log", group:"Results", tier:"recommended", control:true, intro:2,
-  sub:"impressions joined to clicks, saves and reformulations", lat:[0,0], cx:3, caps:["learning"],
+  sub:"impressions joined to clicks, saves and reformulations", cx:3, caps:["learning"],
   purpose:"The telemetry sink and offline learning source: join position-aware impression context from Results assembly with client-side clicks, saves, enquiries and reformulations. It is not in the ranking request path.",
   decisions:[{
     q:"When do you start collecting?",
@@ -1924,10 +1902,6 @@ const REFS = {
     {t:"Adaptive-RAG: Learning to Adapt Retrieval through Question Complexity", s:"Jeong et al., 2024", u:A("2403.14403"),
      w:"Routing by predicted query difficulty — the same control-plane idea, in a RAG setting."}
   ],
-  budget:[
-    {t:"Efficient Query Evaluation Using a Two-Level Retrieval Process (WAND)", s:"Broder et al., CIKM 2003", u:D("10.1145/956863.956944"),
-     w:"The classic statement of the depth-versus-latency trade this stage manages."}
-  ],
   lexical:[
     {t:"The Probabilistic Relevance Framework: BM25 and Beyond", s:"Robertson & Zaragoza, FnTIR 2009", u:D("10.1561/1500000019"),
      w:"The definitive BM25 treatment, including BM25F for fielded documents — which is what you actually want here."}
@@ -1968,7 +1942,7 @@ const REFS = {
     {t:"ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction", s:"Santhanam et al., 2021", u:A("2112.01488"),
      w:"Residual compression cuts the index blow-up by 6–10×. Read this before rejecting the approach on storage grounds."},
     {t:"PLAID: An Efficient Engine for Late Interaction Retrieval", s:"Santhanam et al., 2022", u:A("2205.09707"),
-     w:"How to actually serve it at low latency."},
+     w:"How to actually serve it efficiently."},
     {t:"ColPali: Efficient Document Retrieval with Vision Language Models", s:"Faysse et al., 2024", u:A("2407.01449"),
      w:"Late interaction over document <em>images</em> — squarely relevant to a corpus with an image set per document."}
   ],
@@ -1985,7 +1959,8 @@ const REFS = {
      w:"Motivates preserving per-leg ranks here so downstream Fusion can combine retrieval legs without comparing incompatible raw scores."}
   ],
   prune:[
-    {t:"Efficient Query Evaluation Using a Two-Level Retrieval Process (WAND)", s:"Broder et al., CIKM 2003", u:D("10.1145/956863.956944")},
+    {t:"Efficient Query Evaluation Using a Two-Level Retrieval Process (WAND)", s:"Broder et al., CIKM 2003", u:D("10.1145/956863.956944"),
+     w:"The classic statement of the depth-versus-cost trade this stage manages."},
     {t:"Faster Top-k Document Retrieval Using Block-Max Indexes", s:"Ding & Suel, SIGIR 2011", u:D("10.1145/2009916.2010048"),
      w:"Pruning done inside the index rather than after it — cheaper than pruning a materialised list."}
   ],
@@ -2048,11 +2023,11 @@ const REFS = {
   ],
   assembly:[
     {t:"Fast Generation of Result Snippets in Web Search", s:"Turpin et al., SIGIR 2007", u:D("10.1145/1277741.1277766"),
-     w:"Hydration and snippet generation are a bigger share of the latency budget than most designs assume."}
+     w:"Hydration and snippet generation are a bigger share of the work than most designs assume."}
   ],
   degradation:[
     {t:"The Tail at Scale", s:"Dean & Barroso, CACM 2013", u:D("10.1145/2408776.2408794"),
-     w:"Required reading. Fan-out to N legs means your p99 is the p99 of the slowest leg, every time."}
+     w:"Required reading. Fan-out to N legs means the response is governed by the slowest leg, every time."}
   ],
   behavioural:[
     {t:"Accurately Interpreting Clickthrough Data as Implicit Feedback", s:"Joachims et al., SIGIR 2005", u:D("10.1145/1076034.1076063"),
@@ -2075,7 +2050,6 @@ const EXAMPLES = {
   sufficiency:"With all four constraints applied as hard filters this corpus might return three candidates — above zero, well below n_min. That gap is exactly what the relaxation ladder exists for.",
   zerofallback:"Nothing survives even a relaxed filter: fall back to “waterfront cabins” semantically, and offer “try up to $350” or “try within 3 hours” as explicit next steps.",
   routing:"<code>wood fireplace</code> is a visual text attribute, so this query should fire text-to-image retrieval. Image-to-image retrieval fires only when an image is supplied; “booking reference 4471” should fire only the lexical leg.",
-  budget:"Seven legs are available and the budget is 400 ms. Spend text-query depth on text-to-image retrieval when the fireplace evidence is in photos; reserve image-to-image depth for routes that actually contain an image.",
   sparse:"Expands <code>cabin</code> toward cottage and lodge in a sparse space, so a listing that never uses the word “cabin” is still reachable — and you can see exactly which term matched.",
   textvec:"One vector has to represent quiet, waterfront, fireplace, capacity, price and distance simultaneously. It cannot, and this is the clearest illustration of why.",
   multivec:"<code>quiet</code> is evidenced in the reviews section and <code>wood fireplace</code> in the amenities list — two different passages of the same listing, which document-level embedding averages away.",
@@ -2114,15 +2088,13 @@ const DIALS = {
             {n:"Audit log",v:"applied_rules[] per result"}],
   personalisation:[{n:"Personalised slots",v:"2–3 of the top 10"},{n:"Holdout",v:"permanent control group"}],
   dedup:[{n:"Near-dup threshold",v:"tune on a labelled duplicate set"},{n:"Collapse UI",v:"show “N similar” rather than hiding"}],
-  degradation:[{n:"Per-leg deadline",v:"60–80% of the leg's p99"},{n:"Degradation order",v:"optional verification → rerank depth → slowest nonessential leg"}],
+  degradation:[{n:"Per-leg deadline",v:"derived from the leg's own completion behaviour, never one global value"},{n:"Degradation order",v:"optional verification → rerank depth → slowest nonessential leg"}],
   behavioural:[{n:"Impression logging",v:"every result shown, with position"},
                {n:"Join window",v:"query → interaction, ~30 min",note:"Without position, the log cannot be debiased later."}]
 };
 Object.keys(DIALS).forEach(k=>{ if(S[k]) S[k].dials = DIALS[k]; });
 
 const FAILS = {
-  budget:[{f:"Budget tuned independently of routing",s:"Each change looks like a regression in isolation",m:"latency and nDCG measured per route class, not in aggregate"},
-          {f:"Depth starved on the deciding leg",s:"The right document is never retrieved, so no reranker can save it",m:"recall@k per leg under the allocated budget"}],
   fusionpolicy:[{f:"Nobody can say which strategy ran",s:"Irreproducible results and unexplainable regressions",m:"strategy distribution per query class; strategy logged per query"},
                 {f:"Policy overfits a small query class",s:"Aggregate metrics flat, one class much worse",m:"nDCG@10 sliced by query class, never pooled"}]
 };
@@ -2143,7 +2115,6 @@ const TPL = {
   1:{
     name:"Core",
     tagline:"The irreducible hybrid path",
-    target:"~150 ms p95",
     desc:"The smallest pipeline that is <b>genuinely hybrid</b>: mandatory constraints pushed into one lexical and one dense leg, explicit candidate union, fixed RRF over their ranks, and results assembly. Ship it, and build the evaluation harness around it.",
     rows:[
       {c:["q-text"]},
@@ -2160,7 +2131,6 @@ const TPL = {
   2:{
     name:"Core + recommended",
     tagline:"The production target",
-    target:"~400 ms p95",
     desc:"The <b>default answer</b>. Adds rewriting, static routing, cross-modal text-to-image retrieval, bounded recovery, candidate pruning, cross-encoder reranking, operational deadlines, auditable final-ranking controls, and feedback instrumentation. Architect against this one.",
     rows:[
       {c:["q-text"]},
@@ -2185,7 +2155,6 @@ const TPL = {
   3:{
     name:"Full surface",
     tagline:"The menu, not the target",
-    target:"~600 ms p95, plus conditional work",
     desc:"Everything on the menu. <b>Do not read this as “execute every box”</b> — a simple navigational query should fire two legs and skip the VLM; image-to-image retrieval should fire only when an image is supplied. The dashed control plane decides which parts run.",
     rows:[
       {l:["q-image"], c:["q-text"], r:["session"]},
@@ -2194,7 +2163,7 @@ const TPL = {
       {c:["rewrite"]},
       {c:["expand"]},
       {c:["prefilter"], r:["routing"]},
-      {c:["lexical","textvec","textimagevec","imageimagevec","sparse","multivec","late"], r:["budget","degradation"]},
+      {c:["lexical","textvec","textimagevec","imageimagevec","sparse","multivec","late"], r:["degradation"]},
       {c:["union"]},
       {c:["sufficiency"], nextLabel:"sufficient"},
       {l:["relax","zerofallback"], c:["prune"]},
@@ -2325,47 +2294,39 @@ const LEGS = ["lexical","sparse","textvec","textimagevec","imageimagevec","multi
    Controllers still `steer`; the gated edge and card show where their route,
    intent or policy decision conditionally enters the candidate path.
 
-   GATE_KINDS answers who decides a gate and when. `timing` carries the
+   GATE_KINDS answers who decides a gate and when. `decidedAt` carries the
    distinction that matters most to a reader and that a bare label cannot:
    a request gate is re-decided for every query, while a deployment gate is a
-   standing configuration choice about budget or available training data.
+   standing configuration choice about corpus shape or available training data.
    A kind may declare more than one condition — an image supplied with the
    request and inferred visual intent are both properties of the query,
    resolved by the same owner at the same point. */
-const GATE_TIMING_LABEL = Object.freeze({request:"per request", deployment:"deployment choice"});
+const GATE_SCOPE_LABEL = Object.freeze({request:"per request", deployment:"deployment choice"});
 const GATE_KINDS = Object.freeze({
   route: Object.freeze({
-    timing:"request", decidedBy:"routing", color:"var(--gate-request)",
+    decidedAt:"request", decidedBy:"routing", color:"var(--gate-request)",
     conditions:Object.freeze({
       "route selected":"Runs on some queries and not others, depending on what the query needs."
     })
   }),
   intent: Object.freeze({
-    timing:"request", decidedBy:"routing", color:"var(--gate-request)",
+    decidedAt:"request", decidedBy:"routing", color:"var(--gate-request)",
     conditions:Object.freeze({
       "visual intent":"Runs only when the query is judged to need visual evidence.",
       "image query":"Runs only when the request supplies an image to match against."
     })
   }),
-  budget: Object.freeze({
-    timing:"deployment", decidedBy:null, color:"var(--gate-config)",
+  config: Object.freeze({
+    decidedAt:"deployment", decidedBy:null, color:"var(--gate-config)",
     conditions:Object.freeze({
-      "optional pass":"A cascade tier kept only when budget or training data justifies it \u2014 a deployment choice rather than a per-query decision. Skipped, it passes candidates through."
+      "optional pass":"A cascade tier kept only when the corpus or available training data justifies it \u2014 a deployment choice rather than a per-query decision. Skipped, it passes candidates through."
     })
   })
 });
 
-/* Latency, not execution: orthogonal to whether a gate lets the stage run. */
-/* Gating and cost are orthogonal, so their sentences compose the same way:
-   a per-stage trigger, then the one consequence that holds for all of them.
-   For a gate that suffix names the decider; here it names the budget, which
-   is what `conditional` actually drives \u2014 see budget(). */
-const CONDITIONAL_BUDGET_NOTE = "Counted outside the headline latency budget.";
-
-function conditionalSentence(s){
-  return s.conditionalOn+" "+CONDITIONAL_BUDGET_NOTE;
-}
-
+/* Gating and execution frequency are orthogonal: a gate says whether a stage
+   may run at all, `conditional` says it runs on only some of the requests that
+   reach it. Each carries its own one-line trigger. */
 const CONDITIONAL_NOTE =
   "Cost varies with how much work this stage does on the requests where it runs.";
 
@@ -2380,12 +2341,12 @@ function defGate(from,kind,label,altOf){
   const sentence = spec.conditions[label];
   if(!sentence) throw new Error("Condition not declared by gate kind "+kind+": "+label);
   return Object.freeze({from,kind,label,sentence,altOf,
-    timing:spec.timing, decidedBy:spec.decidedBy, color:spec.color});
+    decidedAt:spec.decidedAt, decidedBy:spec.decidedBy, color:spec.color});
 }
 
 const GATE_CONDITIONS = Object.freeze(Object.entries(GATE_KINDS).flatMap(([kind,spec])=>
   Object.entries(spec.conditions).map(([label,sentence])=>Object.freeze({
-    label, sentence, kind, timing:spec.timing, decidedBy:spec.decidedBy, color:spec.color
+    label, sentence, kind, decidedAt:spec.decidedAt, decidedBy:spec.decidedBy, color:spec.color
   }))
 ));
 const GATE_CONDITION = Object.freeze(Object.fromEntries(
@@ -2397,10 +2358,10 @@ const GATED_EXECUTION = Object.freeze({
   sparse:        defGate(3,"route","route selected"),
   multivec:      defGate(3,"route","route selected"),
   late:          defGate(3,"route","route selected","latererank"),
-  semrerank:     defGate(3,"budget","optional pass"),
+  semrerank:     defGate(3,"config","optional pass"),
   latererank:    defGate(3,"route","route selected","late"),
   vlmrerank:     defGate(3,"intent","visual intent"),
-  ltr:           defGate(3,"budget","optional pass")
+  ltr:           defGate(3,"config","optional pass")
 });
 const SELECTIVE_RERANK_CASCADE = Object.freeze([
   "semrerank","latererank","crossenc","vlmrerank","ltr"
@@ -2417,8 +2378,7 @@ const REL = {
   "q-image":    { steers:["routing"], feeds:["imageimagevec"] },
   session:      { steers:["understand","rewrite","routing","personalisation"] },
   confidence:   { steers:["prefilter","relax"] },
-  routing:      { steers:LEGS.concat(["budget"]).concat(GATED_RERANKERS) },
-  budget:       { steers:LEGS },
+  routing:      { steers:LEGS.concat(GATED_RERANKERS) },
   degradation:  { steers:LEGS.concat(["latererank","crossenc","vlmrerank"]) },
   fusionpolicy: { steers:["fusion"] },
   assembly:     { feeds:["behavioural"] },
@@ -2427,16 +2387,16 @@ const REL = {
 
 const RELATION_DETAILS = Object.freeze({
   "assembly|feeds|behavioural":Object.freeze({
-    label:"impression context", payload:"query, result positions, route and experiment context", timing:"per response telemetry"
+    label:"impression context", payload:"query, result positions, route and experiment context", cadence:"per response telemetry"
   }),
   "behavioural|trains|fusionpolicy":Object.freeze({
-    label:"debiased training set", payload:"versioned judgements and route outcomes", timing:"offline model training"
+    label:"debiased training set", payload:"versioned judgements and route outcomes", cadence:"offline model training"
   }),
   "behavioural|trains|ltr":Object.freeze({
-    label:"debiased training set", payload:"versioned judgements with position-aware features", timing:"offline model training"
+    label:"debiased training set", payload:"versioned judgements with position-aware features", cadence:"offline model training"
   }),
   "behavioural|updates|personalisation":Object.freeze({
-    label:"profile events", payload:"clicks, saves, enquiries and stated preferences", timing:"asynchronous profile update"
+    label:"profile events", payload:"clicks, saves, enquiries and stated preferences", cadence:"asynchronous profile update"
   })
 });
 function relationDetail(from,kind,to){
@@ -2660,8 +2620,7 @@ const DEPENDENCY_BASELINE = {
       ["q-image","routing"],
       ["session",["understand","rewrite","routing","personalisation"]],
       ["confidence",["prefilter","relax"]],
-      ["routing",BASELINE_RETRIEVAL_LEGS.concat(["budget"]).concat(BASELINE_GATED_RERANKERS)],
-      ["budget",BASELINE_RETRIEVAL_LEGS],
+      ["routing",BASELINE_RETRIEVAL_LEGS.concat(BASELINE_GATED_RERANKERS)],
       ["degradation",BASELINE_RETRIEVAL_LEGS.concat(["latererank","crossenc","vlmrerank"])],
       ["fusionpolicy","fusion"]
     ),
@@ -2824,12 +2783,12 @@ function validateRelationshipModel(){
   /* defGate() already ties every entry to a declared kind and condition.
      What it cannot see is whether the registry itself is coherent. */
   Object.entries(GATE_KINDS).forEach(([kind,spec])=>{
-    if(!GATE_TIMING_LABEL[spec.timing]) throw new Error("Unknown gate timing for kind: "+kind);
+    if(!GATE_SCOPE_LABEL[spec.decidedAt]) throw new Error("Unknown gate scope for kind: "+kind);
     if(!spec.color) throw new Error("Gate kind has no colour: "+kind);
     if(!Object.keys(spec.conditions).length) throw new Error("Gate kind declares no condition: "+kind);
     if(spec.decidedBy) requireComponent(spec.decidedBy,"gate decider");
   });
-  /* A conditional stage leaves the headline budget, so it owes the reader a
+  /* A conditional stage runs on only some requests, so it owes the reader a
      reason. An orphan trigger means the flag was removed and the prose left. */
   Object.values(S).forEach(s=>{
     if(s.conditional && !s.conditionalOn){
@@ -2909,7 +2868,7 @@ function validateRelationshipModel(){
   const componentKeys=new Set(componentRelations.map(({from,to,kind})=>[from,kind,to].join("|")));
   Object.entries(RELATION_DETAILS).forEach(([key,detail])=>{
     if(!componentKeys.has(key)) throw new Error("Relationship detail has no component relationship: "+key);
-    if(!detail.label || !detail.payload || !detail.timing){
+    if(!detail.label || !detail.payload || !detail.cadence){
       throw new Error("Incomplete relationship detail: "+key);
     }
   });
@@ -3035,31 +2994,27 @@ const STEPS = [
    build:"Spelling, synonym canonicalisation, and the constraint-stripped query for the dense legs.",
    trigger:"Spelling and synonym failures show up in the reformulation rate.",
    buys:"Tail recovery, and the asymmetric-query trick that costs nothing."},
-  {n:8, t:3, title:"Candidate budget allocation", stages:["budget"],
-   build:"Add per-leg k allocation to the existing static route, then predict allocation only after measured contribution justifies it.",
-   trigger:"Latency-bound with a heterogeneous query mix.",
-   buys:"Headroom — spend retrieval depth where it changes the answer rather than adding more legs globally."},
-  {n:9, t:3, title:"Optional semantic pre-rerank", stages:["semrerank"],
+  {n:8, t:3, title:"Optional semantic pre-rerank", stages:["semrerank"],
    build:"Insert a bi-encoder score refresh only when it safely narrows the shortlist seen by the cross-encoder.",
-   trigger:"Cross-encoder depth is the latency bottleneck and the semantic tier materially reduces it without lowering shortlist recall.",
+   trigger:"Cross-encoder depth is the binding constraint on the rerank funnel and the semantic tier materially reduces it without lowering shortlist recall.",
    buys:"A cheaper rerank funnel when the measured cascade earns its extra stage."},
-  {n:10, t:3, title:"Passage-level or late-interaction placement", stages:["multivec","late","latererank"],
+  {n:9, t:3, title:"Passage-level or late-interaction placement", stages:["multivec","late","latererank"],
    build:"Choose passage retrieval or full-index late-interaction retrieval when candidate recall is weak; choose late-interaction reranking when shortlist recall is already high but multi-facet ordering is weak.",
    trigger:"Multi-faceted queries over long documents, sliced into recall-at-shortlist and final-ranking failures.",
    buys:"Puts token-level evidence at the stage where the measured failure occurs, without paying for MaxSim twice by default."},
-  {n:11, t:3, title:"Query-dependent fusion", stages:["fusionpolicy"],
+  {n:10, t:3, title:"Query-dependent fusion", stages:["fusionpolicy"],
    build:"A policy layer choosing strategy and leg weights per query class.",
    trigger:"One global weighting is provably wrong for a whole query class.",
    buys:"Per-class gains that a single fusion setting cannot deliver."},
-  {n:12, t:3, title:"Image-query and image-to-image retrieval", stages:["q-image","imageimagevec"],
+  {n:11, t:3, title:"Image-query and image-to-image retrieval", stages:["q-image","imageimagevec"],
    build:"Encode uploaded or reference images with the image tower, query the shared document-image index as an independent leg, retain typed constraints, and fuse its rank separately.",
    trigger:"Users need query-by-example or regularly supply reference images.",
    buys:"Visual similarity search without conflating an image-bearing query with text-to-image retrieval."},
-  {n:13, t:3, title:"VLM rerank", stages:["vlmrerank"],
+  {n:12, t:3, title:"VLM rerank", stages:["vlmrerank"],
    build:"A vision-language model over the top 10–20, gated on visual intent, cached hard.",
    trigger:"Visual intent demonstrably drives conversion.",
    buys:"Verification of fine visual claims. High cost, narrow gate."},
-  {n:14, t:3, title:"LTR, learned fusion policy, personalisation", stages:["ltr","fusionpolicy","personalisation","expand","sparse","session","confidence"],
+  {n:13, t:3, title:"LTR, learned fusion policy, personalisation", stages:["ltr","fusionpolicy","personalisation","expand","sparse","session","confidence"],
    build:"Trained ranking over the full feature vector, a trained per-query Fusion policy, and per-user adjustment.",
    trigger:"Tens of thousands of labelled or behavioural judgements exist.",
    buys:"Compounding gains, with permanent maintenance and a position-bias problem to solve."}
@@ -3122,7 +3077,7 @@ function setOff(id,off){
 }
 
 /* =======================================================================
-   BUDGET MODEL
+   COMPOSITION MODEL
    ======================================================================= */
 const PHASES = [
   {id:"query",  label:"Query processing", groups:["Query inputs","Query processing","Constraint handling"], color:"var(--core-line)"},
@@ -3133,12 +3088,11 @@ const PHASES = [
 ];
 const MAX_CX = Object.values(S).reduce((a,s)=>a+(s.cx||0),0);
 
-function budget(){
+function composition(){
   const ids = tplStages(state.tpl).filter(isOn);
-  const per = {}, cond = [];
-  let lo=0, hi=0, cxSum=0;
+  const per = {};
+  let cxSum=0;
   const modelMap=new Map(), caps=new Set();
-  const parallel = {};
 
   ids.forEach(id=>{
     const s = S[id];
@@ -3148,44 +3102,20 @@ function budget(){
       const key = s.modelKey || id;
       if(!modelMap.has(key)) modelMap.set(key, s.modelLabel || s.name);
     }
-    const [a,b] = s.lat||[0,0];
-    if(s.conditional){ if(b>0) cond.push({name:s.name, lat:s.lat}); return; }
-    if(s.parallel){ // legs run concurrently: the group costs its slowest member
-      const g = parallel[s.parallel] || (parallel[s.parallel]={lo:0,hi:0,group:s.group});
-      g.lo = Math.max(g.lo,a); g.hi = Math.max(g.hi,b);
-      return;
-    }
-    lo+=a; hi+=b;
     const ph = PHASES.find(p=>p.groups.includes(s.group));
-    if(ph) per[ph.id] = (per[ph.id]||0) + b;
+    if(ph) per[ph.id] = (per[ph.id]||0) + 1;
   });
-  Object.values(parallel).forEach(g=>{
-    lo+=g.lo; hi+=g.hi;
-    const ph = PHASES.find(p=>p.groups.includes(g.group));
-    if(ph) per[ph.id] = (per[ph.id]||0) + g.hi;
-  });
-  return {lo:Math.round(lo), hi:Math.round(hi), per, cond, cx:cxSum,
+  return {per, cx:cxSum,
           models:modelMap.size, modelNames:Array.from(modelMap.values()),
           caps, count:ids.length, off:tplStages(state.tpl).filter(isOff).length};
 }
 
-function renderBudget(){
-  const b = budget();
+function renderComposition(){
+  const b = composition();
   $("#stageCount").textContent = b.count + " on";
-  $("#latVal").textContent = b.lo + "–" + b.hi + " ms";
-  const scale = 900;
-  $("#latLo").style.width = Math.min(100, b.lo/scale*100) + "%";
-  $("#latHi").style.width = Math.min(100-Math.min(100,b.lo/scale*100), (b.hi-b.lo)/scale*100) + "%";
-  $("#latNote").innerHTML = b.cond.length
-    ? "Plus conditional work: " + b.cond.map(c=>c.name.toLowerCase()+" (+"+c.lat[0]+"–"+c.lat[1]+" ms)").join(", ") + "."
-    : "Retrieval legs run concurrently, so the group costs its slowest member.";
-
-  const total = Object.values(b.per).reduce((a,c)=>a+c,0) || 1;
-  $("#latStack").innerHTML = PHASES.filter(p=>b.per[p.id]).map(p=>
-    '<i style="width:'+(b.per[p.id]/total*100)+'%;background:'+p.color+'" title="'+p.label+'"></i>').join("");
-  $("#latLegend").innerHTML = PHASES.filter(p=>b.per[p.id]).map(p=>
+  $("#phaseLegend").innerHTML = PHASES.filter(p=>b.per[p.id]).map(p=>
     '<button data-phase="'+p.id+'" aria-pressed="false" title="Show the components in this phase">'+
-    '<i style="background:'+p.color+'"></i>'+p.label+' '+Math.round(b.per[p.id]/total*100)+'%</button>').join("");
+    '<i style="background:'+p.color+'"></i>'+p.label+' '+b.per[p.id]+'</button>').join("");
 
   const band = b.cx<=18 ? "Lean" : b.cx<=32 ? "Moderate" : b.cx<=50 ? "Substantial" : "Heavy";
   $("#cxVal").textContent = band + " · " + b.cx;
@@ -3202,7 +3132,7 @@ function renderBudget(){
   offEl.hidden = b.off===0; offEl.textContent = b.off + " off";
 
   $$("#caps .cap").forEach(el=> el.addEventListener("click", ()=> setFocus("cap", el.dataset.cap)));
-  $$("#latLegend button").forEach(el=> el.addEventListener("click", ()=> setFocus("phase", el.dataset.phase)));
+  $$("#phaseLegend button").forEach(el=> el.addEventListener("click", ()=> setFocus("phase", el.dataset.phase)));
   syncFocusUI();
 }
 
@@ -3326,7 +3256,7 @@ function mobileSelectionRows(edges,direction){
   return edges.map(edge=>{
     const other=direction==="out" ? edge.to : edge.from;
     const relation=RELATION_TYPES[edge.kind];
-    const detail=edge.detail ? ' · '+edge.detail.label+' · '+edge.detail.timing :
+    const detail=edge.detail ? ' · '+edge.detail.label+' · '+edge.detail.cadence :
       edge.label ? ' · '+edge.label : '';
     return '<div class="mobile-selection-row" data-relation-kind="'+edge.kind+'">'+mobileRelationKey(edge.kind)+'<span><b>'+
       relation[direction==="out"?"fwd":"rev"]+'</b> <button class="mobile-dep-ref" data-mobile-select="'+other+'">'+
@@ -3397,7 +3327,7 @@ function nodeEl(id, newIds, logical){
   if(gate){
     el.dataset.executionGate = gate.label;
     el.dataset.gateKind      = gate.kind;
-    el.dataset.gateTiming    = gate.timing;
+    el.dataset.gateScope     = gate.decidedAt;
     el.style.setProperty("--gate-color", gate.color);
   }
   if(!isOn(id)) el.classList.add("off");
@@ -3407,9 +3337,9 @@ function nodeEl(id, newIds, logical){
     '<span class="tierchip '+s.tier+'" title="First appears in '+TPL[s.intro].name+'">'+
       TIER_LABEL[s.intro]+'</span>' +
     '<span class="groupchip">'+s.group+'</span>' +
-    /* Gating and cost are orthogonal — when a stage runs, and what it costs
-       on the requests where it does. VLM rerank is both, and carries the
-       widest latency range in the diagram, so neither chip may hide the other. */
+    /* Gating and cost are orthogonal — when a stage runs, and how much work it
+       does on the requests where it does. VLM rerank is both, so neither chip
+       may hide the other. */
     (gate ? '<span class="gatechip" title="'+escapeAttribute(gateSentence(gate))+'">'+
       gate.label+'</span>' : "")+
     (s.conditional ? '<span class="condchip" title="'+escapeAttribute(CONDITIONAL_NOTE)+
@@ -3520,8 +3450,7 @@ const PARALLEL_GROUPS = Object.freeze({
       note:"legs run concurrently \u00b7 the group costs its slowest member"
     }),
     controlPorts:Object.freeze({
-      routing:"gates legs",
-      budget:"allocates k",
+      routing:"gates legs and depth",
       degradation:"cuts or skips"
     })
   })
@@ -3761,7 +3690,7 @@ function relationshipAriaLabel(edge){
   return relation.aria+" from "+renderTargetName(edge.from)+" to "+renderTargetName(edge.to)+
     (edge.label ? "; outcome: "+edge.label : "")+
     (edge.caption ? "; group port: "+edge.caption : "")+
-    (edge.detail ? "; transmits "+edge.detail.payload+"; timing: "+edge.detail.timing : "")+
+    (edge.detail ? "; transmits "+edge.detail.payload+"; cadence: "+edge.detail.cadence : "")+
     (gateConditions.length ? "; condition: "+gateConditions.join(" or ") : "");
 }
 
@@ -4029,7 +3958,7 @@ function drawWires(){
   });
 }
 
-/* ---------- unified focus: facet | capability | latency phase | gate ---------- */
+/* ---------- unified focus: facet | capability | phase | gate ---------- */
 const FOCUS = {
   facet:{
     match:(s,id)=> (s.handles||[]).includes(id),
@@ -4044,7 +3973,7 @@ const FOCUS = {
   phase:{
     match:(s,id)=>{ const p=PHASES.find(x=>x.id===id); return !!p && p.groups.includes(s.group); },
     describe:id=>{ const p=PHASES.find(x=>x.id===id);
-      return "<b>"+p.label+"</b> — components spending time in this phase:"; }
+      return "<b>"+p.label+"</b> — components in this phase:"; }
   },
   gate:{
     match:(s,id)=> executionGate(s.id,state.tpl)?.label===id,
@@ -4095,7 +4024,7 @@ function syncFocusUI(){
     el.setAttribute("aria-pressed", String(!!f && f.kind==="facet" && f.id===el.dataset.f)));
   $$("#caps .cap").forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="cap" && f.id===el.dataset.cap)));
-  $$("#latLegend button").forEach(el=>
+  $$("#phaseLegend button").forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="phase" && f.id===el.dataset.phase)));
   $$("#gateLegend button").forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="gate" && f.id===el.dataset.gateCondition)));
@@ -4167,14 +4096,13 @@ function openDrawer(id){
   const locked = lockedFor(id), on = isOn(id);
   $("#dChips").innerHTML =
     '<span class="chip">Introduced in <b>'+TPL[s.intro].name+'</b></span>' +
-    (s.lat && s.lat[1] ? '<span class="chip">'+(s.conditional?"Conditional ":"")+'p95 <b>'+s.lat[0]+"–"+s.lat[1]+' ms</b></span>' : "") +
     (s.cx ? '<span class="chip">Complexity <b>'+s.cx+'/5</b></span>' : "") +
     (s.model ? '<span class="chip">model in path</span>' : "") +
     /* A request gate is one hop from the component that owns the decision.
        A deployment gate has no owner to hop to, and the chip that leads
        nowhere is exactly the point. */
     (gate ? chipTag(gate.decidedBy,
-      'Gate <b class="tagval">'+gate.label+'</b> \u00b7 '+GATE_TIMING_LABEL[gate.timing]) : "") +
+      'Gate <b class="tagval">'+gate.label+'</b> \u00b7 '+GATE_SCOPE_LABEL[gate.decidedAt]) : "") +
     (gate?.altOf ? chipTag(gate.altOf,
       'Alternative to <b>'+S[gate.altOf].name+'</b>') : "") +
     '<button class="enable-btn" id="dToggle" data-on="'+(on?1:0)+'"'+(locked?" disabled title=\"Core components cannot be switched off\"":"")+'>'+
@@ -4226,7 +4154,7 @@ function openDrawer(id){
         const detail=dir==="fwd" ? relationDetail(id,kind,x) : relationDetail(x,kind,id);
         return '<button class="ref'+(isOff(x)?" isoff":"")+'" data-goto="'+x+'">'+
           S[x].name + (isOff(x)?" · off":"") +
-          (detail ? '<span class="refdetail">'+detail.label+' — '+detail.payload+' · '+detail.timing+'</span>' : '')+
+          (detail ? '<span class="refdetail">'+detail.label+' — '+detail.payload+' · '+detail.cadence+'</span>' : '')+
           '</button>';
       }).join("")+'</div>' +
       (offAndNeeded.length && kind==="trains"
@@ -4405,11 +4333,9 @@ function showHover(el, id){
     const s = S[id];
     if(!s || drawer.classList.contains("open")) return;
     const gate = executionGate(id,state.tpl);
-    const latency = s.lat[0]===s.lat[1] ? s.lat[0]+" ms" : s.lat[0]+"–"+s.lat[1]+" ms";
     hoverCard.innerHTML =
       '<div class="hc-title">'+s.name+'</div>'+
       '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
-        '<span class="hc-pill">p95 '+latency+'</span>'+
         '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
         /* Orthogonal to the gate, exactly as on the node card: when a stage
            runs, and what it costs on the requests where it does. */
@@ -4419,7 +4345,7 @@ function showHover(el, id){
       (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'"><b>'+gate.label+
         ' gate</b> \u2014 '+gateSentence(gate)+'</p>' : "")+
       (s.conditional ? '<p class="hc-gate hc-condline"><b>Conditional</b> \u2014 '+
-        conditionalSentence(s)+'</p>' : "")+
+        s.conditionalOn+'</p>' : "")+
       '<p class="hc-desc">'+s.purpose+'</p>'+
       (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
       hoverRelations(id)+
@@ -4495,6 +4421,9 @@ function renderCompList(){
    BUILD ORDER VIEW
    ======================================================================= */
 function renderBuild(){
+  /* The divider is keyed to the first Full-surface step rather than a fixed
+     number, so renumbering the list cannot silently drop it. */
+  const firstFull = STEPS.find(s=>s.t===3);
   $("#steps").innerHTML = STEPS.map(s=>{
     const chips = s.stages.filter(x=>S[x]).map(x=>
       '<button class="ref" data-goto="'+x+'">'+S[x].name+'</button>').join("");
@@ -4508,7 +4437,10 @@ function renderBuild(){
       '<div class="grid" style="grid-template-columns:1fr"><div><div class="lb">Build</div>'+s.build+'</div></div>'+
       (chips ? '<div class="chips">'+chips+'</div>' : "") +
       '</div></div>';
-    return s.n===8 ? '<div class="divider">Steps 1–7 above are Core + recommended — the production target. Everything below is Full surface territory.</div>'+html : html;
+    return s===firstFull
+      ? '<div class="divider">Steps 1–'+(firstFull.n-1)+' above are Core + recommended — the production target. '+
+        'Everything below is Full surface territory.</div>'+html
+      : html;
   }).join("");
   $$("#steps .ref[data-goto]").forEach(b=> b.addEventListener("click",()=>{
     const id = b.dataset.goto;
@@ -4526,7 +4458,7 @@ function renderBuild(){
    WIRING
    ======================================================================= */
 function renderAll(){
-  hideHover(); renderGateLegend(); renderCanvas(); renderBudget();
+  hideHover(); renderGateLegend(); renderCanvas(); renderComposition();
   renderCompList(); renderServingToggle();
 }
 
@@ -4545,7 +4477,7 @@ function renderGateLegend(){
   $("#gateLegend").hidden = !rows.length;
   $("#gateLegend").innerHTML = rows.map(({condition,ids})=>
     '<button data-gate-condition="'+escapeAttribute(condition.label)+'" aria-pressed="false"'+
-      ' data-gate-timing="'+condition.timing+'" style="--gate-color:'+condition.color+'">'+
+      ' data-gate-scope="'+condition.decidedAt+'" style="--gate-color:'+condition.color+'">'+
       '<span class="gk-chip">'+condition.label+'</span>'+
       '<span class="gk-count">'+ids.length+'</span>'+
       '<span class="gk-desc">'+condition.sentence+'</span>'+
