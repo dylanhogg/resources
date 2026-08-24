@@ -476,11 +476,6 @@ a{color:var(--accent)}
   border:1px solid var(--border);border-radius:6px;padding:2px 7px;white-space:nowrap
 }
 .hovercard .hc-group{text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
-.hovercard .hc-gatepill{
-  text-transform:uppercase;letter-spacing:.05em;color:var(--gate-color,var(--gate-request));
-  border-color:color-mix(in srgb,var(--gate-color,var(--gate-request)) 42%,var(--border))
-}
-.hovercard .hc-gatepill[data-gate-timing="deployment"]{border-style:dashed}
 .hovercard .hc-cond{text-transform:uppercase;letter-spacing:.05em;color:var(--warn)}
 .hovercard .hc-gate{
   margin:0 0 8px;font-size:11.5px;line-height:1.45;color:var(--text-2);
@@ -2337,7 +2332,7 @@ const GATE_KINDS = Object.freeze({
   route: Object.freeze({
     timing:"request", decidedBy:"routing", color:"var(--gate-request)",
     conditions:Object.freeze({
-      "route-selected":"Runs on some queries and not others, depending on what the query needs."
+      "route selected":"Runs on some queries and not others, depending on what the query needs."
     })
   }),
   intent: Object.freeze({
@@ -2384,11 +2379,11 @@ const GATE_CONDITION = Object.freeze(Object.fromEntries(
 const GATED_EXECUTION = Object.freeze({
   textimagevec:  defGate(2,"intent","visual intent"),
   imageimagevec: defGate(3,"intent","image query"),
-  sparse:        defGate(3,"route","route-selected"),
-  multivec:      defGate(3,"route","route-selected"),
-  late:          defGate(3,"route","route-selected","latererank"),
+  sparse:        defGate(3,"route","route selected"),
+  multivec:      defGate(3,"route","route selected"),
+  late:          defGate(3,"route","route selected","latererank"),
   semrerank:     defGate(3,"budget","optional pass"),
-  latererank:    defGate(3,"route","route-selected","late"),
+  latererank:    defGate(3,"route","route selected","late"),
   vlmrerank:     defGate(3,"intent","visual intent"),
   ltr:           defGate(3,"budget","optional pass")
 });
@@ -4396,13 +4391,13 @@ function showHover(el, id){
       '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
         '<span class="hc-pill">p95 '+latency+'</span>'+
         '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
-        (gate ? '<span class="hc-pill hc-gatepill" data-gate-timing="'+gate.timing+
-          '" style="--gate-color:'+gate.color+'">Gate: '+gate.label+'</span>' : "")+
         /* Orthogonal to the gate, exactly as on the node card: when a stage
            runs, and what it costs on the requests where it does. */
         (s.conditional ? '<span class="hc-pill hc-cond">Conditional</span>' : "")+'</div>'+
-      (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'"><b>'+gate.label+'</b> \u2014 '+
-        gateSentence(gate)+'</p>' : "")+
+      /* The gate needs no pill of its own — this paragraph names it, and its
+         rail colour still separates request gates from deployment ones. */
+      (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'"><b>'+gate.label+
+        ' gate</b> \u2014 '+gateSentence(gate)+'</p>' : "")+
       '<p class="hc-desc">'+s.purpose+'</p>'+
       (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
       hoverRelations(id)+
