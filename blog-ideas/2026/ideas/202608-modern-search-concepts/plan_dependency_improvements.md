@@ -618,6 +618,70 @@ caveats.
 
 ## Phase 11 — Expose the vocabulary in the legend
 
+**Status: Complete — 2026-08-24**
+
+Implemented in `search-query-pipeline-diagram-tool.html`:
+
+- Added `GATE_CONDITIONS` and its `GATE_CONDITION` lookup, flattening the registry into the
+  unit the legend and focus panel actually address: the condition, which is what a card shows.
+- Added a generated `Gate conditions` legend block, built from that index the way the
+  relationship legend is built from `RELATION_TYPES`. Each row carries the literal card chip,
+  a count of the stages it gates, and its sentence.
+- Removed the single `gated stage` swatch and its now-unused `.gate-key` rule. The generated
+  block supersedes it.
+- Added `gate` as a fourth kind in the existing unified `FOCUS` registry, so selecting a
+  condition highlights every stage it gates and lists them in the focus panel. This reuses the
+  facet/capability/phase mechanism rather than adding a parallel one.
+- Rows render only for conditions the active template can reach, and the whole block hides in
+  Core. A template switch that retires the focused condition clears the focus rather than
+  leaving a pressed row with nothing behind it.
+- Rewrote the legend note, which previously described gating as "route or intent" and omitted
+  deployment gates entirely.
+- Casing: restored `.altchip` to uppercase, matching every other pill in the tool, and added
+  `.chip .tagval` so a condition name inside a sentence-case drawer chip is cased like the pill
+  it refers to. A component name is not a label tag and stays as written.
+
+Verification:
+
+- Logical inventories unchanged: Core 9/12, Core + recommended 31/35, Full 79/87.
+- Legend rows per template: Core none and block hidden; Core + recommended one
+  (visual intent, 1); Full four — route-selected 4, visual intent 2, image query 1,
+  optional pass 2, totalling the nine gated stages.
+- Selecting `route-selected` highlights exactly the four route-gated stages; `optional pass`
+  highlights Semantic rerank and Learning-to-Rank; re-selecting clears.
+- Focusing a Full-only condition and switching to Core + recommended clears the focus, the
+  pressed state, and the dimming. A condition that survives the switch keeps its focus and
+  re-highlights against the new template.
+- Every pill resolves `text-transform: uppercase`: tier, group, gate, conditional, alternative,
+  legend condition, boundary title, legend section label.
+- Light and dark inspected; pressed rows take the accent border and soft accent background in
+  both. No console errors.
+
+Follow-up fix — 2026-08-24:
+
+- The Phase 10 rewording of the `route-selected` sentence removed its subject so the drawer
+  would not name Retrieval routing twice, but only the drawer composed the "Decided by"
+  suffix. The card tooltip and hover card were left showing a subjectless sentence that also
+  leaned on "route" as an undefined term.
+- Reworded to "Runs on some queries and not others, depending on what the query needs", which
+  needs no prior knowledge of what a route is and still composes with the suffix.
+- Extracted `gateSentence(gate)` and used it for the card tooltip, hover card, drawer note, and
+  focus panel, so those four surfaces can no longer disagree about attribution. Legend rows
+  keep the bare sentence on purpose: the legend note already states that Retrieval routing owns
+  every request gate, and repeating it on three of four rows is noise.
+
+Discoveries:
+
+- The block is one row per condition, not per kind. The `intent` kind carries two conditions
+  with different sentences, and filtering by condition is strictly more precise than filtering
+  by kind while costing one extra row.
+- Both selective-cascade captions — the desktop boundary note and the mobile stage marker —
+  read "route-selected passes", omitting the two budget passes inside the same boundary. They
+  now read "gated passes". This was the same omission the legend note carried.
+- The existing `FOCUS` registry absorbed gate filtering in four lines. No new highlight,
+  dimming, or panel machinery was needed, which is why this phase touches interaction without
+  touching layout.
+
 The node legend carries a single `gated stage` swatch, and its note — "Gated entry runs only
 when route or intent activates its stage" — omits budget gates entirely.
 

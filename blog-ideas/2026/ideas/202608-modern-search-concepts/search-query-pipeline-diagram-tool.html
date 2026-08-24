@@ -192,8 +192,25 @@ a{color:var(--accent)}
 .legendrow button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 .legendrow i{width:8px;height:8px;border-radius:2px;display:inline-block}
 .legendrow i.data-key{width:10px;border:1px solid var(--data-line);border-radius:50% / 24%;background:var(--data-bg)}
-.legendrow i.gate-key{width:10px;height:10px;border:1px solid var(--wire-gate);background:var(--surface);box-shadow:inset 3px 0 var(--wire-gate)}
 .legend-label{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-top:8px}
+.gate-legend{display:grid;gap:5px;margin-top:6px}
+.gate-legend button{
+  display:grid;grid-template-columns:1fr auto;gap:5px 7px;align-items:center;width:100%;
+  text-align:left;border:1px solid var(--border);background:var(--surface);
+  border-radius:8px;padding:6px 8px
+}
+.gate-legend button:hover{border-color:var(--accent)}
+.gate-legend button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.gate-legend .gk-chip{
+  justify-self:start;font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  border:1px solid var(--gate-color);color:var(--gate-color);background:var(--surface);
+  border-radius:20px;padding:1px 6px
+}
+.gate-legend button[data-gate-timing="deployment"] .gk-chip{border-style:dashed;font-weight:650}
+.gate-legend .gk-count{
+  font-size:9.5px;font-weight:700;color:var(--text-3);font-variant-numeric:tabular-nums
+}
+.gate-legend .gk-desc{grid-column:1/-1;font-size:10.5px;line-height:1.4;color:var(--text-3)}
 .relation-legend{display:grid;grid-template-columns:1fr;gap:5px;margin-top:5px}
 .relation-legend span{gap:7px;color:var(--text-2)}
 .relation-key{width:44px;height:10px;flex:none;overflow:visible}
@@ -331,11 +348,9 @@ a{color:var(--accent)}
 /* A deployment gate is standing configuration, not a per-query decision.
    Muted and dashed so the two kinds separate before the label is read. */
 .node[data-gate-timing="deployment"] .gatechip{border-style:dashed;font-weight:650}
-/* No longer a category label but a component name, so it drops the uppercasing
-   the other chips use — a proper noun is harder to read shouted. */
 .node .altchip{
-  font-size:9.5px;font-weight:600;letter-spacing:.01em;
-  border:1px dashed currentColor;color:var(--text-3);border-radius:20px;padding:1px 7px
+  font-size:9px;font-weight:650;letter-spacing:.025em;text-transform:uppercase;
+  border:1px dashed currentColor;color:var(--text-3);border-radius:20px;padding:1px 6px
 }
 .node.core{background:var(--core-bg);border-color:var(--core-line);color:var(--core-text)}
 .node.core .sb{color:var(--core-text);opacity:.72}
@@ -513,6 +528,7 @@ a{color:var(--accent)}
   color:var(--text-2);background:var(--surface-2);display:inline-flex;gap:5px;align-items:center
 }
 .chip b{font-variant-numeric:tabular-nums;color:var(--text)}
+.chip .tagval{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 button.chip{cursor:pointer;font-family:inherit}
 button.chip:hover{border-color:var(--accent);color:var(--accent)}
 button.chip:hover b{color:var(--accent)}
@@ -838,12 +854,15 @@ table.mini .met{color:var(--accent)}
           <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full</span>
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
           <span><i class="data-key"></i>data plane</span>
-          <span><i class="gate-key"></i>gated stage</span>
         </div>
+        <div class="legend-label" id="gateLegendLabel">Gate conditions</div>
+        <div class="gate-legend" id="gateLegend"></div>
         <div class="legend-label">Relationships</div>
         <div class="legendrow relation-legend" id="relationLegend"></div>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
-          Flow moves requests or candidates. Gated entry runs only when route or intent activates its stage.
+          Flow moves requests or candidates. A gated stage runs only when its condition holds:
+          Retrieval routing owns every request gate, while a deployment gate is a standing
+          configuration choice with no runtime owner.
           Branches select a decision outcome; returns retry an earlier stage.
           Control-plane components steer without transforming candidates. Feeds carry telemetry; trains is offline.
           Updates change durable profile state without implying model training.
@@ -2303,7 +2322,7 @@ const GATE_KINDS = Object.freeze({
   route: Object.freeze({
     timing:"request", decidedBy:"routing", color:"var(--gate-request)",
     conditions:Object.freeze({
-      "route-selected":"Runs only for queries whose route includes it."
+      "route-selected":"Runs on some queries and not others, depending on what the query needs."
     })
   }),
   intent: Object.freeze({
@@ -2338,6 +2357,14 @@ function defGate(from,kind,label,altOf){
   return Object.freeze({from,kind,label,sentence,altOf,
     timing:spec.timing, decidedBy:spec.decidedBy, color:spec.color});
 }
+
+const GATE_CONDITIONS = Object.freeze(Object.entries(GATE_KINDS).flatMap(([kind,spec])=>
+  Object.entries(spec.conditions).map(([label,sentence])=>Object.freeze({
+    label, sentence, kind, timing:spec.timing, decidedBy:spec.decidedBy, color:spec.color
+  }))
+));
+const GATE_CONDITION = Object.freeze(Object.fromEntries(
+  GATE_CONDITIONS.map(condition=>[condition.label,condition])));
 
 const GATED_EXECUTION = Object.freeze({
   textimagevec:  defGate(2,"intent","visual intent"),
@@ -3260,7 +3287,7 @@ function mobileRecovery(logical){
 function mobileStageMarker(){
   const el=document.createElement("div");
   el.className="mobile-stage-marker";
-  el.innerHTML='<b>Selective rerank cascade</b><span>Route-selected passes · skipped stages pass candidates through</span>';
+  el.innerHTML='<b>Selective rerank cascade</b><span>Gated passes · skipped stages pass candidates through</span>';
   return el;
 }
 
@@ -3353,7 +3380,7 @@ function nodeEl(id, newIds, logical){
     /* Gating and cost are orthogonal — when a stage runs, and what it costs
        on the requests where it does. VLM rerank is both, and carries the
        widest latency range in the diagram, so neither chip may hide the other. */
-    (gate ? '<span class="gatechip" title="'+escapeAttribute(gate.sentence)+'">'+
+    (gate ? '<span class="gatechip" title="'+escapeAttribute(gateSentence(gate))+'">'+
       gate.label+'</span>' : "")+
     (s.conditional ? '<span class="condchip" title="'+escapeAttribute(CONDITIONAL_NOTE)+
       '">conditional</span>' : "")+
@@ -3850,7 +3877,7 @@ function renderStageBoundaries(){
   boundary.style.width=width+"px";
   boundary.style.height=height+"px";
   boundary.innerHTML='<span class="boundary-title">Selective rerank cascade</span>'+
-    '<span class="boundary-note">route-selected passes · skipped stages pass candidates through</span>';
+    '<span class="boundary-note">gated passes · skipped stages pass candidates through</span>';
   canvas.appendChild(boundary);
 }
 
@@ -3972,7 +3999,7 @@ function drawWires(){
   });
 }
 
-/* ---------- unified focus: facet | capability | latency phase ---------- */
+/* ---------- unified focus: facet | capability | latency phase | gate ---------- */
 const FOCUS = {
   facet:{
     match:(s,id)=> (s.handles||[]).includes(id),
@@ -3988,8 +4015,18 @@ const FOCUS = {
     match:(s,id)=>{ const p=PHASES.find(x=>x.id===id); return !!p && p.groups.includes(s.group); },
     describe:id=>{ const p=PHASES.find(x=>x.id===id);
       return "<b>"+p.label+"</b> — components spending time in this phase:"; }
+  },
+  gate:{
+    match:(s,id)=> executionGate(s.id,state.tpl)?.label===id,
+    describe:id=>{ const c=GATE_CONDITION[id];
+      return "<b>"+c.label.toUpperCase()+"</b> — "+gateSentence(c)+" Stages it gates:"; }
   }
 };
+
+/* Stages the given condition gates in the active template. */
+function gatedStagesFor(label){
+  return tplStages(state.tpl).filter(id=> executionGate(id,state.tpl)?.label===label);
+}
 
 function focusMatches(){
   if(!state.focus) return [];
@@ -4030,6 +4067,8 @@ function syncFocusUI(){
     el.setAttribute("aria-pressed", String(!!f && f.kind==="cap" && f.id===el.dataset.cap)));
   $$("#latLegend button").forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="phase" && f.id===el.dataset.phase)));
+  $$("#gateLegend button").forEach(el=>
+    el.setAttribute("aria-pressed", String(!!f && f.kind==="gate" && f.id===el.dataset.gateCondition)));
 
   const box = $("#focusBox");
   if(!f){ box.hidden = true; return; }
@@ -4056,6 +4095,14 @@ function selectEntity(id){
     card.classList.toggle("selected",card.dataset.sourceId===id));
 }
 
+/* The gate explanation, composed once. Anything with a sentence and an
+   optional decider can use it: a resolved gate or a GATE_CONDITION entry. */
+function gateSentence(gate){
+  return gate.decidedBy
+    ? gate.sentence+" Decided by "+S[gate.decidedBy].name+"."
+    : gate.sentence;
+}
+
 /* A header chip that leads somewhere is a button; one that does not stays a
    span, so the affordance is never a lie. */
 function chipTag(goto,html){
@@ -4069,9 +4116,7 @@ function chipTag(goto,html){
 function setGateNote(gate){
   const el = $("#dGate");
   el.hidden = !gate;
-  el.textContent = !gate ? ""
-    : gate.decidedBy ? gate.sentence+" Decided by "+S[gate.decidedBy].name+"."
-    : gate.sentence;
+  el.textContent = gate ? gateSentence(gate) : "";
   if(gate) el.style.setProperty("--gate-color", gate.color);
 }
 
@@ -4099,7 +4144,7 @@ function openDrawer(id){
        A deployment gate has no owner to hop to, and the chip that leads
        nowhere is exactly the point. */
     (gate ? chipTag(gate.decidedBy,
-      'Gate <b>'+gate.label+'</b> \u00b7 '+GATE_TIMING_LABEL[gate.timing]) : "") +
+      'Gate <b class="tagval">'+gate.label+'</b> \u00b7 '+GATE_TIMING_LABEL[gate.timing]) : "") +
     (gate?.altOf ? chipTag(gate.altOf,
       'Alternative to <b>'+S[gate.altOf].name+'</b>') : "") +
     '<button class="enable-btn" id="dToggle" data-on="'+(on?1:0)+'"'+(locked?" disabled title=\"Core components cannot be switched off\"":"")+'>'+
@@ -4310,7 +4355,7 @@ function showHover(el, id){
         '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
         (gate ? '<span class="hc-pill">gate: '+gate.label+'</span>' : "")+'</div>'+
       (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'">'+
-        gate.sentence+'</p>' : "")+
+        gateSentence(gate)+'</p>' : "")+
       '<p class="hc-desc">'+s.purpose+'</p>'+
       (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
       (s.notes && s.notes.length ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+
@@ -4416,7 +4461,32 @@ function renderBuild(){
    WIRING
    ======================================================================= */
 function renderAll(){
-  hideHover(); renderCanvas(); renderBudget(); renderCompList(); renderServingToggle();
+  hideHover(); renderGateLegend(); renderCanvas(); renderBudget();
+  renderCompList(); renderServingToggle();
+}
+
+/* One row per condition present in the active template. Conditions the current
+   template cannot reach are omitted rather than shown as dead vocabulary. */
+function renderGateLegend(){
+  const rows = GATE_CONDITIONS
+    .map(condition=>({condition, ids:gatedStagesFor(condition.label)}))
+    .filter(row=>row.ids.length);
+  /* A template switch can retire the focused condition. Drop it here rather
+     than leaving a pressed row with nothing behind it. */
+  if(state.focus?.kind==="gate" && !rows.some(row=>row.condition.label===state.focus.id)){
+    state.focus = null;
+  }
+  $("#gateLegendLabel").hidden = !rows.length;
+  $("#gateLegend").hidden = !rows.length;
+  $("#gateLegend").innerHTML = rows.map(({condition,ids})=>
+    '<button data-gate-condition="'+escapeAttribute(condition.label)+'" aria-pressed="false"'+
+      ' data-gate-timing="'+condition.timing+'" style="--gate-color:'+condition.color+'">'+
+      '<span class="gk-chip">'+condition.label+'</span>'+
+      '<span class="gk-count">'+ids.length+'</span>'+
+      '<span class="gk-desc">'+condition.sentence+'</span>'+
+    '</button>').join("");
+  $$("#gateLegend button").forEach(b=>
+    b.addEventListener("click",()=> setFocus("gate", b.dataset.gateCondition)));
 }
 
 function renderRelationLegend(){
