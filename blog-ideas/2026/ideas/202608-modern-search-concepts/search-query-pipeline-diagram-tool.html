@@ -19,6 +19,7 @@
   --opt-bg:#ede9fe; --opt-line:#6d28d9; --opt-text:#2b1a52;
   --ctrl-bg:#e8ecf2; --ctrl-line:#64748b; --ctrl-text:#27303f;
   --wire:#6f7d92; --wire-gate:#2563b8; --wire-loop:#b85f36; --wire-ctrl:#667085;
+  --gate-request:var(--wire-gate); --gate-config:#7a8496;
   --wire-feed:#7c3aed; --wire-train:#0f766e; --wire-update:#be185d; --wire-data:#53657d;
   --data-bg:#f7f9fc; --data-line:#7b8798; --data-text:#344054;
   --warn:#b45309; --warn-bg:#fef3c7;
@@ -39,6 +40,7 @@
       --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
       --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
       --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
+      --gate-config:#93a0b5;
       --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
       --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
       --warn:#e0a94a; --warn-bg:#332a17;
@@ -57,6 +59,7 @@
   --opt-bg:#241b47; --opt-line:#9b7ff0; --opt-text:#e0d6ff;
   --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
   --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
+  --gate-config:#93a0b5;
   --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
   --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
   --warn:#e0a94a; --warn-bg:#332a17;
@@ -322,9 +325,12 @@ a{color:var(--accent)}
 }
 .node .gatechip{
   font-size:9px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
-  border:1px solid var(--wire-gate);color:var(--wire-gate);background:var(--surface);
-  border-radius:20px;padding:1px 6px
+  border:1px solid var(--gate-color,var(--gate-request));color:var(--gate-color,var(--gate-request));
+  background:var(--surface);border-radius:20px;padding:1px 6px
 }
+/* A deployment gate is standing configuration, not a per-query decision.
+   Muted and dashed so the two kinds separate before the label is read. */
+.node[data-gate-timing="deployment"] .gatechip{border-style:dashed;font-weight:650}
 .node .altchip{
   font-size:9px;font-weight:650;letter-spacing:.025em;text-transform:uppercase;
   border:1px dashed currentColor;color:var(--text-3);border-radius:20px;padding:1px 6px
@@ -337,8 +343,8 @@ a{color:var(--accent)}
 .node.optional .sb{color:var(--opt-text);opacity:.72}
 .node.control{background:var(--ctrl-bg);border-color:var(--ctrl-line);border-style:dashed;color:var(--ctrl-text);min-width:150px;max-width:200px}
 .node.control .sb{color:var(--ctrl-text);opacity:.72}
-.node.gated{box-shadow:inset 4px 0 var(--wire-gate),var(--shadow)}
-.node.gated:hover{box-shadow:inset 4px 0 var(--wire-gate),0 3px 6px rgba(16,23,37,.10),0 10px 22px rgba(16,23,37,.10)}
+.node.gated{box-shadow:inset 4px 0 var(--gate-color,var(--gate-request)),var(--shadow)}
+.node.gated:hover{box-shadow:inset 4px 0 var(--gate-color,var(--gate-request)),0 3px 6px rgba(16,23,37,.10),0 10px 22px rgba(16,23,37,.10)}
 .node.decision{border-radius:22px}
 .node.io{min-width:132px;text-align:center}
 .node.io .nm{font-size:12px}
@@ -350,7 +356,7 @@ a{color:var(--accent)}
   opacity:.88;transform:translateY(-1px);
   box-shadow:0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)
 }
-.node.gated.hover-connected:not(.off){box-shadow:inset 4px 0 var(--wire-gate),0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)}
+.node.gated.hover-connected:not(.off){box-shadow:inset 4px 0 var(--gate-color,var(--gate-request)),0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)}
 .wires path.hover-connected{stroke-width:2.2!important;opacity:1!important}
 .node[data-id="assembly"]{text-align:left}
 
@@ -449,6 +455,10 @@ a{color:var(--accent)}
   border:1px solid var(--border);border-radius:6px;padding:2px 7px;white-space:nowrap
 }
 .hovercard .hc-group{text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
+.hovercard .hc-gate{
+  margin:0 0 8px;font-size:11.5px;line-height:1.45;color:var(--text-2);
+  border-left:3px solid var(--gate-color,var(--gate-request));padding-left:8px
+}
 .hovercard .hc-desc{margin:0;font-size:12px;line-height:1.5;color:var(--text)}
 .hovercard .hc-ex,.hovercard .hc-notes{
   margin-top:10px;padding-top:9px;border-top:1px solid var(--border);
@@ -492,6 +502,10 @@ a{color:var(--accent)}
 .dh h2{font-size:17px;margin-bottom:5px;padding-right:26px}
 .dh .purpose{font-size:12.5px;color:var(--text-2)}
 .dh .chips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.dh .gate-note{
+  margin-top:11px;font-size:11.5px;line-height:1.5;color:var(--text-2);
+  border-left:3px solid var(--gate-color,var(--gate-request));padding-left:9px
+}
 .chip{
   font-size:11px;border:1px solid var(--border);border-radius:7px;padding:4px 8px;
   color:var(--text-2);background:var(--surface-2);display:inline-flex;gap:5px;align-items:center
@@ -964,6 +978,7 @@ table.mini .met{color:var(--accent)}
     <h2 id="dTitle"></h2>
     <p class="purpose" id="dPurpose"></p>
     <div class="chips" id="dChips"></div>
+    <p class="gate-note" id="dGate" hidden></p>
   </div>
   <div class="db" id="dBody"></div>
 </aside>
@@ -2266,19 +2281,66 @@ Object.keys(DATA_SOURCES).forEach(sourceId=>{
    ======================================================================= */
 const LEGS = ["lexical","sparse","textvec","textimagevec","imageimagevec","multivec","late"];
 
-/* A gate is a request-time execution condition, not a control relationship.
+/* A gate is an execution condition, not a control relationship.
    Controllers still `steer`; the gated edge and card show where their route,
-   intent or policy decision conditionally enters the candidate path. */
+   intent or policy decision conditionally enters the candidate path.
+
+   GATE_KINDS answers who decides a gate and when. `timing` carries the
+   distinction that matters most to a reader and that a bare label cannot:
+   a request gate is re-decided for every query, while a deployment gate is a
+   standing configuration choice about budget or available training data.
+   A kind may declare more than one condition — an image supplied with the
+   request and inferred visual intent are both properties of the query,
+   resolved by the same owner at the same point. */
+const GATE_TIMING_LABEL = Object.freeze({request:"per request", deployment:"deployment choice"});
+const GATE_KINDS = Object.freeze({
+  route: Object.freeze({
+    timing:"request", decidedBy:"routing", color:"var(--gate-request)",
+    conditions:Object.freeze({
+      "route-selected":"Runs only when retrieval routing selects it for this query."
+    })
+  }),
+  intent: Object.freeze({
+    timing:"request", decidedBy:"routing", color:"var(--gate-request)",
+    conditions:Object.freeze({
+      "visual intent":"Runs only when the query is judged to need visual evidence.",
+      "image query":"Runs only when the request supplies an image to match against."
+    })
+  }),
+  budget: Object.freeze({
+    timing:"deployment", decidedBy:null, color:"var(--gate-config)",
+    conditions:Object.freeze({
+      "optional pass":"A cascade tier kept only when budget or training data justifies it \u2014 a deployment choice rather than a per-query decision. Skipped, it passes candidates through."
+    })
+  })
+});
+
+/* Latency, not execution: orthogonal to whether a gate lets the stage run. */
+const CONDITIONAL_NOTE =
+  "Cost varies with how much work this stage does on the requests where it runs.";
+
+/* Resolve each entry against the registry once, at definition time, so no
+   render site has to know the registry shape and an entry naming an unknown
+   kind or condition fails here rather than printing `undefined` onto a card. */
+function defGate(from,kind,label,note){
+  const spec = GATE_KINDS[kind];
+  if(!spec) throw new Error("Unknown gate kind: "+kind);
+  const sentence = spec.conditions[label];
+  if(!sentence) throw new Error("Condition not declared by gate kind "+kind+": "+label);
+  return Object.freeze({from,kind,label,sentence,note,
+    timing:spec.timing, decidedBy:spec.decidedBy, color:spec.color});
+}
+
 const GATED_EXECUTION = Object.freeze({
-  textimagevec:Object.freeze({from:2,label:"visual intent"}),
-  imageimagevec:Object.freeze({from:3,label:"image query"}),
-  sparse:Object.freeze({from:3,label:"route-selected"}),
-  multivec:Object.freeze({from:3,label:"route-selected"}),
-  late:Object.freeze({from:3,label:"route-selected",note:"alternative placement"}),
-  semrerank:Object.freeze({from:3,label:"optional pass"}),
-  latererank:Object.freeze({from:3,label:"route-selected",note:"alternative placement"}),
-  vlmrerank:Object.freeze({from:3,label:"visual intent"}),
-  ltr:Object.freeze({from:3,label:"optional pass"})
+  textimagevec:  defGate(2,"intent","visual intent"),
+  imageimagevec: defGate(3,"intent","image query"),
+  sparse:        defGate(3,"route","route-selected"),
+  multivec:      defGate(3,"route","route-selected"),
+  late:          defGate(3,"route","route-selected","alternative placement"),
+  semrerank:     defGate(3,"budget","optional pass"),
+  latererank:    defGate(3,"route","route-selected","alternative placement"),
+  vlmrerank:     defGate(3,"intent","visual intent"),
+  ltr:           defGate(3,"budget","optional pass")
 });
 const SELECTIVE_RERANK_CASCADE = Object.freeze([
   "semrerank","latererank","crossenc","vlmrerank","ltr"
@@ -2699,6 +2761,14 @@ function validateRelationshipModel(){
     });
   };
 
+  /* defGate() already ties every entry to a declared kind and condition.
+     What it cannot see is whether the registry itself is coherent. */
+  Object.entries(GATE_KINDS).forEach(([kind,spec])=>{
+    if(!GATE_TIMING_LABEL[spec.timing]) throw new Error("Unknown gate timing for kind: "+kind);
+    if(!spec.color) throw new Error("Gate kind has no colour: "+kind);
+    if(!Object.keys(spec.conditions).length) throw new Error("Gate kind declares no condition: "+kind);
+    if(spec.decidedBy) requireComponent(spec.decidedBy,"gate decider");
+  });
   Object.entries(GATED_EXECUTION).forEach(([id,gate])=>{
     requireComponent(id,"gated execution");
     if(!Number.isInteger(gate.from) || !TPL[gate.from] || !gate.label){
@@ -2706,6 +2776,11 @@ function validateRelationshipModel(){
     }
     if(!tplStages(gate.from).includes(id)){
       throw new Error("Gated component is absent from its first gated template: "+id);
+    }
+    /* A named decider must actually steer what it gates, or the card claims an
+       authority the relationship model does not grant it. */
+    if(gate.decidedBy && !(REL[gate.decidedBy]?.steers||[]).includes(id)){
+      throw new Error("Gate decider does not steer its gated component: "+id);
     }
   });
   if(new Set(SELECTIVE_RERANK_CASCADE).size!==SELECTIVE_RERANK_CASCADE.length){
@@ -3245,7 +3320,12 @@ function nodeEl(id, newIds, logical){
                  (s.decision ? " decision":"") + (s.io ? " io":"") + (gate ? " gated":"");
   el.dataset.id = id;
   el.dataset.on = isOn(id) ? "1" : "0";
-  if(gate) el.dataset.executionGate = gate.label;
+  if(gate){
+    el.dataset.executionGate = gate.label;
+    el.dataset.gateKind      = gate.kind;
+    el.dataset.gateTiming    = gate.timing;
+    el.style.setProperty("--gate-color", gate.color);
+  }
   if(!isOn(id)) el.classList.add("off");
   if(newIds.has(id)) el.classList.add("isnew");
   if(state.sel===id) el.classList.add("selected");
@@ -3253,8 +3333,13 @@ function nodeEl(id, newIds, logical){
     '<span class="tierchip '+s.tier+'" title="First appears in '+TPL[s.intro].name+'">'+
       TIER_LABEL[s.intro]+'</span>' +
     '<span class="groupchip">'+s.group+'</span>' +
-    (gate ? '<span class="gatechip">'+gate.label+'</span>' :
-      s.conditional ? '<span class="condchip">conditional</span>' : "")+
+    /* Gating and cost are orthogonal — when a stage runs, and what it costs
+       on the requests where it does. VLM rerank is both, and carries the
+       widest latency range in the diagram, so neither chip may hide the other. */
+    (gate ? '<span class="gatechip" title="'+escapeAttribute(gate.sentence)+'">'+
+      gate.label+'</span>' : "")+
+    (s.conditional ? '<span class="condchip" title="'+escapeAttribute(CONDITIONAL_NOTE)+
+      '">conditional</span>' : "")+
     (gate?.note ? '<span class="altchip">'+gate.note+'</span>' : "");
   el.innerHTML =
     '<div class="nm">'+s.name+'</div>' +
@@ -3954,6 +4039,15 @@ function selectEntity(id){
     card.classList.toggle("selected",card.dataset.sourceId===id));
 }
 
+/* One drawer header serves components and data sources, so the gate note is
+   set from a single place — a source drawer must not inherit the last card's. */
+function setGateNote(gate){
+  const el = $("#dGate");
+  el.hidden = !gate;
+  el.textContent = gate ? gate.sentence : "";
+  if(gate) el.style.setProperty("--gate-color", gate.color);
+}
+
 function openDrawer(id){
   const s = S[id];
   if(!s) return;
@@ -3974,10 +4068,13 @@ function openDrawer(id){
     (s.lat && s.lat[1] ? '<span class="chip">'+(s.conditional?"Conditional ":"")+'p95 <b>'+s.lat[0]+"–"+s.lat[1]+' ms</b></span>' : "") +
     (s.cx ? '<span class="chip">Complexity <b>'+s.cx+'/5</b></span>' : "") +
     (s.model ? '<span class="chip">model in path</span>' : "") +
-    (gate ? '<span class="chip">Request gated by <b>'+gate.label+'</b></span>' : "") +
+    (gate ? '<span class="chip">Gate <b>'+gate.label+'</b> \u00b7 '+
+      GATE_TIMING_LABEL[gate.timing]+'</span>' : "") +
     (gate?.note ? '<span class="chip"><b>'+gate.note+'</b></span>' : "") +
     '<button class="enable-btn" id="dToggle" data-on="'+(on?1:0)+'"'+(locked?" disabled title=\"Core components cannot be switched off\"":"")+'>'+
       (locked ? "core · always on" : (on ? "✓ enabled" : "disabled — enable")) + '</button>';
+
+  setGateNote(gate);
 
   const sect = drawerSect;
   let h = "";
@@ -4066,6 +4163,7 @@ function openSourceDrawer(id){
     '<span class="tag data">data plane</span><span class="tag grp">logical dependency</span>';
   $("#dTitle").textContent = source.name;
   $("#dPurpose").textContent = source.purpose;
+  setGateNote(null);
 
   const consumers = SERVING_REL[id] || [];
   const active = activeConsumers(id);
@@ -4177,7 +4275,9 @@ function showHover(el, id){
       '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
         '<span class="hc-pill">p95 '+latency+'</span>'+
         '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
-        (gate ? '<span class="hc-pill">gated: '+gate.label+'</span>' : "")+'</div>'+
+        (gate ? '<span class="hc-pill">gate: '+gate.label+'</span>' : "")+'</div>'+
+      (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'">'+
+        gate.sentence+'</p>' : "")+
       '<p class="hc-desc">'+s.purpose+'</p>'+
       (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
       (s.notes && s.notes.length ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+

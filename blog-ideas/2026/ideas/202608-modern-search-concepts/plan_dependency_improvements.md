@@ -14,11 +14,11 @@ Implemented in `search-query-pipeline-diagram-tool.html`:
 
 Verified logical inventories:
 
-| Template | Sources hidden | Sources shown | Source nodes | `serves` edges |
-|---|---:|---:|---:|---:|
-| Core | 9 edges | 12 edges | 3 | 3 |
-| Core + recommended | 31 edges | 35 edges | 4 | 4 |
-| Full | 76 edges | 84 edges | 7 | 8 |
+| Template           | Sources hidden | Sources shown | Source nodes | `serves` edges |
+| ------------------ | -------------: | ------------: | -----------: | -------------: |
+| Core               |        9 edges |      12 edges |            3 |              3 |
+| Core + recommended |       31 edges |      35 edges |            4 |              4 |
+| Full               |       76 edges |      84 edges |            7 |              8 |
 
 Discoveries:
 
@@ -35,11 +35,11 @@ Before editing, document and preserve these invariants:
 - Hiding data sources removes only source nodes and `serves` edges. It must not change pipeline flow, control relationships, enabled components, or budgets.
 - Showing data sources adds the following relationships:
 
-  | Template | Source nodes | `serves` edges |
-  |---|---:|---:|
-  | Core | 3 | 3 |
-  | Core + recommended | 4 | 4 |
-  | Full | 7 | 8 |
+  | Template           | Source nodes | `serves` edges |
+  | ------------------ | -----------: | -------------: |
+  | Core               |            3 |              3 |
+  | Core + recommended |            4 |              4 |
+  | Full               |            7 |              8 |
 
 - Disabling a component removes its incoming and outgoing relationships and makes a source inactive when none of its consumers remain enabled.
 
@@ -81,7 +81,6 @@ Refactor relationship metadata without changing the visual output yet.
 - Use the same public relation names throughout the data model, renderer, drawers, and legend.
 - Rename the internal rendered kind `feedback` to `feeds`.
 - Centralize each relationship type’s:
-
   - display name
   - description
   - CSS colour
@@ -92,14 +91,12 @@ Refactor relationship metadata without changing the visual output yet.
   - legend visibility
 
 - Separate logical relationships from rendering targets. A dependency can target:
-
   - an individual node
   - the parallel retrieval group
   - a gated reranker group
   - a data source
 
 - Add validation for:
-
   - unknown source or target IDs
   - relations whose endpoints do not coexist in any template
   - duplicate relations
@@ -219,7 +216,6 @@ Implementation details:
 - Draw one flow into the group and one flow out, with short branches between the bus and enabled legs.
 - Keep individual serving-source edges connected to their actual consumers.
 - Terminate group-wide controller dependencies at labelled group ports:
-
   - Routing: “gates legs”
   - Budget: “allocates k”
   - Degradation: “cuts or skips”
@@ -301,7 +297,6 @@ Implemented in `search-query-pipeline-diagram-tool.html`:
 - Added `updates` as a ninth canonical relationship type. Its magenta irregular dash treatment, arrow, legend sample, forward/reverse drawer terminology, description and accessibility wording distinguish durable profile-state changes from request flow, telemetry feeds and offline model training.
 - Reclassified Behavioural event log → Personalisation from `trains` to `updates`. Behavioural event log continues to train Learning-to-Rank and the learned form of Fusion policy offline.
 - Added one validated `RELATION_DETAILS` registry for all four feedback/learning relationships. Every entry declares a concise visible label, the transmitted payload and its timing:
-
   - Results assembly → Behavioural event log: `impression context` · per-response telemetry
   - Behavioural event log → Fusion policy: `debiased training set` · offline model training
   - Behavioural event log → Learning-to-Rank: `debiased training set` · offline model training
@@ -362,7 +357,6 @@ Implemented in `search-query-pipeline-diagram-tool.html`:
 - Added a compact mobile introduction that states the active logical-relationship count, shows only the relationship kinds present in the current template/source state, and explains how to inspect endpoints.
 - Added relationship summaries between stacked pipeline rows. They collapse repeated fan-out/fan-in endpoints while retaining separate flow and gated-entry treatments and real decision-outcome labels.
 - Replaced the generic recovery arrow with an indented **Recovery decision** block that explicitly preserves both branches and returns:
-
   - `too few` → Constraint relaxation → returns `relaxed predicate` to Metadata pre-filter
   - `zero` → Zero-result fallback → returns `recovery mode` to Metadata pre-filter
 
@@ -370,7 +364,6 @@ Implemented in `search-query-pipeline-diagram-tool.html`:
 - Added dependency chips inside every active control-plane card. Dense endpoint sets are compacted to meaningful groups such as `retrieval legs` and `gated rerankers`; smaller sets retain their component names.
 - Added `serves` chips to shown data-source cards and hid the older duplicate source sentence at narrow widths.
 - Changed narrow-screen card activation from immediately covering the canvas with the drawer to inserting an inline dependency panel beside the selected card. The panel:
-
   - highlights every connected card without moving them
   - lists every active incoming and outgoing logical relationship using canonical forward/reverse terminology
   - preserves branch outcomes and Phase 5 payload/timing annotations
@@ -418,6 +411,8 @@ Recommended implementation:
 
 ## Phase 7 — Interaction and accessibility polish
 
+**Status: Not complete — 2026-08-24**
+
 - On hover or keyboard focus, highlight both endpoints and the connecting relation.
 - Show a compact relation caption without permanently labelling every line.
 - Ensure collapsed group edges highlight all represented targets.
@@ -430,16 +425,18 @@ Recommended implementation:
 
 ## Phase 8 — Verification matrix
 
+**Status: On hold — 2026-08-23**
+
 Test every combination below:
 
-| Dimension | Cases |
-|---|---|
-| Template | Core; Core + recommended; Full |
-| Sources | Hidden; shown |
-| Theme | Light; dark |
-| Width | Wide desktop; constrained desktop; narrow/mobile |
-| State | Defaults; individual components disabled; whole optional groups disabled |
-| Interaction | Hover; keyboard focus; drawer; capability focus; source selection |
+| Dimension   | Cases                                                                    |
+| ----------- | ------------------------------------------------------------------------ |
+| Template    | Core; Core + recommended; Full                                           |
+| Sources     | Hidden; shown                                                            |
+| Theme       | Light; dark                                                              |
+| Width       | Wide desktop; constrained desktop; narrow/mobile                         |
+| State       | Defaults; individual components disabled; whole optional groups disabled |
+| Interaction | Hover; keyboard focus; drawer; capability focus; source selection        |
 
 Structural assertions should verify:
 
@@ -464,3 +461,128 @@ Structural assertions should verify:
 6. On narrow screens, should the tool prioritize a compact textual dependency view or preserve the full graphical diagram through horizontal scrolling?
 7. Should gated or optional execution become a formal relation type in drawers and the legend, or remain a property of ordinary flow?
 8. Should the line legend always show `serves`, or display it only while “Show data sources” is enabled?
+
+## Phase 9 — Type the gate vocabulary
+
+**Status: Complete — 2026-08-24**
+
+Implemented in `search-query-pipeline-diagram-tool.html`:
+
+- Added the validated `GATE_KINDS` registry — `route`, `intent`, `budget` — carrying timing,
+  deciding component, colour, and the declared conditions with their explanatory sentences.
+  Added `GATE_TIMING_LABEL` as the single source of allowed timings.
+- Replaced the free-string `GATED_EXECUTION` entries with `defGate(from,kind,label,note)`
+  calls that resolve against the registry at definition time. An entry naming an unknown kind
+  or an undeclared condition now throws where it is written.
+- Added `--gate-request` and `--gate-config` tokens. `--gate-request` is a lazy alias of
+  `--wire-gate`, so a card rail cannot drift from the connector it belongs to; `--gate-config`
+  is defined per theme.
+- Gave deployment gates a muted, dashed chip and a muted rail, both driven by a `--gate-color`
+  custom property set from the registry rather than by per-kind CSS classes.
+- Replaced the ungrammatical `Request gated by <label>` and `gated: <label>` phrasing. The
+  drawer chip now reads `Gate <label> · per request` or `· deployment choice`, and the full
+  registry sentence renders in a new drawer gate note and hover-card line.
+- Added the `title` attribute `.gatechip` alone among the node chips lacked.
+- Split the gate chip and conditional chip from an either/or into two independent chips.
+- Extended startup validation to the registry itself: timings, colours, non-empty conditions,
+  and that a named decider is a real component which actually `steers` what it gates.
+- Extracted `setGateNote()` so the shared drawer header cannot carry a stale gate note from a
+  component onto a data source.
+
+Verification:
+
+- Logical inventories are byte-identical to the pre-change build: Core 9/12,
+  Core + recommended 31/35, Full 79/87 with sources hidden/shown.
+- Gated card counts per template are unchanged: Core 0, Core + recommended 1, Full 9
+  (4 route, 3 intent, 2 budget).
+- Every gated card in every template and both themes resolves a `--gate-color` and a chip
+  title; none is missing.
+- Deployment gates render `#7a8496` light / `#93a0b5` dark with a dashed chip; request gates
+  render `#2563b8` light / `#60a5fa` dark solid, confirming the lazy alias tracks the theme.
+- All three `conditional` components now render their chip, including VLM rerank, which
+  previously lost it to the gate chip.
+- Negative tests: an unknown kind and a condition borrowed from another kind both throw at
+  definition; a decider that does not steer its gated stage is rejected.
+- Drawer, hover card, and node card were inspected in both themes with no console errors.
+
+Discoveries:
+
+- All nine gated stages are steered by Retrieval routing, so `decidedBy` is `routing` for both
+  request-time kinds. The route/intent split is therefore about what drives the decision, not
+  who owns it. The two budget gates keep `decidedBy: null`, preserving the Phase 4 finding that
+  Learning-to-Rank may depend on model availability or policy that routing does not own.
+- A kind cannot own a single label: `intent` legitimately carries both "visual intent" and
+  "image query". Kinds therefore declare a condition set, and the entry names one of them.
+  This keeps the vocabulary validated without collapsing two real conditions into one.
+- The 76/84 Full inventory recorded in Phase 0 and repeated through Phase 4 is stale. The
+  committed baseline before this phase already measured 79/87 — Phases 5 and 6 added edges
+  without restating the figure. Phase 9 changed neither number; later phases should baseline
+  against 79/87.
+- Connector styling was deliberately left alone. The gate kind is a property of the stage, so
+  differentiating the card keeps all eight legend samples matching their rendered connector.
+- Naming the decider on the card was held back for Phase 10, which owns surfacing and linking
+  it. Phase 9 only stores it and validates it.
+
+Phase 4 introduced four gate labels but modelled them as free strings on `GATED_EXECUTION`.
+`route-selected` and `optional pass` therefore render in identical styling with no definition
+anywhere, leaving the reader to infer the distinction Phase 4 recorded in its discoveries:
+route and intent gates are per-request decisions, while an optional pass is a deployment
+choice about budget or available training data.
+
+- Add a validated `GATE_KINDS` registry — `route`, `intent`, `budget` — carrying the public
+  label, a full explanatory sentence, the deciding component (or `null`), and its visual
+  treatment. Model it on the existing `RELATION_TYPES` registry.
+- Give each `GATED_EXECUTION` entry a `kind` and derive its label from the registry.
+  Reject unknown or missing kinds at startup, as `RELATION_TYPES` already does.
+- Distinguish budget gates visually from route and intent gates. Request-time gates keep the
+  gate colour; a deployment-time gate should read as configuration, closer to the existing
+  `.altchip` treatment than to `.gatechip`.
+- Replace the raw-label phrasing at every render site. "Request gated by _optional pass_" and
+  "gated: optional pass" are not grammatical — the labels describe the stage, not the
+  condition. Use the registry sentence in the drawer and hover card.
+- Add the `title` attribute that `.gatechip` alone among the node chips lacks. `.tierchip`
+  and the relation legend already explain themselves on hover.
+- Render the gate chip and the conditional chip together rather than as an either/or. VLM
+  rerank is both gated and conditional, so the gate currently suppresses the amber warning on
+  the widest latency range in the diagram (80–500 ms), while its drawer still says
+  "Conditional p95". The two facts are orthogonal: when a stage runs, and what it costs
+  when it does.
+
+**Acceptance criteria:** Every gate label resolves through a typed registry entry with a
+definition reachable from the canvas. Route-selected and optional-pass stages are
+distinguishable without reading the label. Endpoint inventories are unchanged by the phase.
+
+## Phase 10 — Attribute the gating decision
+
+"Route-selected" invites the question _selected by what?_ Retrieval routing already declares
+`rerankers_to_fire[]` in its contract and steers every gated reranker, but no gate surface
+names it. This phase closes plan question 2 in the UI rather than only in the data.
+
+- Make the drawer gate chip activate its `decidedBy` component, so the gate is one hop from
+  the component that owns the decision.
+- Leave budget gates unlinked. The asymmetry is the lesson: the chip that leads nowhere is
+  the one that is not a runtime decision.
+- Replace the free-text `alternative placement` note with a component reference, so
+  Late-interaction retrieval and Late-interaction rerank each name the other. A pill reading
+  "alternative placement" does not say what the alternative is.
+
+**Acceptance criteria:** Every request-time gate names and links its deciding component. The
+two late-interaction placements are legible as one either/or choice rather than two unrelated
+caveats.
+
+## Phase 11 — Expose the vocabulary in the legend
+
+The node legend carries a single `gated stage` swatch, and its note — "Gated entry runs only
+when route or intent activates its stage" — omits budget gates entirely.
+
+- Generate a gate-conditions block from `GATE_KINDS`, as `renderRelationLegend()` is
+  generated from `RELATION_TYPES`. One row per kind, with its swatch and sentence.
+- Correct the legend note to cover all three kinds.
+- Make the rows filter buttons using the existing `aria-pressed` legend styling, so selecting
+  a kind highlights every stage it gates. Reading the shape of what routing controls should
+  not require hunting pills across the canvas.
+
+**Acceptance criteria:** Every gate kind in the data model appears in the legend with its
+definition. Selecting a kind reveals its full set of stages in one action.
+
+Each phase re-runs the Phase 8 verification matrix.
