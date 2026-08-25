@@ -4,9 +4,9 @@ Note: this list is for humans, not for AI agents.
 
 ## Minor fixes
 
-- Should RFF consider Distribution-Based Score Fusion (DBSF) as alternative?
 - Review Query Expansion - what does it feed exactly? Anything missing? Is it really required?
 - Add GA
+- Add a little more vertical space around the "Selective Rerank Cascade" box. It's a bit tight above and below.
 - Add link from Text query to Query expansion?
 - Remove Conditional pill from hoverover since it's redundant.
 - Review all steered by, steers info are correct on component popup & RHS panel

@@ -765,8 +765,10 @@ here so the reasoning is not lost:
   Nothing trains the embedders or the cross-encoder. Hard-negative mining and relevance
   feedback are both in the source list and both absent.
 - **Candidate budget allocation.** In the source list and in the surface doc; never in the
-  tool. Phase 5 drops it from the doc. Either it was folded into `routing` + `degradation`
-  deliberately — in which case one sentence somewhere should say so — or it went missing.
+  tool. Phase 5 would have dropped it from the doc; with Phase 5 not taken it stays in the
+  doc, still describing a component that does not exist. Either it was folded into
+  `routing` + `degradation` deliberately — in which case one sentence somewhere should say
+  so — or it went missing. Whichever it is, the export function should not resurrect it.
 - **A generative / RAG consumer.** The pipeline ends at Results assembly. Defensible as
   scope, but currently silent rather than stated.
 - **Reframing final ranking as a blended score plus post-processing passes.** The root
@@ -774,6 +776,15 @@ here so the reasoning is not lost:
   metaphor.
 - **The `TODO.md` tool features** — URL state params, mermaid export, sidebar ordered by
   `PHASES`, labels on hover. A different kind of plan: tool behaviour, not pipeline content.
+
+### Deferred out of Phase 5
+
+- **`surfaceOutline(templateId)` and the regenerated surface doc.** Phase 5 was closed
+  unstarted rather than done by hand — see the banner on it. The export function will be
+  written as its own change, and `search-query-pipeline-diagram-tool-surface.md`
+  regenerated from it then. Until that lands, the doc is stale in the six ways §5.1 lists
+  plus the Phase 1 and Phase 4 changes, and its own "point in time extraction" disclaimer
+  is the only thing that says so. §5.1 and §5.2 are the input spec.
 
 ### Carried forward from plan 004
 

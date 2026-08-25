@@ -1500,9 +1500,9 @@ def({
   purpose:"Score the unioned candidate set into one ordering using the retained per-leg ranks. One stage with a strategy slot — not a chain of stages.",
   decisions:[{
     q:"Which fusion strategy?",
-    opts:["Reciprocal Rank Fusion (rank-based)","Weighted score fusion (needs calibration)","Leg-weighted fusion (separate text-to-image and image-to-image weights)","Learned fusion (needs training data)"],
+    opts:["Reciprocal Rank Fusion (rank-based)","Weighted score fusion (needs calibration)","Distribution-based score fusion / DBSF (per-query normalisation, no calibration)","Leg-weighted fusion (separate text-to-image and image-to-image weights)","Learned fusion (needs training data)"],
     def:"RRF with k ≈ 60",
-    why:"RRF needs no cross-leg score calibration for ranking, which is precisely the problem you have. Weighted score fusion is better only once you have per-corpus calibration and an eval set to tune against."
+    why:"RRF needs no cross-leg score calibration for ranking, which is precisely the problem you have. Weighted score fusion is better only once you have per-corpus calibration and an eval set to tune against. DBSF removes that calibration prerequisite by normalising each leg against its own returned score distribution, but it assumes those distributions are near-Gaussian — BM25's is not — and it must impute a score for candidates only one leg found, which penalises exactly the single-leg signal RRF preserves for free."
   },{
     q:"Is RRF's k worth tuning?",
     opts:["Tune it carefully","Set 60 and move on"],
@@ -1980,7 +1980,9 @@ const REFS = {
   ],
   fusion:[
     {t:"Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods", s:"Cormack et al., SIGIR 2009", u:D("10.1145/1571941.1572114"),
-     w:"The whole case for RRF, including where k ≈ 60 comes from and why it is insensitive."}
+     w:"The whole case for RRF, including where k ≈ 60 comes from and why it is insensitive."},
+    {t:"Relevance Score Normalization for Metasearch", s:"Montague & Aslam, CIKM 2001", u:D("10.1145/502585.502657"),
+     w:"The lineage behind score-magnitude fusion, DBSF included: normalise each leg’s scores before summing them, and the whole question becomes which normalisation you can defend."}
   ],
   fusionpolicy:[
     {t:"Predicting Query Performance", s:"Cronen-Townsend et al., SIGIR 2002", u:D("10.1145/564376.564429"),
