@@ -1,8 +1,9 @@
 # Plan 006 — Physical Architecture pipeline view
 
-**Target:** `search-query-pipeline-diagram-tool.html` (4747 lines at `777849e`) — plus
+**Target:** `search-query-pipeline-diagram-tool.html` — plus
 `search-query-pipeline-diagram-tool-architecture.md` and the About tab in Phase 6.
-**Status:** plan only — not implemented. Written 25 Aug 2026.
+**Status:** **Phase 1 done** (`bda600e`, 25 Aug 2026); Phases 2–6 outstanding.
+Written 25 Aug 2026.
 **Scope:** a fourth tab, **Physical architecture**, sitting between _Build order_ and _About_,
 rendering the AWS + OpenSearch + Qdrant realisation of the same three levels.
 **Decisions:** D1 blended best-of-breed engines · D2 model-parameterised render engine ·
@@ -10,7 +11,10 @@ D3 query path plus a collapsed consistency plane · D4 managed-first on ECS Farg
 D5 configured numbers only, never measured ones · D6 physical inherits the logical defaults ·
 D7 cross-view fidelity is a validator, not a convention · D8 no physical build order in pass one.
 
-Line numbers below are as at `777849e`. Re-grep before acting on any of them.
+Line numbers below are as at `777849e`, **before Phase 1**, and are now stale — the file is
+4971 lines at `bda600e`. Re-grep before acting on any of them. Phase 1's own section has been
+rewritten to describe what was built; §2.1 of that section records the four places where the
+built shape differs from the shape planned here, and what each one means for Phases 2–5.
 
 ---
 
@@ -129,189 +133,175 @@ keeps reading the logical model. Revisit once the physical inventory settles.
 
 | Phase | Change                                                               | Output changes? | Fixture?               | Size             | Risk     | Status |
 | ----- | -------------------------------------------------------------------- | --------------- | ---------------------- | ---------------- | -------- | ------ |
-| **1** | Extract the pipeline-model type; parameterise every renderer         | **no**          | reshaped, same content | ~40 sites, large | **high** | todo   |
+| **1** | Extract the pipeline-model type; a view per level                    | **no**          | reshaped, same content | +666 / −433      | **high** | **done** `bda600e` |
 | **2** | Physical component registry, data plane, consistency plane, panels   | new tab renders | new                    | ~1400 new lines  | medium   | todo   |
-| **3** | Physical templates, relations, gates, baseline, four validators      | new tab correct | new                    | ~500 lines       | medium   | todo   |
+| **3** | Physical templates, relations, gates, baseline, two invariants       | new tab correct | new                    | ~350 lines       | medium   | todo   |
 | **4** | Tab, LHS options panel, RHS panel spec, hover card, cross-view links | new tab usable  | no                     | ~450 lines + CSS | medium   | todo   |
 | **5** | "Follow one request" stepper — the query dataflow narrative          | new             | no                     | ~200 lines       | low      | todo   |
 | **6** | About tab, architecture doc, TODO reconciliation                     | prose           | no                     | 3 files          | lowest   | todo   |
 
-**Order: 1 → 2 → 3 → 4 → 5 → 6.** One commit per phase. Phase 1 must leave the tool
+**Order: 1 → 2 → 3 → 4 → 5 → 6.** One commit per phase. Phase 1 left the tool
 pixel-identical; Phases 2–3 must leave it rendering with the new tab reachable but possibly
 rough; Phase 4 is where it becomes usable.
 
-Phase 1 is the only phase that can break the existing view, and it is the only phase with a
-free correctness oracle: `window.dependencyDiagnostics.inventory()` and the three validation
-summaries must return byte-identical results before and after. **Capture them first.**
+Phase 1 was the only phase that could break the existing view, and the only one with a free
+correctness oracle. It is done and verified (§1.6). From Phase 2 on, the existing view is
+protected by the same oracle for free — **any change to the logical render path must still
+reproduce `163328:4705a20e` at 1280×900**, and a Phase 2–5 change that moves it is a bug in the
+shared layer, not a physical-view decision.
 
 ---
 
-## Phase 1 — The pipeline-model type
+## Phase 1 — The pipeline-model type — **DONE** (`bda600e`)
 
-### 1.1 The problem
+### 1.1 The problem it solved
 
-Nine of the eleven functions that would need to serve two views close over module-level
-constants. `logicalDependencies` (2672) names `TPL`, `REL`, `SERVING_REL` and
-`COMPONENT_RELATION_KINDS` directly; `renderCanvas` (3449) names `state.tpl`, `rowsEl`,
-`canvas` and `S`; `openDrawer` (4160) names `S`, `RREL`, `RSERVING`, `DATA_SOURCES` and eight
-more. Nothing is injectable. A second view built on top of this either duplicates the
-renderer or mutates the globals — both are drift machines.
+Nine of the functions that would need to serve two views closed over module-level constants.
+`logicalDependencies` named `TPL`, `REL`, `SERVING_REL` and `COMPONENT_RELATION_KINDS`
+directly; `renderCanvas` named `state.tpl`, `rowsEl`, `canvas` and `S`; `openDrawer` named `S`,
+`RREL`, `RSERVING`, `DATA_SOURCES` and eight more. Nothing was injectable. A second view built
+on that either duplicates the renderer or mutates the globals — both drift.
 
-### 1.2 The type
+### 1.2 What was built
 
-Add a new region immediately before the component registry (currently 1013):
+**A level is now a value.** `PIPELINE_MODELS` holds one entry per abstraction level.
+`defModel(spec)` derives the reverse relation index, the reverse serving index, the data-source
+tiers and `maxCx`, then runs the validators and registers the model — so no model can reach a
+renderer half-built, and a level that cannot pass its own rules never becomes reachable.
+
+`Model` is a namespace of the four pure queries a model answers — `stages`, `gate`,
+`relationDetail`, `dependencies`. They take the model explicitly because they are the only ones
+both the validators and the view need. Every other model-aware function opens with a
+destructuring preamble instead:
 
 ```js
-/* =======================================================================
-   PIPELINE MODEL — the complete, geometry-free description of one
-   abstraction level. Every renderer takes a model plus a view state slice;
-   nothing reads a registry global any more. Adding an abstraction level is
-   adding a model, not adding a renderer.
-   ======================================================================= */
-const PIPELINE_MODELS = {};
-
-function defModel(model) {
-  /* derive the reverse indexes once, here, so no model can be half-built */
-  model.reverseRelations = buildReverseRelations(model);
-  model.reverseServing = buildReverseServing(model);
-  deriveSourceTiers(model); // was the loop at 2278–2284
-  PIPELINE_MODELS[model.id] = model;
-  return model;
-}
+function validateRelationshipModel(model){
+  const {components:S, templates:TPL, relations:REL, gates:GATED_EXECUTION, …} = model;
 ```
 
-Model fields, and what each replaces:
+**The view is a closure, not a parameter list.** `createPipelineView(model, slice, root)`
+returns a frozen handle; the ~40 render functions inside it close over the destructured model,
+the state slice and the root element. This is the one material departure from §1.4 as planned
+(see §2.1 below) and it is what kept the change to 666 insertions rather than ~230 call-site
+rewrites.
 
-| Field                               | Replaces                                              | Notes                                                                                                                                                                    |
-| ----------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `id`, `label`, `sub`, `abstraction` | —                                                     | `abstraction` is `"logical"` or `"physical"`; panels and validators branch on it.                                                                                        |
-| `components`                        | `S` (1046)                                            | id → component record.                                                                                                                                                   |
-| `templates`                         | `TPL` (2131)                                          | 1/2/3 → `{name, tagline, desc, rows, extra}`.                                                                                                                            |
-| `relations`                         | `REL` (2382)                                          |                                                                                                                                                                          |
-| `relationDetails`                   | `RELATION_DETAILS` (2404)                             |                                                                                                                                                                          |
-| `gates`                             | `GATED_EXECUTION` (2361)                              |                                                                                                                                                                          |
-| `dataSources`, `serving`            | `DATA_SOURCES` (2209), `SERVING_REL` (2266)           |                                                                                                                                                                          |
-| `requires`                          | `REQUIRES` (2977)                                     |                                                                                                                                                                          |
-| `parallelGroups`, `stageGroups`     | `PARALLEL_GROUPS` (3508), `STAGE_GROUPS` (3524)       | Layout registries become per model.                                                                                                                                      |
-| `phases`                            | `PHASES` (3148)                                       | Sidebar composition bands; physical bands differ (Appendix A).                                                                                                           |
-| `capabilities`                      | `CAPS` (1027)                                         | Physical supplies `CONCERNS` instead — same shape, different taxonomy.                                                                                                   |
-| `facets`                            | `FACETS` (1018)                                       | **Shared by reference** — the worked query is the same query.                                                                                                            |
-| `steps`                             | `STEPS` (2983)                                        | `null` on the physical model (D8).                                                                                                                                       |
-| `baseline`, `expectedCounts`        | `DEPENDENCY_BASELINE` (2556) and the hardcoded counts |                                                                                                                                                                          |
-| `panel`                             | the `if(s.decisions) h += …` chain at 4194–4226       | An ordered list of section keys — see §4.3.                                                                                                                              |
-| `metrics`                           | `renderComposition` (3180) internals                  | Which sidebar metrics this model computes.                                                                                                                               |
-| `planes`                            | —                                                     | New: `[{id, label, toggleLabel, defaultOn}]`. Logical declares one (`serving`); physical declares two (`data`, `consistency`). Replaces the boolean `state.showServing`. |
+Model fields as built, and what each replaced:
 
-`RELATION_TYPES` (2425), `GATE_KINDS` (2313), `GATE_SCOPE_LABEL`, `TIER_LABEL` and
-`RELATION_TYPES`-derived `COMPONENT_RELATION_KINDS` stay **module-global and shared**. Both
-views mean the same thing by "steers" and by "per request", and a per-model copy would let
-them diverge. Any new physical-only relation kind (§3.3) is added to the shared registry with
-an `abstraction` allow-list.
+| Field | Replaced | Note |
+| --- | --- | --- |
+| `id`, `label`, `abstraction` | — | `abstraction` is `"logical"`; panels and validators will branch on it in Phase 4. |
+| `components`, `templates`, `relations`, `relationDetails`, `gates`, `requires` | `S`, `TPL`, `REL`, `RELATION_DETAILS`, `GATED_EXECUTION`, `REQUIRES` | |
+| `dataSources`, `serving` | `DATA_SOURCES`, `SERVING_REL` | |
+| `phases`, `capabilities`, `facets` | `PHASES`, `CAPS`, `FACETS` | `PHASES` moved up out of the view region into the model. |
+| `parallelGroups`, `stageGroups` | `PARALLEL_GROUPS`, `STAGE_GROUPS` | Also moved up; they are level vocabulary, not renderer vocabulary. |
+| `steps`, `ladderExempt` | `STEPS`, `LADDER_UNBUILT` | `steps:null` makes `validateBuildLadder` a no-op, which is D8. |
+| `baseline`, `expectedCounts` | `DEPENDENCY_BASELINE`, the two hardcoded count maps | |
+| `planes` | the boolean `state.showServing` | `[{id, label, serves, defaultOn}]`. A plane marked `serves` is what admits the serving edges. |
+| `example` | a string literal in the wiring | The worked query. |
+| `collapseGroups` | `LEGS` / `GATED_RERANKERS` inlined in `compactDependencyNames` | Sets the narrow layout names collectively. |
+| `invariants` | four blocks inside `validateRelationshipModel` | See §1.3. |
+| **derived by `defModel`** | | `reverseRelations`, `reverseServing`, `maxCx`, `servesPlanes`, `validation` |
 
-### 1.3 State reshape
+`RELATION_TYPES`, `GATE_KINDS`, `GATE_SCOPE_LABEL`, `TIER_LABEL` and `COMPONENT_RELATION_KINDS`
+stayed module-global and shared, as planned. Two levels must not be able to disagree about what
+"steers" means.
 
-`state` (3092) becomes:
+### 1.3 Invariants — an unplanned split that Phase 3 should reuse
+
+`validateRelationshipModel` was checking two different kinds of thing: rules every level must
+satisfy (endpoints exist, relations are unique, reverse indexes are not stale, every used kind
+has a complete visual definition) and rules only *this* level can state (the rerank cascade is
+all Reranking components; the gated-reranker set is exactly what routing steers; every feedback
+relation carries a transmission detail). The second kind is now `model.invariants` — an array of
+`(model, {componentRelations, servingRelations, usedKinds})` functions run at the end of the
+shared validator.
+
+**This is where `validateRealisationMap` (§3.4) belongs.** It is not a fourth top-level
+validator; it is the physical model's first invariant. Same for the `MEASURED_CLAIM` regex
+check (§3.5). Phase 3 gets smaller because of this.
+
+### 1.4 State and DOM
 
 ```js
 const state = {
-  view: "pipe", // "pipe" | "build" | "phys" | "about"
-  models: {
-    logical: {
-      tpl: 1,
-      prevTpl: null,
-      planes: { serving: false },
-      off: { 1: new Set(), 2: new Set(), 3: new Set() },
-      collapsedGroups: new Set(),
-      sel: null,
-      focus: null,
-    },
-    physical: {
-      tpl: 1,
-      prevTpl: null,
-      planes: { data: false, consistency: false },
-      off: { 1: new Set(), 2: new Set(), 3: new Set() },
-      collapsedGroups: new Set(),
-      sel: null,
-      focus: null,
-    },
-  },
-};
-const VIEW_MODEL = { pipe: "logical", phys: "physical", build: "logical" };
-const activeModel = () =>
-  PIPELINE_MODELS[VIEW_MODEL[state.view]] || PIPELINE_MODELS.logical;
-const activeSlice = () => state.models[activeModel().id];
-```
-
-Per-model, per-template `off` sets are preserved — switching tabs must not reset either view's
-composition. `state.showServing` is replaced by `slice.planes[planeId]`; grep for
-`showServing` (12 sites) and convert each.
-
-### 1.4 The function signature sweep
-
-Each of these gains a leading `model` parameter (and, for the DOM-touching ones, a `dom`
-bundle `{canvas, wires, rows, drawer, hoverCard}`). All are mechanical.
-
-| Function                                 | Line           | New signature                                                                            |
-| ---------------------------------------- | -------------- | ---------------------------------------------------------------------------------------- |
-| `logicalDependencies`                    | 2672           | `dependencies(model, templateId, {planes, off})` — rename; it is no longer logical-only  |
-| `expectedDependencies`                   | 2716           | `(model, templateId, planes)`                                                            |
-| `validateDependencyBaseline`             | 2740           | `(model)`                                                                                |
-| `validateRelationshipModel`              | 2790           | `(model)`                                                                                |
-| `validateBuildLadder`                    | 3058           | `(model)` — no-ops when `model.steps` is null                                            |
-| `tplStages`                              | 3102           | `(model, t)`                                                                             |
-| `isOff` / `isOn` / `lockedFor`           | 3107–9         | `(model, slice, id)` — keep thin wrappers bound to the active view for call-site brevity |
-| `sourceIdsForConsumers` … `sourceIdsFor` | 3111–35        | `(model, …)`                                                                             |
-| `setOff`                                 | 3137           | `(model, slice, id, off)`                                                                |
-| `composition` / `renderComposition`      | 3158/3180      | `(model, slice)`; metric set driven by `model.metrics`                                   |
-| `nodeEl` / `dataSourceEl`                | 3386/3424      | `(model, slice, id, newIds, deps)`                                                       |
-| `renderCanvas`                           | 3449           | `(model, slice, dom)`                                                                    |
-| `rectOf`                                 | 3501           | `(dom, sel)`                                                                             |
-| `edgeList` … `drawWires`                 | 3725–3914      | `(model, slice, dom)`                                                                    |
-| `openDrawer` / `openSourceDrawer`        | 4160/4267      | `(model, slice, id)`                                                                     |
-| `showHover` / `hoverRelations`           | 4396/4350      | `(model, slice, …)`                                                                      |
-| `renderCompList`                         | 4462           | `(model, slice)`                                                                         |
-| `setTpl` / `setFocus` / `applyFocus`     | 4582/4074/4081 | `(model, slice, …)`                                                                      |
-| `layoutReport` / `layoutSweep`           | 4687/4718      | `(model, slice, dom)`                                                                    |
-
-`renderAll()` (4536) becomes `renderView(viewId)` and dispatches on `VIEW_MODEL[viewId]`.
-
-### 1.5 The DOM contract
-
-The pipeline view's markup (791–890) is duplicated for the physical view with an id prefix,
-and the render functions stop hardcoding `#canvas` / `#wires` / `#rows`. Introduce:
-
-```js
-const DOM = {
-  logical: { canvas: $("#canvas"), wires: $("#wires"), rows: $("#rows") },
-  physical: {
-    canvas: $("#phys-canvas"),
-    wires: $("#phys-wires"),
-    rows: $("#phys-rows"),
-  },
+  view:"pipe",
+  models:Object.fromEntries(Object.values(PIPELINE_MODELS).map(model=>[model.id,{
+    tpl:1, prevTpl:null,
+    planes:Object.fromEntries(model.planes.map(plane=>[plane.id,plane.defaultOn])),
+    off:{1:new Set(),2:new Set(),3:new Set()},
+    collapsedGroups:new Set(), sel:null, focus:null
+  }]))
 };
 ```
 
-The CSS class contract (`.node[data-id]`, `.row[data-row]`, `.cell.center`, …) is **unchanged
-and shared** — that is what makes the physical view look like the same tool. The only new
-CSS is the runtime chip and the plane-band styling (§4.5).
+Slices are built from the registered models, so Phase 2 gets its slice for free the moment
+`defModel` runs on the physical level — no edit to `state` at all.
 
-There are two `ResizeObserver`/resize/`document.fonts.ready` handlers to generalise (4640–4646):
-observe both canvases, redraw only the visible one.
-
-### 1.6 Acceptance for Phase 1
-
-Before the refactor, in the console, capture:
+The DOM contract came out **better than the `#phys-` id-prefix scheme in §1.5 as planned.**
+Ids belong to the document; per-view handles are `data-el` attributes, and inside a view `$` and
+`$$` are shadowed by root-scoped versions with `ui(name)` for element lookups:
 
 ```js
-JSON.stringify(window.dependencyDiagnostics.inventory());
-JSON.stringify(window.dependencyDiagnostics.layoutSweep(0));
+const $  = (sel,scope)=> (scope||root).querySelector(sel);
+const $$ = (sel,scope)=> Array.from((scope||root).querySelectorAll(sel));
+const ui = name => root.querySelector('[data-el="'+name+'"]');
 ```
 
-for all three templates × serving on/off. After the refactor, both must match byte for byte,
-the three validator summaries must be unchanged, and the About and Build tabs must be
-untouched. **No physical data is added in this phase.** If Phase 1 cannot be made
-output-identical, stop and fix it before Phase 2 — a physical view built on a subtly changed
-engine is worse than no physical view.
+25 ids in the pipeline-view markup became `data-el`. **Phase 4's markup is therefore a copy of
+the pipeline section with `id="view-phys"` and nothing else renamed.** The few handles the
+document itself needs are generated per view (`rowsEl.id = model.id+"-rows"`, the template-tip
+ids) so two views cannot collide.
+
+No CSS selector in the file uses an id, which is what made this safe; the class contract
+(`.node[data-id]`, `.row[data-row]`, `.cell.center`, …) is unchanged and shared.
+
+### 1.5 Shared page furniture
+
+The drawer, the scrim and the hover card are document singletons, so they were hoisted out of
+the view: a `DRAWER` bundle (`root`, `scrim`, `title`, `tags`, `purpose`, `chips`, `gate`,
+`body`, `toggle`), `drawerSect`, `hoverCard`, `finePointer`, `isNarrowLayout` and
+`escapeAttribute`. `closeDrawer()` is module-level and delegates to `drawerOwner.clearSelection()`
+— whichever view filled the drawer in clears its own selection when it shuts, even if the reader
+has since changed tabs. Each view keeps its own `ResizeObserver` on its own canvas (a hidden
+canvas never resizes); the window `resize` and `document.fonts.ready` handlers are global and
+dispatch to `activeView()`.
+
+### 1.6 Acceptance — met
+
+`window.dependencyDiagnostics` keeps its public shape, so it remained a usable oracle. Verified
+against the pre-refactor build **at a pinned 1280×900 viewport** — the viewport must be pinned
+on both sides or the comparison is meaningless, which cost one false alarm:
+
+- every wire path's full markup (class, `d`, style, aria-label, edge index) and every node and
+  data-source card's full HTML, across three levels crossed with the data-source plane —
+  identical (`163328:4705a20e`);
+- all three validation summaries — identical;
+- nine dependency inventories, including two with disabled components — identical;
+- eight component drawers spanning inputs, legs, gated rerankers, controls and evaluation, and
+  all six source drawers — identical;
+- all four focus-chip kinds (facet, capability, phase, gate condition), the sidebar, the
+  component toggle and reset paths — identical;
+- the hover card, the narrow-layout mobile selection panel, the Escape and close handlers, tab
+  switching and the Build-tab hand-off — all exercised, all correct.
+
+### 1.7 Where the built shape departs from this plan, and what it means downstream
+
+| # | Planned | Built | Consequence |
+| --- | --- | --- | --- |
+| 1 | Thread `(model, slice, dom)` through ~40 signatures (§1.4) | One closure, `createPipelineView(model, slice, root)`; destructuring preamble at the top | ~230 references stayed untouched. **Phases 2–5 must not add a `model` parameter to a render function** — it is already in scope. Anything genuinely shared between levels goes *outside* the factory, not into a parameter. |
+| 2 | `DOM` bundle of `#phys-`-prefixed ids (§1.5) | `data-el` handles, root-scoped `$`/`$$`, `ui(name)` | Phase 4's markup is a copy of the pipeline section with one changed id. Cheaper than planned. |
+| 3 | `validateRealisationMap` as a fourth top-level validator (§3.4) | `model.invariants` exists and is the right home | Phase 3 shrinks: realisation-map and measured-claim checks are invariants on the physical model, not new plumbing. |
+| 4 | `planes` drives a toggle per plane (§1.2, §4.2) | `planes` is declared and drives the dependency set, but the LHS still renders **one** control, `renderPlaneToggle`, bound to `model.planes[0]` | **Phase 4 must generalise this before the physical view's two planes work.** It is the one piece of Phase 1 that is deliberately provisional; it is marked as such in the code. |
+
+Two smaller notes for later phases:
+
+- `Model.dependencies` takes `{planes, off}` where `planes` is the slice's plane map. The
+  physical model declaring `planes:[{id:"data", serves:true, …}, {id:"consistency", …}]` gets
+  serving edges from the `data` plane with no code change; the `consistency` plane will need its
+  own edge source in Phase 3.
+- `layoutSweep` iterates `Object.keys(model.templates)` crossed with the **first** plane only.
+  When the physical model declares two planes, either extend the sweep to the cross product or
+  state in the diagnostics why it does not.
 
 ---
 
@@ -829,6 +819,12 @@ in each node's `departure` text.
 
 ### 3.4 The cross-view fidelity validator (D7)
 
+> **Revised after Phase 1.** This is not a fourth top-level validator. `model.invariants`
+> already exists and runs at the end of `validateRelationshipModel` with
+> `(model, {componentRelations, servingRelations, usedKinds})`. Ship the eight rules below as
+> `PHYSICAL_INVARIANTS[0]`, using the module-level `assertComponent(model,id,context)` helper.
+> The logical model's four invariants are the worked example of the shape.
+
 New, and the most valuable thing in this phase:
 
 ```js
@@ -853,6 +849,8 @@ serving layer's derived tier, and it stops the physical view from quietly promis
 capability the logical view has not introduced yet.
 
 ### 3.5 The numbers rule validator (D5)
+
+> **Revised after Phase 1.** Ship as `PHYSICAL_INVARIANTS[1]`, for the same reason as §3.4.
 
 ```js
 const MEASURED_CLAIM =
@@ -920,6 +918,12 @@ view ids. Switching to `phys` must `requestAnimationFrame(drawWires)` on the phy
 exactly as `pipe` does — wires are measured from live DOM and a hidden canvas measures as zero.
 
 ### 4.2 LHS options panel
+
+> **Carried over from Phase 1.** `renderPlaneToggle` currently renders exactly one control,
+> bound to `model.planes[0]`, and is marked provisional in the code. Generalising it to one
+> control per declared plane is the **first** thing Phase 4 must do — the physical view's `data`
+> and `consistency` planes do not work until it is done. The plane declarations, the state
+> slice and `Model.dependencies` are already plane-driven; only the control is not.
 
 Same furniture as the logical sidebar, different contents.
 
@@ -1237,7 +1241,9 @@ better argument for the tab than any prose.
 
 | Risk                                                                                     | Likelihood | Mitigation                                                                                                                                                                                                           |
 | ---------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase 1 changes rendered output subtly                                                   | high       | The diagnostics snapshot in §1.6 is a free oracle. Capture it _before_ touching anything.                                                                                                                            |
+| ~~Phase 1 changes rendered output subtly~~ — **retired**                                 | —          | Did not happen. Verified byte-identical (§1.6). The snapshot stays useful: it now guards the shared render path against Phases 2–5.                                                                                  |
+| A Phase 2–5 change to the shared render path breaks the logical view                     | medium     | Re-run the §1.6 comparison before each commit; the logical view must still hash to `163328:4705a20e` at 1280×900. A move means the change belongs inside the physical model, not in the shared layer.                |
+| The physical view's two planes do not work because the toggle is still singular          | high       | Known and recorded (§1.7 row 4, §4.2). It is the first task of Phase 4 and it is small — the declarations, the state slice and `Model.dependencies` are already plane-driven.                                        |
 | The physical baseline fixture becomes a maintenance tax                                  | high       | Generate it with `emitBaseline` and review; assert the consistency plane as an invariant rather than enumerating it (§3.6).                                                                                          |
 | Two parallel groups plus a stage group in one template exceeds what the geometry handles | medium     | Rows 7, 8 and 11–15 use only existing mechanisms, but they have never coexisted. Build P3's rows _first_, before writing any panel prose, so a layout problem surfaces while the data is still cheap to move.        |
 | The retrieval band collapsing 6 logical legs into 2 nodes reads as a loss of fidelity    | medium     | It is the point, and it is defended in `departure` and in the branch tables — but if reviewers reject it, splitting the two nodes back into per-leg nodes is a template-and-baseline change only, not a code change. |
