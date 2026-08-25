@@ -18,7 +18,9 @@ Note: this list is for humans, not for AI agents.
 
 ## Features
 
-- Add a new tab between "Buid order" and "About" that addresses physical implemetations (one on open search, other on qdrant)
+- WIP: Add a new tab between "Buid order" and "About" that addresses physical implemetations (one on open search, other on qdrant)
+
+- Later: add physical substrate selector (e.g. only OpenSearch)
 
 - wip - needs a redo: Review "What you are choosing" section in RHS popout. List all existing values across all components in a table with added column "clarity" and "validity" (clarity: clear, unclear, confusing; validity: valid, invalid, questionable). Add a column for "suggested change" if clarity or validity is not good.
 

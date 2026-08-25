@@ -3,6 +3,9 @@
 How `search-query-pipeline-diagram-tool.html` is built, for a human or agentic engineer
 about to change it.
 
+NOTE FOR AI AGENTS: this is a point in time architecture (25 Aug 2026) - no need to update it,
+that's a waste of tokens right now.
+
 ## What it is
 
 A single-file, zero-build interactive explorer for the **logical** architecture of a
