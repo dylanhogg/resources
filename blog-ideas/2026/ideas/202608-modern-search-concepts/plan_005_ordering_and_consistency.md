@@ -2,8 +2,8 @@
 
 **Target:** `search-query-pipeline-diagram-tool.html` (4687 lines at `001e29e`) — plus two
 companion docs in Phase 5.
-**Status:** **Phase 1 landed** — written 25 Aug 2026, after the post-004 gap review.
-Phases 2–5 pending.
+**Status:** **Phases 1–2 landed** — written 25 Aug 2026, after the post-004 gap review.
+Phases 3–5 pending.
 **Source:** the gap review over the file as it stands after plan 004 landed all four phases.
 **Decisions:** D1 scope is ordering + consistency only · D2 authorization stays prose ·
 D3 Business ranking moves last · D4 evaluation stays [recommended], the ladder is what changes.
@@ -19,13 +19,13 @@ Line numbers cited below are as at `001e29e`. Re-grep before acting on any of th
 
 ## Phase and status summary
 
-| Phase | Change                                                                         | Fixture? | Size                       | Risk       | Status  |
-| ----- | ------------------------------------------------------------------------------ | -------- | -------------------------- | ---------- | ------- |
+| Phase | Change                                                                         | Fixture? | Size                       | Risk       | Status   |
+| ----- | ------------------------------------------------------------------------------ | -------- | -------------------------- | ---------- | -------- |
 | **1** | Move `business` to the end of final ranking, after `diversity`                 | **yes**  | 11 sites, 2 templates      | medium     | **done** |
-| **2** | Fix the build ladder and give it a validator                                   | no       | 8 sites + 1 new validator  | low-medium | pending |
-| **3** | Justify the seven tier divergences from the source classification              | no       | 7 sites, prose only        | lowest     | pending |
-| **4** | Retire `altOf`; fix the `expand`/HyDE contradiction; state the annotation rule | no       | 6 sites + 1 CSS rule       | low        | pending |
-| **5** | Regenerate the surface doc, and stop it going stale again                      | no       | 2 docs (+ optional export) | low        | pending |
+| **2** | Fix the build ladder and give it a validator                                   | no       | 8 sites + 1 new validator  | low-medium | **done** |
+| **3** | Justify the seven tier divergences from the source classification              | no       | 7 sites, prose only        | lowest     | pending  |
+| **4** | Retire `altOf`; fix the `expand`/HyDE contradiction; state the annotation rule | no       | 6 sites + 1 CSS rule       | low        | pending  |
+| **5** | Regenerate the surface doc, and stop it going stale again                      | no       | 2 docs (+ optional export) | low        | pending  |
 
 **Implementation order: 1 → 2 → 3 → 4 → 5.** One commit per phase; each must leave the
 tool rendering.
@@ -39,15 +39,16 @@ real constraints:
   landed on its own at any point, including before Phase 1, if you want the dead code
   gone sooner. It is the only piece of this plan that deletes rather than corrects.
 
-**One open question**, in §2.1: whether the harness rung keeps its position at the top of
-the ladder or moves down and forces a renumber. A recommendation is given; it does not
-block starting the phase.
+**The open question in §2.1 is resolved.** Decision: **keep the position, take the
+reword** — the harness rung stays at the top of the ladder as step 0, retitled in its
+trigger, with `t:0` corrected to `t:2`. The renumbering alternative was declined.
 
 ---
 
 ## 0. The constraint that governs Phase 1
 
-Two validators run at module load and **throw**, blanking the page:
+Two validators run at module load and **throw**, blanking the page. (Phase 2 adds a
+third — see §2.4.)
 
 | Validator                      | Line | What it guards                                                                                                          |
 | ------------------------------ | ---- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -63,8 +64,9 @@ five pairs before and five after; `BASELINE[3].flow` has six and six. No count a
 moves, `expectedSourceCounts` and `expectedServingCounts` are untouched, and no relation
 in `REL` names `business` at all — it is a pure spine component.
 
-Phases 2–5 do not touch `DEPENDENCY_BASELINE`. `STEPS` is **not** covered by either
-validator, which is precisely the defect Phase 2 fixes.
+Phases 2–5 do not touch `DEPENDENCY_BASELINE`. `STEPS` was **not** covered by either
+validator, which is precisely the defect Phase 2 fixes — `validateBuildLadder()` now runs
+at load alongside them and throws the same way.
 
 ---
 
@@ -192,24 +194,24 @@ the block as a whole:
 Measured at 1500x1000 against a same-viewport run of `001e29e` extracted with `git show`,
 so every "unchanged" below is a real before/after comparison rather than a recalled number.
 
-| Check                                       | Expected                                                    | Result |
-| ------------------------------------------- | ----------------------------------------------------------- | ------ |
-| `dependencyDiagnostics.validation`          | passes                                                      | pass — page renders, so neither load-time validator threw |
-| `dependencyDiagnostics.modelValidation`     | passes                                                      | pass |
-| Hidden edges, templates 2 / 3               | **34 / 72 — unchanged**                                     | 34 / 72 |
-| `componentRelations` / `annotatedRelations` | **38 / 5 — unchanged**                                      | 38 / 5 |
-| Node counts, templates 1 / 2 / 3            | **9 / 25 / 38 — unchanged**                                 | 9 / 25 / 38 |
-| Serving sources / edges                     | **6 / 7 — unchanged**                                       | 6 / 7 |
-| Wire counts, six sweep combinations         | unchanged                                                   | 15 / 18 / 35 / 39 / 57 / 64 — identical to baseline |
-| `+N new vs …` pills                         | **+16 / +13 — unchanged**                                   | +16 / +13 |
-| Build ladder rungs                          | **14 — unchanged in this phase**                            | 14 |
-| `Rank & assemble` phase reading             | **6 (t3) / 5 (t2) — unchanged**                             | 6 / 5 |
-| Layout sweep, all six combinations          | zero overlaps                                               | zero |
+| Check                                       | Expected                                                    | Result                                                                                                          |
+| ------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `dependencyDiagnostics.validation`          | passes                                                      | pass — page renders, so neither load-time validator threw                                                       |
+| `dependencyDiagnostics.modelValidation`     | passes                                                      | pass                                                                                                            |
+| Hidden edges, templates 2 / 3               | **34 / 72 — unchanged**                                     | 34 / 72                                                                                                         |
+| `componentRelations` / `annotatedRelations` | **38 / 5 — unchanged**                                      | 38 / 5                                                                                                          |
+| Node counts, templates 1 / 2 / 3            | **9 / 25 / 38 — unchanged**                                 | 9 / 25 / 38                                                                                                     |
+| Serving sources / edges                     | **6 / 7 — unchanged**                                       | 6 / 7                                                                                                           |
+| Wire counts, six sweep combinations         | unchanged                                                   | 15 / 18 / 35 / 39 / 57 / 64 — identical to baseline                                                             |
+| `+N new vs …` pills                         | **+16 / +13 — unchanged**                                   | +16 / +13                                                                                                       |
+| Build ladder rungs                          | **14 — unchanged in this phase**                            | 14                                                                                                              |
+| `Rank & assemble` phase reading             | **6 (t3) / 5 (t2) — unchanged**                             | 6 / 5                                                                                                           |
+| Layout sweep, all six combinations          | zero overlaps                                               | zero                                                                                                            |
 | Clipped sidebar labels                      | unchanged                                                   | same 2 in t3 as baseline (`Image-to-image vector retrieval`, `Multi-vector / passage retrieval`) — pre-existing |
-| Edge-label collisions, all three templates  | zero                                                        | **one 4px graze at 1500px — see below** |
-| Node-face overflow at 1500px and 375px      | zero                                                        | zero, and no horizontal document overflow at 375px |
-| Contract chain across the moved seam        | connected                                                   | `dedup` -> `diversity` "diversified ranking" -> `business` -> `assembly` "final ranking" |
-| Visual                                      | `business` sits directly above `assembly` in both templates | confirmed in both |
+| Edge-label collisions, all three templates  | zero                                                        | **one 4px graze at 1500px — see below**                                                                         |
+| Node-face overflow at 1500px and 375px      | zero                                                        | zero, and no horizontal document overflow at 375px                                                              |
+| Contract chain across the moved seam        | connected                                                   | `dedup` -> `diversity` "diversified ranking" -> `business` -> `assembly` "final ranking"                        |
+| Visual                                      | `business` sits directly above `assembly` in both templates | confirmed in both                                                                                               |
 
 Every count except the edge-label row came back _unchanged_, which is what a permutation
 should produce.
@@ -229,7 +231,7 @@ erases a short section of the node's right border.
 - At **1280px the baseline already has seven** label-on-node overlaps and this branch has
   eight. Six are identical in both. The two that differ are the same two labels landing on
   whichever final-ranking node now occupies that row — baseline puts `debiased training
-  set` on `Personalisation` and `profile events` on `Deduplication`; this branch puts them
+set` on `Personalisation` and `profile events` on `Deduplication`; this branch puts them
   on `Deduplication` and `Diversity`.
 
 So relation-detail labels already collide with nodes at common widths; the ordering change
@@ -273,12 +275,18 @@ contradicts. Reword:
 `buys` stays as it is — "Without it, all the tradeoffs below are opinions" is still true
 and is the reason the rung sits first.
 
-**The open question:** the alternative is to move the harness rung down beside rung 2
-(instrumentation, also `t:2`) and renumber the whole ladder. That is tidier — the ladder
-would then be strictly non-decreasing in `t` — but it renumbers fourteen rungs, breaks
-the `(s.n||"0")` fallback that exists only to render `n:0`, and moves the divider
-arithmetic at 4459. It also loses the "measure first" rhetoric, which is one of the
-better arguments the file makes. **Recommendation: keep the position, take the reword.**
+**The open question — decided: keep the position, take the reword.** The alternative was
+to move the harness rung down beside rung 2 (instrumentation, also `t:2`) and renumber the
+whole ladder. That would have been tidier — the ladder would then be strictly
+non-decreasing in `t` — but it renumbers fourteen rungs, breaks the `(s.n||"0")` fallback
+that exists only to render `n:0`, and moves the divider arithmetic. It also loses the
+"measure first" rhetoric, which is one of the better arguments the file makes.
+
+**The accepted cost:** the ladder's `t` sequence now opens `2, 1, 2, 2, …` rather than
+running non-decreasing. That is the price of step zero, and it is deliberate: rung 0 is
+positional rhetoric ("before you start tuning"), not a tier claim. `validateBuildLadder()`
+enforces `t === max(intro)` per rung and says nothing about ordering between rungs, so the
+invariant and the rhetoric coexist without either being weakened.
 
 ### 2.2 `fusionpolicy` appears in two rungs
 
@@ -321,15 +329,15 @@ The ladder goes from 14 rungs to 16. Rung 13's existing `trigger` ("Tens of thou
 labelled or behavioural judgements exist") and `buys` stay with rung 13, which is where
 they were always true; rungs 14 and 15 need their own.
 
-The divider at 4459 is keyed to `STEPS.find(s=>s.t===3)`, not to a fixed number, so the
-split does not touch it — that was a deliberate defence when the build view was written
-and this is the first change to exercise it.
+The divider is keyed to `STEPS.find(s=>s.t===3)`, not to a fixed number, so the split does
+not touch it — that was a deliberate defence when the build view was written and this is
+the first change to exercise it. **It held:** the ladder grew from 14 rungs to 16 and the
+divider still resolves to rung 8 and still reads "Steps 1–7 above are Core + recommended".
 
 ### 2.4 The validator
 
 `STEPS` is the only structural list in the file with no load-time check. That is why
-§2.1, §2.2 and §2.3 all survived four plans. Add `validateBuildLadder()`, called
-alongside the other two at 2958–2959, asserting:
+§2.1, §2.2 and §2.3 all survived four plans. Add `validateBuildLadder()`, asserting:
 
 1. Every id in every `stages` array is a known component.
 2. **No component appears in more than one rung** — catches §2.2.
@@ -348,17 +356,44 @@ correlation the file already relies on.
 This validator throws like the others. Adding it and fixing rung 0 must therefore land in
 the same commit.
 
-### 2.5 Verification
+**Placement correction.** The plan said "called alongside the other two at 2958–2959".
+That is not possible: `STEPS` is declared _after_ those two calls, so a call there would
+read the binding before initialisation. `validateBuildLadder()` and its
+`BUILD_LADDER_RESULT` are defined immediately after the `STEPS` array instead, which is
+the earliest point they can run. The result is exposed as
+`dependencyDiagnostics.ladderValidation`.
 
-| Check                               | Expected                                                     |
-| ----------------------------------- | ------------------------------------------------------------ |
-| All three validators                | pass                                                         |
-| Build ladder rungs                  | **14 → 16**                                                  |
-| `Fusion policy` chips in the ladder | **2 → 1**                                                    |
-| Rung 0 badge                        | styled as recommended (`--rec-bg`), not the unstyled default |
-| Divider text                        | still reads "Steps 1–7 above are Core + recommended"         |
-| Every chip in rungs 13–15           | navigates to a node in template 3                            |
-| Diagram node counts, all templates  | unchanged — `STEPS` does not feed the diagram                |
+**§2.2's optional half was taken.** The heuristic→learned progression is now stated as a
+sentence in rung 13's `build` — "the same component, now learned, which is why it does not
+reappear as its own step" — so the removed chip is explained rather than merely gone.
+
+### 2.5 Verification — **run, all sites applied**
+
+| Check                               | Expected                                                     | Result                                                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| All three validators                | pass                                                         | pass — `ladderValidation` returns `{steps:16, componentsBuilt:37, exempt:["q-text"]}`                                              |
+| Build ladder rungs                  | **14 → 16**                                                  | 16                                                                                                                                 |
+| `Fusion policy` chips in the ladder | **2 → 1**                                                    | 1                                                                                                                                  |
+| Rung 0 badge                        | styled as recommended (`--rec-bg`), not the unstyled default | `data-t="2"`, computed `rgb(220,252,231)` = `--rec-bg`, border `--rec-line`                                                        |
+| Divider text                        | still reads "Steps 1–7 above are Core + recommended"         | unchanged — `firstFull` is still rung 8                                                                                            |
+| Every chip in rungs 13–15           | navigates to a node in template 3                            | all six resolve to template 3; clicking `Constraint confidence` switched to pipe view, template 3, opened the drawer, node present |
+| Diagram node counts, all templates  | unchanged — `STEPS` does not feed the diagram                | 9 / 25 / 38, wires 15/18/35/39/57/64, zero overlaps — identical to Phase 1                                                         |
+| Total chips in the ladder           | 37 (= 38 components − `q-text`)                              | 37, zero orphans                                                                                                                   |
+| Rung numbers                        | contiguous 0–15                                              | contiguous                                                                                                                         |
+
+**Negative tests on the validator.** Each rule was fired deliberately by mutating `STEPS`
+in the live page and restored afterwards:
+
+| Rule | Injected fault                    | Message                                                          |
+| ---- | --------------------------------- | ---------------------------------------------------------------- |
+| 1    | stage id `"nope"`                 | `Build step 99 names unknown component: nope`                    |
+| 2    | `ltr` in a second rung            | `Component built twice: ltr in steps 13 and 99`                  |
+| 3    | dropped `confidence` from rung 15 | `Components with no build step: confidence`                      |
+| 3b   | `q-text` given a rung             | `Component q-text is the query itself and has no build step`     |
+| 4    | rung 0 set back to `t:0`          | `Build step 0 is t:0 but introduces a component from template 2` |
+
+Rule 4's message is the one that matters: it names the exact defect that survived four
+plans, in the terms a reader needs to fix it.
 
 ---
 
@@ -554,13 +589,13 @@ and Phase 4 removes the "alternative placement of" line that `altOf` used to ren
 
 One commit per phase, each rendering:
 
-| Commit | Contents                                                                                    |
-| ------ | ------------------------------------------------------------------------------------------- |
-| 1      | Phase 1 — templates, fixture, `STEPS[6]`, `business` prose — **applied, not yet committed** |
-| 2      | Phase 2 — rung 0, the `fusionpolicy` duplicate, the 13/14/15 split, `validateBuildLadder()` |
-| 3      | Phase 3 — seven tier notes, plus the source-list reconciliation                             |
-| 4      | Phase 4 — `altOf` deletion, `expand` prose, `FEEDBACK_PLANE_SOURCES`                        |
-| 5      | Phase 5 — regenerated surface doc (+ `surfaceOutline()` if taken)                           |
+| Commit | Contents                                                                                                                     |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1      | Phase 1 — templates, fixture, `STEPS[6]`, `business` prose — **applied, not yet committed**                                  |
+| 2      | Phase 2 — rung 0, the `fusionpolicy` duplicate, the 13/14/15 split, `validateBuildLadder()` — **applied, not yet committed** |
+| 3      | Phase 3 — seven tier notes, plus the source-list reconciliation                                                              |
+| 4      | Phase 4 — `altOf` deletion, `expand` prose, `FEEDBACK_PLANE_SOURCES`                                                         |
+| 5      | Phase 5 — regenerated surface doc (+ `surfaceOutline()` if taken)                                                            |
 
 Phase 2's validator and its rung-0 fix cannot be split — the validator throws on the
 current data.

@@ -2968,9 +2968,9 @@ const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency", imageimageve
    ======================================================================= */
 
 const STEPS = [
-  {n:0, t:0, title:"Evaluation harness", stages:["offlineeval","experiment"],
+  {n:0, t:2, title:"Evaluation harness", stages:["offlineeval","experiment"],
    build:"A labelled set of 200–500 queries with graded relevance, pooled across legs so recall is measurable rather than assumed. Deterministic replay. A probe suite of ~30 queries with known rank-1 answers. Variant assignment stamped on the request, so a change can be measured against a control rather than against last week.",
-   trigger:"Before anything else.",
+   trigger:"Alongside the Core spine, and before the first tuning decision.",
    buys:"Every later decision becomes measurable instead of arguable. Without it, all the tradeoffs below are opinions."},
   {n:1, t:1, title:"Core spine, fixed RRF, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","fusion","assembly"],
    build:"Normalise, understand, enforce query and mandatory policy predicates, run two retrieval legs, collate candidates, apply fixed RRF, and assemble results.",
@@ -3020,11 +3020,58 @@ const STEPS = [
    build:"A vision-language model over the top 10–20, gated on visual intent, cached hard.",
    trigger:"Visual intent demonstrably drives conversion.",
    buys:"Verification of fine visual claims. High cost, narrow gate."},
-  {n:13, t:3, title:"LTR, learned fusion policy, personalisation", stages:["ltr","fusionpolicy","personalisation","expand","sparse","session","confidence"],
-   build:"Trained ranking over the full feature vector, a trained per-query Fusion policy, and per-user adjustment.",
+  {n:13, t:3, title:"Learned ranking and personalisation", stages:["ltr","personalisation"],
+   build:"Trained ranking over the full feature vector, then per-user adjustment on top of it. This is also where the Fusion policy of step 10 stops being a hand-written rule set and becomes a trained per-query model — the same component, now learned, which is why it does not reappear as its own step.",
    trigger:"Tens of thousands of labelled or behavioural judgements exist.",
-   buys:"Compounding gains, with permanent maintenance and a position-bias problem to solve."}
+   buys:"Compounding gains, with permanent maintenance and a position-bias problem to solve."},
+  {n:14, t:3, title:"Learned-sparse retrieval and query expansion", stages:["sparse","expand"],
+   build:"A SPLADE-style leg that expands query and document into weighted terms, plus query-side expansion — PRF first — routed into the lexical and learned-sparse legs rather than into dense.",
+   trigger:"A measured vocabulary-mismatch tail that the dense leg is not closing, sliced out of zero-result and low-recall queries.",
+   buys:"Coverage of vocabulary mismatch in a space you can still read term by term, at the cost of a second index and superlinear query cost."},
+  {n:15, t:3, title:"Session context and constraint confidence", stages:["session","confidence"],
+   build:"Inherit prior turns and filters on classified refinements only, with an explicit reset heuristic; and score each extracted constraint so the pre-filter can split hard predicates from soft boosts and relaxation knows what to give up first.",
+   trigger:"Multi-turn refinement is common, or relaxation is demonstrably dropping the wrong constraint first.",
+   buys:"Adaptivity and better recovery without touching the ranking model — both are control-plane context that steers earlier stages."}
 ];
+
+/* ---------- build-ladder validation ----------
+   STEPS drives no geometry, so nothing downstream would notice it drifting
+   from the component inventory. These four rules are what the list already
+   satisfied before it was written down: every stage is real, no component is
+   built twice, everything is built once, and a step's tier is the tier of the
+   latest component it introduces. */
+const LADDER_UNBUILT = "q-text";  /* the query itself — arrives, is not built */
+
+function validateBuildLadder(){
+  const seen = new Map();
+  STEPS.forEach(step=>{
+    if(!Array.isArray(step.stages) || !step.stages.length){
+      throw new Error("Build step "+step.n+" has no stages");
+    }
+    step.stages.forEach(id=>{
+      if(!S[id]) throw new Error("Build step "+step.n+" names unknown component: "+id);
+      if(seen.has(id)){
+        throw new Error("Component built twice: "+id+" in steps "+seen.get(id)+" and "+step.n);
+      }
+      seen.set(id,step.n);
+    });
+    const latest = Math.max(...step.stages.map(id=>S[id].intro));
+    if(step.t !== latest){
+      throw new Error("Build step "+step.n+" is t:"+step.t+
+        " but introduces a component from template "+latest);
+    }
+  });
+
+  if(seen.has(LADDER_UNBUILT)){
+    throw new Error("Component "+LADDER_UNBUILT+" is the query itself and has no build step");
+  }
+  const unbuilt = Object.keys(S).filter(id=>id!==LADDER_UNBUILT && !seen.has(id));
+  if(unbuilt.length) throw new Error("Components with no build step: "+unbuilt.join(", "));
+
+  return Object.freeze({steps:STEPS.length, componentsBuilt:seen.size, exempt:[LADDER_UNBUILT]});
+}
+
+const BUILD_LADDER_RESULT = validateBuildLadder();
 
 /* =======================================================================
    STATE
@@ -4677,6 +4724,7 @@ window.dependencyDiagnostics = Object.freeze({
     logicalDependencies(templateId,{showServing,off:new Set(disabledIds)}),
   validation:DEPENDENCY_BASELINE_RESULT,
   modelValidation:RELATIONSHIP_MODEL_RESULT,
+  ladderValidation:BUILD_LADDER_RESULT,
   layout:layoutReport,
   layoutSweep
 });
