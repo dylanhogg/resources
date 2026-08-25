@@ -1,13 +1,13 @@
 # Plan 004 — Component sequence and surface fixes
 
-**Target:** `search-query-pipeline-diagram-tool.html` (4675 lines post-Phase 1) — sole file in scope.
-**Status:** Phase 1 implemented and verified. Phases 2–4 not started.
+**Target:** `search-query-pipeline-diagram-tool.html` (4675 lines, post-Phases 1 and 3) — sole file in scope.
+**Status:** Phases 1 and 3 implemented and verified. Phases 2 and 4 not started.
 **Source:** the four accepted findings from the 25 Aug 2026 sequence review.
 **Decisions:** D1 delete `ds-token` · D2 `latererank` stays [optional]/Full · D3 two eval nodes · D4 `expand` aside on the `rewrite` row · D5 new `Evaluation` phase (**confirm before Phase 4**).
 
 Line numbers throughout are as of the file **before any phase landed**, and
-Phase 1 has since shifted them by up to +5. Phases 2 and 4 will shift them
-again. Re-grep before starting each phase rather than trusting the numbers
+Phases 1 and 3 have since shifted them by up to +5. Phases 2 and 4 will shift
+them again. Re-grep before starting each phase rather than trusting the numbers
 written here.
 
 ---
@@ -18,17 +18,17 @@ written here.
 | ----- | ------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------- | -------- | ----------- |
 | **1** | `dedup` before `diversity`; `expand` off the spine into a left aside feeding `lexical` + `sparse` | yes      | 15 sites, 2 templates                    | low      | **done**    |
 | **2** | Remove `Late-interaction retrieval` and `ds-token` entirely                                       | yes      | 20 sites, 9 subsystems                   | **high** | not started |
-| **3** | Reword the sufficiency floor as per-leg calibrated floors                                         | no       | 6 sites, prose only                      | lowest   | not started |
+| **3** | Reword the sufficiency floor as per-leg calibrated floors                                         | no       | 9 sites, prose only                      | lowest   | **done**    |
 | **4** | Add `Experiment assignment` + `Offline evaluation` control nodes                                  | yes      | 2 new components, ~14 sites, 2 templates | medium   | not started |
 
 **Implementation order: 1 → 3 → 2 → 4.** One commit per phase; each must leave
 the tool rendering.
 
-1. **Phase 1** first — two small independent edits that exercise the
-   fixture-update loop on low-risk changes.
-2. **Phase 3** next, out of numerical order: it is prose-only with zero fixture
-   risk, so it lands while the tree is still clean and does not have to be
-   untangled from a Phase 2 rollback.
+1. ~~**Phase 1** — two small independent edits that exercise the fixture-update
+   loop on low-risk changes.~~ Done.
+2. ~~**Phase 3**, out of numerical order: prose-only with zero fixture risk, so
+   it lands while the tree is still clean and does not have to be untangled from
+   a Phase 2 rollback.~~ Done.
 3. **Phase 2** third — 20 sites, three throwing traps and one reference
    migration. Run it against an otherwise-quiet tree.
 4. **Phase 4** last — additive, and the only phase that structurally touches
@@ -39,7 +39,7 @@ merge conflict. Phase 3 has no fixture surface, so it can move anywhere in the
 order if convenient.
 
 **Blocking question:** D5 (grouping for the two Phase 4 nodes, §4.2) needs an
-answer before Phase 4 starts. Phases 2 and 3 are unblocked; **Phase 3 is next.**
+answer before Phase 4 starts. **Phase 2 is next**, and is unblocked.
 
 ---
 
@@ -343,7 +343,7 @@ disable sweep at ~2947 already asserts this).
 
 ---
 
-## Phase 3 — Name the sufficiency floor honestly
+## Phase 3 — Name the sufficiency floor honestly — **DONE**
 
 Smallest phase, no structural change, no fixture change.
 
@@ -378,10 +378,70 @@ same phrase in `prune.sub` so the two nodes visibly share one mechanism.
 `sub` strings are rendered on the node face — confirm the longer text does not
 overflow the node box at the narrowest supported layout.
 
-### Phase 3 verification
+### Phase 3 verification — passed
 
-Visual only. Open the drawer for `Result sufficiency check` and confirm no
-remaining phrase implies a single comparable score before Fusion.
+Prose only, so the two validators and every edge count are unchanged: template 3
+still reports 72 hidden edges and 36 component relations, `layoutSweep` reports
+zero overlaps across all six combinations, and the only clipped labels are the
+two pre-existing retrieval-leg names.
+
+The `sufficiency` drawer was read end to end. Nothing left in it implies a single
+comparable score before Fusion — purpose, both decisions, the dials and the note
+all now say per-leg.
+
+**Node-face overflow — checked by hand, because the sweep does not cover it.**
+`clippedLabels()` measures only `#compList .nm, #caps .cap, #focusList .ref`;
+node faces are not in `FITTED_LABELS`. Measured directly instead:
+
+| Node                       | Width | `sub` overflow at 1500px | at 375px |
+| -------------------------- | ----- | ------------------------ | -------- |
+| `Result sufficiency check` | 347px | 0                        | 0        |
+| `Candidate pruning`        | 347px | 0                        | 0        |
+
+`.node .sb` sets no `nowrap` or `text-overflow`, so a longer `sub` wraps and the
+node grows rather than truncating. Both new strings wrap to two lines and the
+page has no horizontal scroll at 375px.
+
+### Phase 3 discoveries
+
+**1. The plan's requested note would have been the third statement of one idea.**
+§3 asked for a new `sufficiency` note tying the floors to `prune`. But
+`sufficiency.decisions[0].why` is already the placement rationale, and
+`prune.failures[0]` already names the inverse failure. The point went into
+`decisions[0].why` instead — "pruning applies the same floors as a cut rather
+than a gate, so running the check afterwards masks a shortfall as sufficiency" —
+and no note was added.
+
+**2. The existing note had to be rewritten, not kept.** `sufficiency.notes[0]`
+opened "A single quality floor is meaningful only when its input scores are
+comparable" — advice against doing the thing the node no longer does. Left alone
+it would have read as a caveat on a design the node had already abandoned.
+Rewritten to explain why the floors are per-leg and how to calibrate them.
+
+**3. A seventh site the plan's table missed.** `STEPS[4].build` described "A
+quality-floor sufficiency check". Updated to match the node.
+
+**4. `sufficiency.contract` needed no change**, as §3 hoped —
+`in:"unioned candidates + current predicate"` and
+`out:"one of: sufficient | too_few | zero"` never implied a fused score.
+
+### Phase 3 applied changes
+
+Nine sites, three more than the plan's estimate of six:
+
+| Site                            | Change                                                             |
+| ------------------------------- | ------------------------------------------------------------------ |
+| `sufficiency.sub`               | `enough candidates above per-leg calibrated floors?`               |
+| `sufficiency.purpose`           | `…cleared per-leg calibrated floors`                               |
+| `sufficiency.decisions[0].why`  | the shared-floors reason the check precedes pruning — discovery 1  |
+| `sufficiency.decisions[1]`      | opts, `def` and `why`; `why` gains why the floors must be per-leg  |
+| `sufficiency.dials`             | `Score floor` → `Per-leg floors`, from that leg's own distribution |
+| `sufficiency.notes[0]`          | rewritten — discovery 2                                            |
+| `prune.sub`                     | `score floor` → `calibrated floors`, so both node faces share the phrase |
+| `prune.decisions[0].opts`       | `Per-leg calibrated score floors` → `Per-leg calibrated floors`    |
+| `STEPS[4].build`                | discovery 3                                                        |
+
+No fixture, template, `REL` or `REFS` change, as predicted.
 
 ---
 
@@ -560,6 +620,12 @@ template 3 is unchanged (both nodes are `intro:2`); template 2's pill increases
 by 2; clicking `Offline evaluation` opens a drawer whose "Fed by" section names
 `Behavioural event log` with the transmission detail; the Stages-by-phase
 legend renders the new phase (D5).
+
+**Also check the two new node faces by hand.** `clippedLabels()` measures only
+`#compList .nm, #caps .cap, #focusList .ref` — node `sub` text is not in
+`FITTED_LABELS`, so the layout sweep will not catch an overflowing node
+(Phase 3 verification). Measure `scrollWidth - clientWidth` on each new node's
+`.sb` and `.nm` at 1500px and at 375px.
 
 ---
 

@@ -1236,22 +1236,22 @@ def({
 
 def({
   id:"sufficiency", name:"Result sufficiency check", group:"Constraint handling", tier:"recommended", decision:true, intro:2,
-  sub:"enough candidates above the quality floor?", cx:2, caps:["recovery"],
-  purpose:"The gate that decides whether retrieval succeeded. Not a count check — a check that enough candidates cleared a quality floor.",
+  sub:"enough candidates above per-leg calibrated floors?", cx:2, caps:["recovery"],
+  purpose:"The gate that decides whether retrieval succeeded. Not a count check — a check that enough candidates cleared per-leg calibrated floors.",
   decisions:[{
     q:"Where does the check sit?",
     opts:["After each retrieval leg","After union, before pruning","After union and pruning"],
     def:"After union, before pruning",
-    why:"You need deduplicated counts, so it cannot precede union. But score-floor pruning can drop candidates below the threshold, so running it after pruning masks a shortfall as sufficiency."
+    why:"You need deduplicated counts, so it cannot precede union. But pruning applies the same floors as a cut rather than a gate, so running the check afterwards masks a shortfall as sufficiency."
   },{
     q:"What counts as sufficient?",
-    opts:["n candidates","n candidates above a score floor"],
-    def:"n above a score floor",
-    why:"Twenty terrible matches are not sufficiency. They are a worse failure than zero results, because the user cannot tell that the system failed."
+    opts:["n candidates","n candidates above per-leg calibrated floors"],
+    def:"n above per-leg calibrated floors",
+    why:"Twenty terrible matches are not sufficiency. They are a worse failure than zero results, because the user cannot tell that the system failed. The floors are per-leg because nothing comparable exists yet — Fusion is two stages downstream."
   }],
   contract:{in:"unioned candidates + current predicate", out:"one of: sufficient | too_few | zero"},
-  dials:[{n:"n_min",v:"≈ 3 × page size"},{n:"Score floor",v:"from the score distribution of judged-relevant docs"}],
-  notes:["A single quality floor is meaningful only when its input scores are comparable. Calibrate scores by retrieval leg and query class, or use a separate sufficiency model; do not apply one threshold directly to raw BM25, cosine and other model scores."],
+  dials:[{n:"n_min",v:"≈ 3 × page size"},{n:"Per-leg floors",v:"one per leg, from that leg's own judged-relevant score distribution"}],
+  notes:["Raw BM25, cosine and other model scores are not comparable, so a single threshold over all of them is really the loudest leg's distribution. Calibrate one floor per retrieval leg and query class, or replace the floors with a separate sufficiency model."],
   failures:[{f:"Count-only sufficiency",s:"Pages of weak results instead of an honest recovery",m:"precision@10 on queries that passed the check marginally"}]
 });
 
@@ -1521,11 +1521,11 @@ def({
 
 def({
   id:"prune", name:"Candidate pruning", group:"Candidate generation", tier:"recommended", intro:2,
-  sub:"cap per leg, score floor, cut to rerank depth", cx:1,
+  sub:"cap per leg, calibrated floors, cut to rerank depth", cx:1,
   purpose:"Cut the candidate set to the depth the rerank tier is configured for, before spending work on it.",
   decisions:[{
     q:"Prune by rank or by score?",
-    opts:["Top-N per leg","Per-leg calibrated score floors","Both"],
+    opts:["Top-N per leg","Per-leg calibrated floors","Both"],
     def:"Top-N per leg plus conservative per-leg floors",
     why:"A global threshold over raw scores lets one leg's score distribution starve the others. Per-leg caps and calibrated floors preserve the diversity that Fusion depends on."
   }],
@@ -2984,7 +2984,7 @@ const STEPS = [
    trigger:"nDCG@10 plateaus while recall@200 is materially higher — retrieval is fine, ranking is the bottleneck.",
    buys:"Usually the largest single relevance jump available anywhere in the list."},
   {n:4, t:2, title:"Sufficiency, bounded relaxation, zero-result fallback", stages:["sufficiency","relax","zerofallback"],
-   build:"A quality-floor sufficiency check, an ordered ladder capped at 2 passes, and a distinct recovery retrieval mode.",
+   build:"A sufficiency check against per-leg calibrated floors, an ordered ladder capped at 2 passes, and a distinct recovery retrieval mode.",
    trigger:"Zero-result rate above ~5% of queries.",
    buys:"Recovers the queries you are currently losing entirely."},
   {n:5, t:2, title:"Text-to-image retrieval with static routing", stages:["textimagevec","routing"],

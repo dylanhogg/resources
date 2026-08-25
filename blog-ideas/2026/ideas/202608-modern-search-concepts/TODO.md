@@ -6,6 +6,7 @@ Note: this list is for humans, not for AI agents.
 
 - Add GA
 - Remove Conditional pill from hoverover since it's redundant.
+- Review all steered by, steers info are correct on component popup & RHS panel
 - (?) Only show line labels on highlighting a source or target node for that line.
 - (?) Hover over (or click?) a line pops up a tooltip with the line label, source and target node labels, and short description of the relationship.
 - (?) Separate html from datasructures
