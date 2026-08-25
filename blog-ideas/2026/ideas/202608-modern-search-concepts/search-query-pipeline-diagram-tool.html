@@ -22,6 +22,8 @@
   --gate-request:var(--wire-gate); --gate-config:#7a8496;
   --wire-feed:#7c3aed; --wire-train:#0f766e; --wire-update:#be185d; --wire-data:#53657d;
   --data-bg:#f7f9fc; --data-line:#7b8798; --data-text:#344054;
+  --rt-edge:#64748b; --rt-inproc:#2563eb; --rt-service:#0f766e; --rt-gpu:#b45309;
+  --rt-fm:#7c3aed; --rt-engine:#be123c; --rt-store:#0369a1; --rt-stream:#4d7c0f; --rt-ctrl:#6d7789;
   --warn:#b45309; --warn-bg:#fef3c7;
   --ok:#15803d;
   --shadow:0 1px 2px rgba(16,23,37,.06),0 4px 12px rgba(16,23,37,.06);
@@ -43,6 +45,8 @@
       --gate-config:#93a0b5;
       --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
       --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
+      --rt-edge:#93a0b5; --rt-inproc:#6ea0ff; --rt-service:#2dd4bf; --rt-gpu:#e0a94a;
+      --rt-fm:#a78bfa; --rt-engine:#fb7185; --rt-store:#38bdf8; --rt-stream:#a3e635; --rt-ctrl:#7d8798;
       --warn:#e0a94a; --warn-bg:#332a17;
       --ok:#4ea96e;
       --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
@@ -62,6 +66,8 @@
   --gate-config:#93a0b5;
   --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
   --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
+  --rt-edge:#93a0b5; --rt-inproc:#6ea0ff; --rt-service:#2dd4bf; --rt-gpu:#e0a94a;
+  --rt-fm:#a78bfa; --rt-engine:#fb7185; --rt-store:#38bdf8; --rt-stream:#a3e635; --rt-ctrl:#7d8798;
   --warn:#e0a94a; --warn-bg:#332a17;
   --ok:#4ea96e;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3);
@@ -3248,6 +3254,1758 @@ const LOGICAL = defModel({
   baseline:DEPENDENCY_BASELINE,
   expectedCounts:{sources:{1:3,2:4,3:6}, servingEdges:{1:3,2:4,3:7}},
   invariants:LOGICAL_INVARIANTS
+});
+
+/* =======================================================================
+   PHYSICAL DATA — the same pipeline, realised on AWS with OpenSearch and
+   Qdrant. One rung down the abstraction ladder, not a different system.
+
+   The opinion this whole level defends: OpenSearch owns everything sparse
+   and every predicate it can push down, Qdrant owns everything dense, and
+   fusion happens in neither — because neither engine can see the other's
+   ranks. Every store, cache and consistency concern below descends from
+   that one split.
+
+   Physical records reuse the logical component's spine — id, name, group,
+   tier, intro, sub, purpose, cx, decisions, contract, dials, notes,
+   failures, example, caps — so the node, hover card and half the drawer
+   need no new code. The fields added here are the ones a logical diagram
+   is right to omit and a physical one is wrong to.
+
+   One inherited field changes meaning. `cx` is build-and-run complexity in
+   the logical level and **operational burden** here: what a thing costs to
+   run, patch, scale and be paged about. Two stateful engines score high on
+   this scale and low on the other one. The two levels' complexity indexes
+   are therefore not comparable, and the sidebar says so where it prints
+   them rather than leaving the reader to assume otherwise.
+   ======================================================================= */
+
+/* Where the code actually executes. `hop` is the field the level exists to
+   make visible: a component with hop:true is a network round trip in the
+   request path, and the count of them is the headline number of this view.
+   Firehose is hop:false because it is fire-and-forget off the critical
+   path — itself a design claim, defended on px-events.
+
+   Runtime alone does not settle the hop count, though. A component can run
+   on a remote engine and still add no round trip, because it rides inside
+   a call something else was already making — see `ridesCall`. */
+const RUNTIME = Object.freeze({
+  edge:      Object.freeze({label:"Edge",                hop:true,  chip:"edge",       color:"var(--rt-edge)"}),
+  inproc:    Object.freeze({label:"In the orchestrator", hop:false, chip:"in-process", color:"var(--rt-inproc)"}),
+  service:   Object.freeze({label:"Container service",   hop:true,  chip:"Fargate",    color:"var(--rt-service)"}),
+  gpu:       Object.freeze({label:"GPU endpoint",        hop:true,  chip:"SageMaker",  color:"var(--rt-gpu)"}),
+  foundation:Object.freeze({label:"Foundation model",    hop:true,  chip:"Bedrock",    color:"var(--rt-fm)"}),
+  engine:    Object.freeze({label:"Search engine",       hop:true,  chip:"engine",     color:"var(--rt-engine)"}),
+  store:     Object.freeze({label:"Managed store",       hop:true,  chip:"store",      color:"var(--rt-store)"}),
+  stream:    Object.freeze({label:"Stream / async",      hop:false, chip:"async",      color:"var(--rt-stream)"}),
+  control:   Object.freeze({label:"Control plane",       hop:false, chip:"config",     color:"var(--rt-ctrl)"})
+});
+
+/* This level's taxonomy, standing where the logical level puts CAPS. Every
+   one of these is something the logical view is right not to model and this
+   one would be wrong to omit: they are properties of a deployment, not of a
+   retrieval algorithm. */
+const CONCERNS = [
+  {id:"parity",    label:"Filter parity"},
+  {id:"freshness", label:"Index freshness"},
+  {id:"tail",      label:"Tail latency control"},
+  {id:"degrade",   label:"Graceful degradation"},
+  {id:"blast",     label:"Blast-radius containment"},
+  {id:"cache",     label:"Cache coherence"},
+  {id:"replay",    label:"Deterministic replay"},
+  {id:"cost",      label:"Cost control"},
+  {id:"observe",   label:"Traceability"},
+  {id:"identity",  label:"Document identity"},
+  {id:"pii",       label:"PII boundary"},
+  {id:"rollback",  label:"Reversible deploys"}
+];
+const CONCERN_IDS = new Set(CONCERNS.map(concern=>concern.id));
+
+const PX  = {};   /* request path and control plane */
+const PXD = {};   /* the data and consistency planes */
+
+/* Resolve every reference the record makes at definition time, so a typo in
+   a runtime key, a concern id or a realisation link fails at load rather
+   than printing `undefined` onto a card — the same contract defGate keeps.
+
+   `realises` is the fidelity link (D7) and its ids belong to the logical
+   level, so they are checked against the logical model, which is already
+   registered above. Totality of the mapping — that every logical component
+   has a physical home — needs both models and belongs to the physical
+   model's own invariants.
+
+   A departure is mandatory whenever the mapping is not one-to-one, because
+   that is precisely when the reader is owed an explanation. Physical-only
+   components (realises:[]) owe the strongest one: why the logical view was
+   right to leave them out. */
+function defPhysical(registry, record){
+  const {id, runtime, realises=[], departure, caps=[], ridesCall} = record;
+
+  if(registry[id]) throw new Error("Duplicate physical id: "+id);
+  if(!RUNTIME[runtime]) throw new Error("Unknown runtime on "+id+": "+runtime);
+
+  caps.forEach(cap=>{
+    if(!CONCERN_IDS.has(cap)) throw new Error("Undeclared concern on "+id+": "+cap);
+  });
+  realises.forEach(logicalId=>{
+    if(!LOGICAL.components[logicalId] && !LOGICAL.dataSources[logicalId]){
+      throw new Error("Unknown logical id in "+id+".realises: "+logicalId);
+    }
+  });
+  if(realises.length!==1 && !departure){
+    throw new Error("A departure is required where realises is not one-to-one: "+id);
+  }
+  if(ridesCall && !registry[ridesCall]){
+    throw new Error("ridesCall must name a component already defined: "+id+" → "+ridesCall);
+  }
+
+  record.realises = realises;
+  /* The count the view leads with, resolved once here rather than at every
+     site that wants it: a component is a round trip unless it runs inside
+     someone else's. */
+  record.hop = RUNTIME[runtime].hop && !ridesCall;
+  registry[id] = record;
+}
+
+const defPhys  = record=> defPhysical(PX,  record);
+/* Plane nodes reuse the logical data-source record — representation,
+   filtering, updates, implementation — because those four questions are
+   exactly as pointed at a physical store as at a logical index. `plane`
+   says which overlay a node belongs to; the write path is not the data
+   plane, and drawing them as one band would hide the ordering authority
+   that keeps the two engines from diverging. */
+const defStore = record=> defPhysical(PXD, record);
+
+/* ---------- band 1 · edge and entry ---------- */
+defPhys({
+  id:"px-client", name:"Search client", group:"Edge", tier:"core", io:true, intro:1,
+  runtime:"edge", cx:1, sub:"web / mobile app",
+  realises:[], departure:"The logical view starts at the query string because the client is not part of the search algorithm. Physically it is the first thing that can get the request wrong: it owns the retry, the abandonment, and the decision to send a keystroke rather than a query.",
+  purpose:"Issues the search request and renders the response. It is also where a request is abandoned, retried and debounced — three behaviours that change the load the rest of this diagram sees.",
+  substrate:{service:"Client application", unit:"web / mobile app",
+    sizing:["one request per settled query","abandoned requests cancelled, not ignored"]},
+  contract:{in:"user input", out:"POST /search { query, ui_filters, image_ref?, session_id?, page_token? }"},
+  dials:[{n:"Debounce",v:"settle before sending",note:"Autocomplete and search are different endpoints with different budgets. Sending a search per keystroke is the cheapest way to multiply your bill by ten."},
+         {n:"Client timeout",v:"longer than the server deadline",note:"A client that gives up before the server's own deadline turns a degraded response into an error the server never learns about."}],
+  gotchas:[{g:"Abandoned requests keep running",
+    why:"A closed connection does not cancel the work behind it unless cancellation is propagated. The orchestrator, both engines and the GPU endpoint keep burning capacity for a user who has already typed something else.",
+    fix:"Propagate cancellation from the HTTP layer through to both engine clients, and count cancelled-but-completed requests as waste."}],
+  cost:"Negligible in itself; sets the request rate everything downstream is sized for.",
+  caps:["cost"],
+  failures:[{f:"Search fired per keystroke",s:"Load scales with typing speed rather than intent",m:"searches per completed query"}],
+  example:"Sends the six-facet string and any UI-set filters as two separate fields, because the logical q-text default keeps them apart."
+});
+
+defPhys({
+  id:"px-image", name:"Image upload", group:"Edge", tier:"optional", io:true, intro:3,
+  runtime:"edge", cx:2, sub:"presigned S3 PUT, then a reference",
+  realises:["q-image"], departure:"The browser does not post image bytes through the search API. The upload is a separate, earlier round trip to S3 and the search request carries only a reference. Logically an image query is one input; physically it is two requests with an object store between them.",
+  purpose:"Accepts a user-supplied image out of band and hands the search request a reference to it, so the search path never carries megabytes.",
+  substrate:{service:"Amazon S3", unit:"presigned PUT + lifecycle rule",
+    sizing:["short-lived prefix","lifecycle expiry in hours","content-type and size enforced in the presign"]},
+  decisions:[{
+    q:"How does the image reach the pipeline?",
+    opts:["Multipart into the search API","Presigned upload, reference in the query","Base64 in the request body"],
+    def:"Presigned upload, reference in the query",
+    why:"Image bytes on the search path make the search request's size distribution bimodal, and every timeout, retry and payload limit downstream has to be sized for the worst case. Uploading out of band keeps the search request small and makes the upload independently retryable."
+  }],
+  contract:{in:"image file", out:"{ image_ref, content_hash }"},
+  dials:[{n:"Presign TTL",v:"minutes"},
+         {n:"Max object size",v:"enforced in the policy, not the app"},
+         {n:"Retention",v:"lifecycle expiry — a user's image is not corpus data"}],
+  gotchas:[{g:"The uploaded image becomes an untracked personal-data store",
+    why:"Query images are user content. Without a lifecycle rule the bucket quietly becomes a permanent archive of what people photographed, with none of the handling the rest of the system gives personal data.",
+    fix:"Expire the prefix on a lifecycle rule, key the embedding cache on the content hash rather than the object, and keep the bucket out of the analytics lake."}],
+  optimisation:[{o:"Cache the image embedding on the content hash",
+    when:"Always. Re-uploading the same photo is the common refinement gesture."}],
+  cost:"Storage is trivial; the encoder hop it triggers is not.",
+  caps:["pii","cost"],
+  failures:[{f:"Upload succeeds, reference expires before the search",s:"Image leg silently missing from an image query",m:"image-query requests where the image leg did not run"}],
+  example:"A photo of a fireplace uploaded before the search, arriving in the query as a reference that px-embed-image resolves."
+});
+
+defPhys({
+  id:"px-edge", name:"Edge distribution", group:"Edge", tier:"recommended", intro:2,
+  runtime:"edge", cx:2, sub:"TLS termination · no search caching",
+  realises:[], departure:"A CDN in front of a search API is pure transport, which is why the logical view has nothing to say about it. It is here because the temptation to cache search responses at the edge is strong and wrong, and this node is where that gets stated.",
+  purpose:"Terminates TLS close to the user and shortens the connection path. It caches static assets and autocomplete, and deliberately caches nothing that this pipeline produces.",
+  substrate:{service:"Amazon CloudFront", unit:"distribution",
+    sizing:["origin: ALB","HTTP/2 or HTTP/3 to the client","search path: no-store"]},
+  decisions:[{
+    q:"Is the search response cacheable at the edge?",
+    opts:["Cache briefly on the query string","Cache only for anonymous users","Do not cache search responses"],
+    def:"Do not cache search responses",
+    why:"The response is personalised, experiment-stamped and freshness-sensitive. Caching it at the edge either serves one user's ranking to another or measures the cache instead of the experiment. Autocomplete and assets are a different matter and should be cached aggressively."
+  }],
+  contract:{in:"HTTPS from the client", out:"HTTPS to the ALB, connection reused"},
+  dials:[{n:"Search cache policy",v:"no-store"},
+         {n:"Asset and autocomplete TTL",v:"long"},
+         {n:"Origin keep-alive",v:"on"}],
+  gotchas:[{g:"A cache key that omits the experiment variant",
+    why:"Any cache in front of a ranking-affecting decision must include the variant, or the experiment measures cache behaviour rather than the ranking change.",
+    fix:"Do not cache the response at all here. Where a cache is legitimate — query understanding, embeddings — make the variant part of the key by construction."}],
+  cost:"Transfer-dominated, and it removes an origin round trip's worth of latency for free.",
+  caps:["cache","cost"],
+  failures:[{f:"A personalised response served from a shared edge cache",s:"One user sees another's ranking",m:"cache hit rate on the search path, which must be zero"}],
+  example:"Forwards the request unchanged; the six facets are opaque bytes at this layer."
+});
+
+defPhys({
+  id:"px-waf", name:"Web application firewall", group:"Edge", tier:"recommended", control:true, intro:2,
+  runtime:"edge", cx:2, sub:"rate rules, bot control, request shape", ridesCall:"px-edge",
+  realises:[], departure:"Abuse control is not a retrieval concern, so the logical view is right to omit it. Physically a search endpoint is the most expensive unauthenticated surface you own — one query can cost two engine scans and a GPU batch — and it is where an attacker will point first.",
+  purpose:"Rate-limits and shape-checks search traffic before it reaches anything expensive. The search endpoint amplifies: a cheap request buys a costly amount of downstream work.",
+  substrate:{service:"AWS WAF", unit:"web ACL on the distribution",
+    sizing:["rate rule per IP and per session","body size limit","managed bot rules"]},
+  contract:{in:"HTTP request", out:"forwarded, challenged or blocked"},
+  dials:[{n:"Rate limit",v:"per IP and per authenticated subject"},
+         {n:"Body size cap",v:"a search query is bytes, not kilobytes"},
+         {n:"Bot control",v:"challenge, not block, for ambiguous traffic"}],
+  gotchas:[{g:"Rate limiting by IP only",
+    why:"Mobile carriers and corporate egress put thousands of legitimate users behind one address, while a distributed scraper uses thousands of addresses. IP-only limiting gets both cases wrong.",
+    fix:"Limit on the authenticated subject where there is one, and treat IP as the fallback dimension rather than the primary."}],
+  cost:"Cheap relative to the retrieval it prevents.",
+  caps:["blast","cost"],
+  notes:["The web ACL evaluates at the distribution, so this component adds no round trip of its own — it inspects a request that has already arrived. It is drawn separately because it is a separate thing to configure, own and get wrong, not because it is a separate hop."],
+  failures:[{f:"A rate rule tuned against synthetic load",s:"Legitimate refinement bursts blocked; scrapers unaffected",m:"blocked requests by authenticated subject"}],
+  example:"Sees a query string and a small JSON body; nothing about the six facets is visible or relevant here."
+});
+
+defPhys({
+  id:"px-alb", name:"Load balancer & authorizer", group:"Edge", tier:"core", intro:1,
+  runtime:"edge", cx:2, sub:"TLS, OIDC, health, spread",
+  realises:[], departure:"Authentication is invisible in the logical view because relevance does not depend on it. Physically it is load-bearing for correctness, not just security: the authenticated subject becomes a non-relaxable predicate that both engines must enforce identically.",
+  purpose:"Terminates the request, establishes who is asking, and spreads across availability zones. The identity it produces becomes an authorization predicate that px-predicate compiles alongside the user's own constraints.",
+  substrate:{service:"Application Load Balancer", unit:"ALB with an OIDC / Cognito authenticate action",
+    sizing:["at least two availability zones","target group health checks on a real query","idle timeout above the request deadline"]},
+  contract:{in:"HTTPS", out:"request + verified subject and entitlement claims"},
+  dials:[{n:"Idle timeout",v:"above the orchestrator's own deadline",note:"A load-balancer idle timeout below the server deadline turns a slow-but-successful request into a 504 with no server-side trace."},
+         {n:"Health check",v:"a real query, not /ping",note:"A liveness check that does not touch the engines will keep a task in service that cannot serve a search."},
+         {n:"Zones",v:"≥ 2"}],
+  gotchas:[{g:"Entitlements arrive as claims and are treated as suggestions",
+    why:"If authorization predicates travel as ordinary constraints, the recovery controller may relax them under a zero-result condition. Relevance recovery then becomes a data-access bug.",
+    fix:"Mark authorization predicates non-relaxable in the AST at compile time and assert in a test that px-recovery cannot loosen them."}],
+  cost:"Per-connection and per-hour; negligible next to what it fronts.",
+  caps:["pii","blast"],
+  failures:[{f:"Health check passes while the engine client is broken",s:"Tasks stay in service returning empty results",m:"per-task zero-result rate against the fleet median"}],
+  example:"Attaches the subject whose entitlements decide which listings are eligible at all, before any facet is considered."
+});
+
+/* ---------- band 2 · orchestration ---------- */
+defPhys({
+  id:"px-orch", name:"Search orchestrator", group:"Orchestration", tier:"core", intro:1,
+  runtime:"service", cx:3, sub:"the process every in-process stage runs inside",
+  realises:[], departure:"The logical view has no orchestrator because it has no processes — it is a description of stages, not of where they run. Physically almost every logical stage is a function call inside this one task, and saying so is the single most useful thing this view does: the diagram's box count is not the system's service count.",
+  purpose:"Owns the request. Every component drawn with an in-process runtime is a function call inside this task; every other component is a network call it makes. It also owns the deadline, the cancellation and the trace.",
+  substrate:{service:"Amazon ECS on Fargate", unit:"service, rolling deployment",
+    sizing:["≥ 2 tasks across ≥ 2 AZs","CPU-bound: size on concurrent requests, not on memory","one connection pool per downstream engine"]},
+  decisions:[{
+    q:"What runs the orchestrator?",
+    opts:["ECS Fargate","EKS","Lambda","EC2 Auto Scaling"],
+    def:"ECS Fargate",
+    why:"The workload is a long-lived, connection-pooling, deadline-managing HTTP service with warm clients to two engines. Fargate gives that without a cluster to operate. Lambda is the wrong shape: per-invocation isolation means cold connection pools to both engines and no way to hold a hedge in flight. EKS is right once the platform already exists for other reasons."
+  },{
+    q:"Where does fusion run?",
+    opts:["In OpenSearch","In Qdrant","In the orchestrator"],
+    def:"In the orchestrator",
+    why:"Reciprocal rank fusion needs both rank lists in one process. Either engine can fuse the branches it produced, and neither can see the other's ranks, so engine-side fusion would produce a confident ranking over half the candidates. This is the single most important physical departure in the design and it is what makes the orchestrator a real component rather than glue."
+  }],
+  contract:{in:"authenticated search request", out:"assembled response + disclosure fields + trace"},
+  dials:[{n:"Request deadline",v:"one budget for the whole request, set at entry"},
+         {n:"Concurrency per task",v:"bounded — an unbounded queue converts latency into memory"},
+         {n:"Connection pool per engine",v:"sized to concurrency, with DNS re-resolution"},
+         {n:"Tasks",v:"≥ 2 per AZ, so a deploy is never a single point"}],
+  budget:{deadline:"the whole request budget; every band spends from it",
+    timeout:"the client's timeout is longer than this by design",
+    onExpiry:"return the best complete ordering held so far, with disclosure",
+    retry:"never at this level — a retried search is a second full pipeline"},
+  optimisation:[{o:"Warm, shared connection pools with periodic DNS re-resolution",
+    when:"Always. Managed endpoints replace nodes; a client that caches DNS forever pins itself to one that is gone."},
+    {o:"Run the two retrieval calls concurrently, not sequentially",
+    when:"Always. This is the entire reason the retrieval row is a parallel group."},
+    {o:"Structured concurrency with a shared cancellation token",
+    when:"Always. It is what makes the deadline reach the engines rather than just the caller."}],
+  gotchas:[{g:"The deadline is held by the caller and unknown to the engine",
+    why:"Cancelling the client does not stop the query. The engine keeps scanning for a request nobody is waiting for, and under load that wasted capacity is what turns a slow minute into an outage.",
+    fix:"Send each engine its own timeout as well as holding your own, and verify cancellation actually reaches the wire — measure queries that completed after their caller gave up."},
+    {g:"An unbounded in-process queue",
+    why:"Accepting work faster than you can finish it converts a latency problem into a memory problem and then into a task restart, which drops every in-flight request rather than the marginal one.",
+    fix:"Bound concurrency and shed load explicitly at the edge of the task, where the response can still be honest about it."}],
+  scaling:[{axis:"QPS grows", response:"More tasks. The orchestrator is stateless, so this is the easy axis — right up until it becomes the connection count each engine has to hold."},
+    {axis:"Fan-out grows", response:"Per-request CPU rises with candidate volume in fusion and final ranking. Watch CPU per request, not task count."}],
+  cost:"vCPU-hours, and it is the cheapest tier in the diagram. The expensive things are the ones it calls.",
+  alternatives:[{a:"Lambda behind API Gateway", when:"Very low or extremely spiky traffic where cold connection pools and per-invocation isolation cost less than idle tasks."},
+    {a:"EKS", when:"A Kubernetes platform already exists and search is one workload among many."}],
+  caps:["tail","degrade","blast","observe","cost"],
+  notes:["Counting hops is the point of this view. A stage drawn here with an in-process runtime costs a function call; a stage drawn with any other runtime costs a round trip, a timeout, a retry policy and a failure mode. The logical diagram cannot tell you which is which."],
+  failures:[{f:"Cancellation not propagated to the engines",s:"Capacity consumed by abandoned queries; load rises with no traffic increase",m:"queries completing after caller cancellation"},
+    {f:"One connection pool exhausted by a slow engine",s:"A slow dependency becomes a total outage",m:"pool wait time per downstream"}],
+  example:"Holds the whole six-facet request: one deadline, one trace id, one candidate array that every in-process stage below rewrites in place."
+});
+
+/* ---------- band 3 · query understanding ---------- */
+defPhys({
+  id:"px-qu", name:"Query understanding", group:"Query understanding", tier:"core", intro:1,
+  runtime:"inproc", cx:3, sub:"normalise, then rules + a small classifier",
+  realises:["normalise","understand"],
+  departure:"Two logical stages, one physical component. Both are pure CPU over the same string in the same process, so splitting them would cost a hop and buy nothing. Normalisation stays a distinct step inside it because it is the cache key: everything cached downstream is keyed on its output, so its determinism is a system property rather than an implementation detail.",
+  purpose:"Turns the raw string into a normalised query plus an intent class and a set of extracted constraints with confidences. Runs entirely inside the orchestrator on the logical default of rules plus a small classifier.",
+  substrate:{service:"In-process", unit:"rules + ONNX Runtime classifier",
+    sizing:["model loaded at task start","single-threaded per request","versioned with the deployment"]},
+  decisions:[{
+    q:"Rules and a small model, or an LLM?",
+    opts:["Rules only","Rules + small classifier in-process","LLM per request"],
+    def:"Rules + a small classifier, in-process",
+    why:"This is the logical default taken at face value, and physically it is the difference between zero hops and one hop with a foundation-model bill on every query. It is also the only version that is deterministic, and determinism here is what lets the evaluation store replay a ranking. The LLM tier exists — as its own component, at Full, behind a cache."
+  },{
+    q:"Where does normalisation happen relative to caching?",
+    opts:["Cache the raw query","Cache the normalised query","No cache"],
+    def:"Cache on the normalised query",
+    why:"The normalised form collapses case, spacing and punctuation variants onto one key, which is most of the hit rate you will ever get. It also means a change to the normaliser must invalidate the cache, so the normaliser gets a version and the version is part of the key."
+  }],
+  contract:{in:"{ raw_query, ui_filters, locale }",
+    out:"{ normalised, intent_class, entities[], constraints[] with confidence, qu_version }"},
+  dials:[{n:"Normaliser version",v:"stamped into every cache key"},
+         {n:"Classifier",v:"ONNX, quantized, loaded once"},
+         {n:"Confidence floor",v:"below it, a constraint is soft"}],
+  budget:{deadline:"single-digit share of the request budget — it is CPU, not a call",
+    timeout:"n/a, in-process",
+    onExpiry:"n/a — if this is slow enough to matter, the model is wrong for the tier",
+    retry:"none"},
+  optimisation:[{o:"Cache the whole understanding result on the normalised query",
+    when:"Always. It is deterministic and the head of the query distribution is heavy."}],
+  gotchas:[{g:"Extracted structure treated as trusted input",
+    why:"The query is user text and it is about to be compiled into two query DSLs. An entity that flows unchecked into a filter clause is the difference between a predicate and an injection.",
+    fix:"Validate every extracted field name and operator against an allow-list before it reaches the compiler, and reject rather than coerce."},
+    {g:"Normaliser changed without a version bump",
+    why:"Every downstream cache is keyed on this output. Change it silently and you serve understanding, embeddings and results that were computed for a different query.",
+    fix:"Version the normaliser, include the version in every key, and treat a change as a cache flush."}],
+  scaling:[{axis:"QPS grows", response:"It scales with the orchestrator, because it is the orchestrator. The classifier's per-request CPU is the thing to watch."}],
+  cost:"CPU inside a task you are already paying for. Effectively free, which is the argument.",
+  alternatives:[{a:"A dedicated query-understanding service", when:"Several consumers need identical understanding — search, autocomplete, recommendations — and the shared behaviour matters more than the hop."}],
+  caps:["replay","cache","pii"],
+  failures:[{f:"Exact-match probes regress after a normaliser change",s:"Known-item queries stop ranking first",m:"exact-match probe suite as a hard CI gate"}],
+  example:"Splits the six facets into a normalised string, a high-confidence numeric pair (sleeps 6, under $300), an ambiguous geo constraint and two attributes that only the vector legs will find."
+});
+
+defPhys({
+  id:"px-bedrock-qu", name:"LLM query understanding", group:"Query understanding", tier:"optional", intro:3,
+  runtime:"foundation", cx:4, sub:"gated, cached, with a hard fallback",
+  realises:["understand"],
+  departure:"One logical stage, two physical components. The logical default is rules plus a classifier; the LLM tier is a different substrate with a different failure mode, a different cache requirement and a different bill, so drawing it as the same node would hide the only decision that matters here. It also breaks deterministic replay, which is the real reason it is Full-only — not the cost.",
+  purpose:"Handles the queries the rules miss: unusual phrasing, implicit constraints, multi-clause intent. Gated on the classifier's own uncertainty, cached hard, and never the only path.",
+  substrate:{service:"Amazon Bedrock", unit:"on-demand model invocation",
+    sizing:["strict output schema","short max tokens","cache before the call, always"]},
+  decisions:[{
+    q:"When is the LLM invoked?",
+    opts:["Every query","Only when the classifier is uncertain","Only on explicit user request"],
+    def:"Only when the classifier is uncertain, and only at Full",
+    why:"The head of the query distribution is short, repetitive and well handled by rules. Paying a foundation-model hop for it buys nothing and costs the request budget twice over. Gating on uncertainty spends the hop where the rules were going to be wrong."
+  },{
+    q:"What happens when it fails or times out?",
+    opts:["Fail the request","Fall back to the rules path","Retry once"],
+    def:"Fall back to the rules path, silently and always",
+    why:"This component is an enhancement to a path that already works. Any failure mode other than falling back turns an optional improvement into a new single point of failure — the classic way an optional stage becomes a load-bearing one by accident."
+  }],
+  contract:{in:"normalised query + the classifier's low-confidence output",
+    out:"structured constraints and intent, schema-validated, or nothing"},
+  dials:[{n:"Invocation gate",v:"classifier confidence below the floor"},
+         {n:"Cache TTL",v:"long — the normalised query is deterministic even if the model is not"},
+         {n:"Max output tokens",v:"small; this is extraction, not generation"},
+         {n:"Temperature",v:"0, and it still is not deterministic across model versions"}],
+  budget:{deadline:"a hard slice of the query-processing band",
+    timeout:"the deadline, not the model's default",
+    onExpiry:"drop the enhancement, keep the rules output",
+    retry:"none — a retry cannot fit inside a budget already spent"},
+  optimisation:[{o:"Cache on the normalised query and the model version",
+    when:"Always. It is the only thing that makes this affordable at any real traffic."},
+    {o:"Constrain the output to a schema and reject on parse failure",
+    when:"Always. Free-form output reaching a filter compiler is the worst input in this diagram."}],
+  gotchas:[{g:"Non-determinism in the request path breaks replay",
+    why:"The evaluation store's whole value is deterministic replay of a ranking. A model that can answer differently for the same query means a replayed ranking is not the ranking that was served, and every offline comparison inherits that noise.",
+    fix:"Log the model's output with the impression so replay uses what was served rather than re-invoking, and keep this component out of Core and Recommended."},
+    {g:"Model version changed under a warm cache",
+    why:"A cache keyed without the model version serves the old model's extraction against the new model's behaviour, invisibly and indefinitely.",
+    fix:"Model identifier in the cache key; a version change is a cache flush."}],
+  scaling:[{axis:"QPS grows", response:"Cache hit rate carries it or the bill does. Watch invocations per thousand searches, not per second."},
+    {axis:"Tail queries grow", response:"The uncertainty gate fires more often on a long tail — which is correct behaviour and an increasing cost. Cap it explicitly."}],
+  cost:"Per-token, on the request path, uncached. The most expensive single hop available here and the easiest to leave on by accident.",
+  alternatives:[{a:"A fine-tuned small model on SageMaker", when:"Volume is high enough that per-token pricing loses to an endpoint you keep warm, and the extraction schema is stable."},
+    {a:"No LLM at all", when:"The rules path's error analysis does not show a class of queries it systematically misses. This is the honest default."}],
+  caps:["replay","cost","cache","degrade"],
+  failures:[{f:"Silent quality regression on a model version change",s:"Extraction changes shape with no deploy and no alert",m:"constraint-extraction agreement against a frozen labelled set"}],
+  example:"Would be asked what 'within 2 hours of the city' means — the one facet the rules genuinely cannot resolve — and its answer is cached against that phrase for a long time."
+});
+
+defPhys({
+  id:"px-rewrite", name:"Per-leg query rewriting", group:"Query understanding", tier:"recommended", intro:2,
+  runtime:"inproc", cx:2, sub:"full text lexically · stripped to the vector legs",
+  realises:["rewrite"],
+  purpose:"Produces the per-leg query strings. The lexical leg gets the full text; the vector legs get the text with hard constraints stripped, because a number in a sentence is noise to an encoder and a filter to an index.",
+  substrate:{service:"In-process", unit:"dictionary + rules",
+    sizing:["synonym and abbreviation tables versioned with the deployment"]},
+  contract:{in:"normalised query + extracted constraints",
+    out:"{ lexical_text, vector_text, expansion_terms? }"},
+  dials:[{n:"Stripping rule",v:"remove constraints that became predicates"},
+         {n:"Synonym table",v:"versioned; a change is a relevance change"}],
+  optimisation:[{o:"Key the embedding cache on the stripped text, not the raw query",
+    when:"Always. The stripped form repeats far more often than raw queries do, so the asymmetric rewrite the logical view chose for relevance reasons is quietly also the largest cache-hit-rate win available."}],
+  gotchas:[{g:"Two query strings, one cache key",
+    why:"The lexical and vector legs now carry different text. A cache keyed on the request rather than on the specific string it computed will serve one leg's work to the other.",
+    fix:"Key every cache on the exact string it embedded or searched, plus the encoder or analyser version."}],
+  scaling:[{axis:"Vocabulary grows", response:"Dictionary size is trivial; the review burden is not. Treat table changes as ranking changes with an eval run behind them."}],
+  cost:"CPU, negligible.",
+  caps:["cache"],
+  notes:["This is the clearest case in the diagram of a relevance decision with a large, unintended infrastructure payoff. The logical view chose asymmetric rewriting because constraint text pollutes embeddings; the physical consequence is a materially higher embedding-cache hit rate, and therefore fewer GPU hops."],
+  failures:[{f:"Constraint text left in the vector query",s:"Embeddings drift toward the numbers rather than the described property",m:"cache hit rate, which collapses when stripping regresses"}],
+  example:"Sends the full six-facet string to OpenSearch and 'quiet waterfront cabin with a wood fireplace' to both encoders."
+});
+
+defPhys({
+  id:"px-expand", name:"Query expansion", group:"Query understanding", tier:"optional", intro:3,
+  runtime:"inproc", cx:3, sub:"pseudo-relevance feedback into the sparse legs",
+  realises:["expand"],
+  purpose:"Adds terms drawn from the top of a first lexical pass and re-queries. Off by default and route-gated, because it costs a second OpenSearch round trip on every request where it fires.",
+  substrate:{service:"In-process", unit:"PRF over the first lexical result set",
+    sizing:["bounded term count","only the lexical and sparse legs"]},
+  decisions:[{
+    q:"Where does expansion get its terms?",
+    opts:["A static thesaurus","Pseudo-relevance feedback","A generative model"],
+    def:"Pseudo-relevance feedback, gated",
+    why:"PRF needs no offline asset and adapts to the corpus, which is why the logical view prefers it. The physical price is explicit and unusual: it makes retrieval two sequential round trips instead of one, so the deadline controller has to reserve for a second pass that usually does not happen."
+  }],
+  contract:{in:"lexical text + the first pass's top documents", out:"expanded lexical query"},
+  dials:[{n:"Feedback documents",v:"top 10"},
+         {n:"Terms added",v:"bounded — expansion is a precision risk"},
+         {n:"Gate",v:"route decides; off unless the query looks under-specified"}],
+  budget:{deadline:"must fit inside the retrieval band alongside the pass it repeats",
+    timeout:"the band's remaining budget",
+    onExpiry:"keep the first pass's results and skip the second",
+    retry:"none"},
+  gotchas:[{g:"Expansion turns one round trip into two, serially",
+    why:"Unlike every other optional stage here, this one cannot be run concurrently — the second query depends on the first result set. It is the only component in the request path that lengthens the critical path rather than widening it.",
+    fix:"Reserve for it in the deadline explicitly, and gate it on the query classes where the error analysis shows it helps."}],
+  scaling:[{axis:"Gate fires more often", response:"Retrieval load roughly doubles for the affected queries. Track the fire rate as a load input, not just a relevance dial."}],
+  cost:"A second engine round trip on the queries where it runs.",
+  alternatives:[{a:"Learned sparse retrieval instead", when:"Almost always the better answer — the sparse encoder does term expansion in the model, inside the same round trip, which is exactly why px-embed-sparse and this component are alternatives rather than companions."}],
+  caps:["tail","cost"],
+  failures:[{f:"Expansion runs on well-specified queries",s:"Precision drops and latency doubles on the queries that were already fine",m:"expansion fire rate by intent class, with paired relevance"}],
+  example:"Would not fire — the six-facet query is over-specified rather than under-specified, which is exactly the case expansion is wrong for."
+});
+
+defPhys({
+  id:"px-session", name:"Session context", group:"Query understanding", tier:"optional", control:true, intro:3,
+  runtime:"store", cx:3, sub:"read on refinement only",
+  realises:["session"],
+  purpose:"Supplies the previous query's constraints when the classifier judges this query a refinement. Read from DynamoDB behind a cache, and only on the requests that need it.",
+  substrate:{service:"Amazon DynamoDB + ElastiCache", unit:"session item, short TTL",
+    sizing:["partition on session id","TTL attribute set on write","cache-aside on read"]},
+  decisions:[{
+    q:"Is session context read on every request?",
+    opts:["Every request","Only when classified as a refinement","Client sends it back"],
+    def:"Only on a refinement",
+    why:"The logical default is to inherit only on a refinement, and physically that turns an unconditional store read into a conditional one on a minority of requests. Reading it always would add a hop to every query to serve the few that need it. The client could send it back instead, which is faster and makes the state forgeable — acceptable for ranking hints, not for anything eligibility depends on."
+  }],
+  contract:{in:"session id + refinement classification", out:"previous constraints and route state, or nothing"},
+  dials:[{n:"TTL",v:"minutes — a session is not a profile"},
+         {n:"Cache",v:"cache-aside, same TTL"},
+         {n:"Read consistency",v:"eventually consistent; a stale session is better than a slow one"}],
+  budget:{deadline:"a small slice, and it is skippable",
+    timeout:"tight",
+    onExpiry:"proceed with no inherited context",
+    retry:"none"},
+  gotchas:[{g:"Session state outlives its purpose and becomes a profile",
+    why:"Search sessions contain what people looked for. Without a TTL on the item itself, a short-term relevance aid quietly becomes long-term behavioural data with a different legal footing.",
+    fix:"Set the TTL attribute at write time, keep the item narrow, and separate it from the durable profile that px-personal reads."}],
+  scaling:[{axis:"QPS grows", response:"Cache absorbs it; the store sees only misses. Watch the refinement rate, which is what actually drives reads."}],
+  cost:"Per-request-unit, on a minority of requests.",
+  caps:["pii","cache"],
+  failures:[{f:"Refinement misclassified",s:"Constraints inherited into an unrelated new query",m:"inheritance rate against explicit query-clearing events"}],
+  example:"Would carry 'under $300' forward if the next query were just 'with a hot tub'."
+});
+
+/* ---------- band 4 · predicate compilation and routing ---------- */
+defPhys({
+  id:"px-predicate", name:"Predicate compiler", group:"Constraint handling", tier:"core", intro:1,
+  runtime:"inproc", cx:4, sub:"one AST, two dialects",
+  realises:["prefilter","confidence"],
+  departure:"Two logical stages, one physical component, and one of them stops being a stage at all: confidence is a field on each predicate node rather than a pass over the query. What replaces them is a compiler with two back ends — an OpenSearch bool.filter and a Qdrant Filter — and the requirement that they mean exactly the same thing. That requirement is the tab's central subject and it does not exist in the logical view at all.",
+  purpose:"Compiles the extracted constraints, the UI filters and the authorization predicate into one AST, then emits it in both engine dialects. Every candidate set in this diagram is filtered by one of its two outputs.",
+  substrate:{service:"In-process", unit:"AST + two emitters",
+    sizing:["golden files per emitter","allow-listed field names","non-relaxable flag per node"]},
+  decisions:[{
+    q:"How is one predicate applied to two engines?",
+    opts:["Write each engine's filter by hand","One AST compiled to both dialects","Filter in OpenSearch, post-filter Qdrant's results"],
+    def:"One AST, compiled to both dialects",
+    why:"Hand-written filters diverge the first time someone fixes one of them. Post-filtering the vector leg is the failure the logical view already warns about — a truncated top-k filtered afterwards is not the same candidate set as a filtered search — and it arrives here as an implementation shortcut rather than a design choice. One AST makes divergence a testable property instead of a hope."
+  },{
+    q:"How are soft and hard constraints separated?",
+    opts:["All extracted constraints are hard","Hard by type","Hard by confidence, with UI filters always hard"],
+    def:"Hard by confidence; UI filters always hard",
+    why:"This is the logical confidence stage, physically realised. A constraint the user ticked is certain; one the parser inferred is not. The distinction is what gives px-recovery a defensible order to relax in, and it is why confidence must survive as a field on the node rather than being resolved and discarded here."
+  }],
+  contract:{in:"constraints with confidence + UI filters + authorization claims",
+    out:"{ ast, opensearch_filter, qdrant_filter, relaxable[], non_relaxable[] }"},
+  dials:[{n:"Field allow-list",v:"closed — an unknown field is a rejection, not a pass-through"},
+         {n:"Confidence floor",v:"below it, a constraint is soft and relaxable"},
+         {n:"Geo resolution",v:"the ambiguous constraints are soft by construction"},
+         {n:"Non-relaxable set",v:"authorization and UI filters, flagged at compile time"}],
+  budget:{deadline:"CPU only; it is not a hop", timeout:"n/a", onExpiry:"n/a", retry:"none"},
+  optimisation:[{o:"Emit predicates that both engines can index",
+    when:"Always. A filter on a field with no Qdrant payload index is a filter that works in OpenSearch and degrades toward a scan in Qdrant — the same predicate with two completely different costs."},
+    {o:"Keep hard predicates in bool.filter, never in must",
+    when:"Always. Filter context is unscored and cacheable; must context is scored, uncached, and pollutes BM25 with constraint terms."}],
+  gotchas:[{g:"Filter parity drift between the two engines",
+    why:"One AST, two engines, and the engines disagree about type coercion, missing versus null fields, range inclusivity and geo units. They diverge silently, and the symptom is not an error — it is a fused ranking computed over two differently-filtered candidate sets.",
+    fix:"Golden-file both emitter outputs. In CI, run a filter-only, scoring-free query against a fixture corpus in both engines and assert the returned id sets are equal."},
+    {g:"Authorization predicates are relaxable",
+    why:"If entitlement clauses are ordinary AST nodes, the recovery controller can loosen them to escape a zero-result condition. A relevance feature becomes a data-access bug.",
+    fix:"Flag them non-relaxable at compile time and assert in a test that no relaxation ladder can reach them."},
+    {g:"A field the predicate can name but Qdrant cannot index",
+    why:"Payload indexes are per-field and must exist before the query. A newly-supported filter field ships in the compiler and silently degrades every query that uses it until someone adds the index.",
+    fix:"Derive the payload-index list from the compiler's own field allow-list, and fail the deployment if the collection is missing one."}],
+  scaling:[{axis:"Filter vocabulary grows", response:"Each new field needs an OpenSearch mapping and a Qdrant payload index. The compiler's allow-list is the right source for both, so the schema follows the code rather than the other way round."}],
+  cost:"CPU, trivial. Its cost is entirely in what a mistake here does downstream.",
+  caps:["parity","identity","pii","replay"],
+  notes:["If exactly one thing in this diagram deserves a golden-file test, it is this component's two outputs. Nearly every dual-store failure in the panels below is either caused here or detected here."],
+  failures:[{f:"The two dialects diverge on a boundary condition",s:"Fusion ranks two differently-filtered candidate sets; relevance drops with no error",m:"CI equality assertion on filter-only id sets, per release"},
+    {f:"Extracted field names not allow-listed",s:"User text reaches a query DSL as structure",m:"rejected-field counter, which should be non-zero and inspected"}],
+  example:"Emits beds ≥ 6 and price ≤ 300 as hard clauses in both dialects, the two-hour geo constraint as a soft, relaxable radius, and leaves 'quiet' and 'wood fireplace' entirely to the retrieval legs."
+});
+
+defPhys({
+  id:"px-router", name:"Retrieval router", group:"Constraint handling", tier:"recommended", control:true, intro:2,
+  runtime:"inproc", cx:3, sub:"static rules from AppConfig",
+  realises:["routing"],
+  purpose:"Decides which legs run, which encoders are needed and which rerank passes are eligible, from static rules on the intent class. A config object, not a model.",
+  substrate:{service:"In-process", unit:"rules loaded from AWS AppConfig",
+    sizing:["rules cached in the task, refreshed on a poll","rollback is a config push"]},
+  decisions:[{
+    q:"Rules or a learned router?",
+    opts:["Static rules on intent class","A learned policy","Always run everything"],
+    def:"Static rules, in config",
+    why:"The logical default is rules first, and physically that choice buys something specific: the routing policy becomes a versioned config object with an instant rollback, rather than a model artefact with a deployment. Running everything is the honest Core answer — Core has no router at all, and pays for it in fan-out."
+  }],
+  contract:{in:"intent class, entities, image presence, experiment variant",
+    out:"{ legs[], encoders[], rerank_passes[], per_leg_k }"},
+  dials:[{n:"Rules source",v:"AppConfig, polled"},
+         {n:"Rule evaluation",v:"deterministic and logged with the impression"},
+         {n:"Default",v:"run the Core legs — an unmatched query must still search"}],
+  optimisation:[{o:"Decide the encoder set before the encoding band, not during it",
+    when:"Always. Routing away a leg after its query vector has been computed pays the GPU hop for nothing."}],
+  gotchas:[{g:"The route is not logged with the impression",
+    why:"Two identical queries can produce different rankings because they took different routes. Without the route in the impression, the offline evaluation compares rankings that were never comparable.",
+    fix:"Log the resolved route, the config version and the experiment variant alongside every impression, and make them part of any ranking-affecting cache key."},
+    {g:"Config polling interval mistaken for instant rollback",
+    why:"'Rollback is a config push' is only true up to the poll interval, multiplied by however many tasks have not polled yet. During that window the fleet is running two policies.",
+    fix:"Know the interval, keep it short, and treat a config change as a partial deploy — because it is one."}],
+  scaling:[{axis:"Rules grow", response:"Evaluation stays trivial; comprehensibility does not. Once nobody can predict the route, this has become a model and should be replaced by one deliberately."}],
+  cost:"Negligible directly. It is the component with the most leverage over everything else's cost.",
+  alternatives:[{a:"A learned routing policy", when:"There is enough logged route-and-outcome data to train on, and the rule set has stopped being explainable."}],
+  caps:["cost","degrade","observe","rollback"],
+  failures:[{f:"A rule change ships without an eval run",s:"Relevance moves with no deploy and no obvious cause",m:"config version stamped on every impression"}],
+  example:"Sees a visual attribute and a geo constraint, and turns on the image legs it would leave off for a plain known-item query."
+});
+
+/* ---------- band 5 · encoding ---------- */
+defPhys({
+  id:"px-embed-cache", name:"Embedding cache", group:"Encoding", tier:"recommended", intro:2,
+  runtime:"store", cx:2, sub:"keyed on stripped text + encoder version",
+  realises:[], departure:"The logical view assumes a query vector exists — producing it is not a retrieval decision. Physically it is a GPU round trip, and this cache is what removes it. That makes the cache a component rather than an implementation detail: on a hit, the request has one fewer hop, and the shape of the request changes.",
+  purpose:"Serves query embeddings that have been computed before. A hit removes an entire GPU hop from the request, which is why it is drawn rather than assumed.",
+  substrate:{service:"Amazon ElastiCache (Valkey)", unit:"cluster, cache-aside",
+    sizing:["key: encoder id + version + stripped text","values are small; entry count is the sizing axis","TTL long — embeddings do not go stale, encoders do"]},
+  decisions:[{
+    q:"What is the cache key?",
+    opts:["The raw query","The normalised query","The exact encoder input plus the encoder version"],
+    def:"The exact encoder input plus the encoder version",
+    why:"The vector legs receive constraint-stripped text, not the raw query, so keying on the request would cache the wrong thing. Including the encoder version is not optional: a v2 query vector searched against a v1 index returns confident nonsense with no error, and a version-free key is how that happens."
+  }],
+  contract:{in:"encoder id, version, input text", out:"vector, or a miss"},
+  dials:[{n:"TTL",v:"long"},
+         {n:"Eviction",v:"LRU — the head of the query distribution is what pays for this"},
+         {n:"Key",v:"encoder + version + input, hashed"}],
+  budget:{deadline:"a small fraction of the encoder hop it replaces",
+    timeout:"tight — a slow cache must not cost more than the miss",
+    onExpiry:"treat as a miss and call the encoder",
+    retry:"none"},
+  optimisation:[{o:"Key on the stripped text",
+    when:"Always. It is the same decision the logical rewrite default already made, and it is worth a large multiple of hit rate."},
+    {o:"Fail open on any cache error",
+    when:"Always. A cache that can fail the request is a new dependency, not an optimisation."}],
+  gotchas:[{g:"Encoder version missing from the key",
+    why:"The worst failure in this diagram: no error, no latency change, plausible-looking results, and a ranking computed in the wrong vector space.",
+    fix:"Version in the key, version in the collection name, and a startup assertion that the two agree."},
+    {g:"The cache becomes load-bearing",
+    why:"Once the endpoint is sized for the hit rate rather than the request rate, a cold cache after a failover is an outage rather than a slow patch.",
+    fix:"Size the encoder for a plausible cold-start rate, not the steady-state miss rate, and test a flush."}],
+  scaling:[{axis:"Query distribution flattens", response:"Hit rate falls and the GPU hop returns. Track hit rate as a capacity input for px-embed-text, not just as a cache statistic."}],
+  cost:"Node-hours, and it pays for itself in GPU seconds at any real hit rate.",
+  caps:["cache","cost","tail"],
+  failures:[{f:"Stale vectors after an encoder upgrade",s:"Ranking quality drops with no error",m:"assertion that encoder version matches the collection's, at task start"}],
+  example:"Holds the vector for 'quiet waterfront cabin with a wood fireplace' — the stripped form, which repeats across many differently-filtered searches."
+});
+
+defPhys({
+  id:"px-embed-text", name:"Text embedding", group:"Encoding", tier:"core", intro:1,
+  runtime:"gpu", cx:3, sub:"one GPU hop, or none on a cache hit", parallel:"encoding",
+  realises:["textvec"],
+  departure:"The logical dense retrieval leg assumes its query vector. Physically that vector costs a network call to a GPU endpoint, with its own deadline, its own cold start and its own version coupling to the index. Splitting it out is what makes the cache above it visible, and the cache is worth more than the node.",
+  purpose:"Encodes the constraint-stripped query text into the dense space the Qdrant collection was built in. Every dense leg waits on this, so it sits on the critical path in a way no logical diagram shows.",
+  substrate:{service:"Amazon SageMaker", unit:"real-time endpoint, Triton dynamic batching",
+    sizing:["provisioned minimum capacity — do not scale to zero","version pinned to the collection","one model, one endpoint"]},
+  decisions:[{
+    q:"Where does query encoding run?",
+    opts:["In-process on CPU","A managed GPU endpoint","Inside the search engine"],
+    def:"A managed GPU endpoint, cached in front",
+    why:"A query is one short sequence, so CPU is viable for small models and is worth measuring before assuming otherwise. The endpoint wins once the model is large enough that CPU latency eats the retrieval budget — and it brings a cold-start problem, a version-coupling problem and a hop the logical view never mentions. Engine-side embedding couples your encoder lifecycle to your search engine's, which is the coupling you least want."
+  },{
+    q:"How is the encoder versioned against the index?",
+    opts:["By convention","Version in the collection name, asserted at start","Re-embed on mismatch"],
+    def:"Version in the collection name, asserted at task start",
+    why:"A v2 query vector against a v1 index produces confident, plausible, wrong results with no error anywhere. Nothing else in this diagram fails that quietly, so the check has to be structural rather than procedural."
+  }],
+  contract:{in:"stripped query text", out:"dense vector, encoder version stamped"},
+  dials:[{n:"Instance family",v:"smallest GPU that clears the deadline"},
+         {n:"Minimum capacity",v:"≥ 1 — scaling to zero buys a cold start on a live query"},
+         {n:"Batching",v:"Triton dynamic, short queue window"},
+         {n:"Sequence length",v:"truncated; a query is short by construction"}],
+  budget:{deadline:"a hard slice of the query-processing band, before retrieval opens",
+    timeout:"the deadline",
+    onExpiry:"drop the dense legs and search lexically only, disclosed in the response",
+    retry:"none inside the band"},
+  optimisation:[{o:"Cache in front, always",when:"Always. See px-embed-cache; on a hit this component does not run."},
+    {o:"Keep a provisioned minimum instance",when:"Always in production. Cold starts land on real queries and are indistinguishable from an outage to the user who got one."},
+    {o:"Quantize or distil the query tower",when:"The endpoint is the retrieval band's critical path and the recall cost is measured, not assumed."}],
+  gotchas:[{g:"Encoder and index versions drift apart",
+    why:"There is no error, no latency signal and no obvious symptom. Results stay plausible and relevance quietly halves.",
+    fix:"Encoder version in the collection name, asserted at task start; refuse to serve on mismatch rather than degrading."},
+    {g:"Autoscaling to zero",
+    why:"The first request after a scale-in waits for a model load. It is rare, it is enormous, and it is invisible in a mean.",
+    fix:"Provisioned minimum capacity, and read the tail rather than the average."}],
+  scaling:[{axis:"QPS grows", response:"Instance count, but cache hit rate first — it is far cheaper than a second GPU."},
+    {axis:"Model grows", response:"Larger instance, or distil. This endpoint's latency is spent before retrieval can start, so it compounds."}],
+  cost:"GPU instance-hours, billed whether or not queries arrive. The cache is what makes the sizing sane.",
+  alternatives:[{a:"CPU inference in the orchestrator", when:"The model is small enough that CPU latency fits the budget — measure before assuming it does not. It removes a hop, an endpoint and a version-drift class."},
+    {a:"A managed embedding API", when:"Traffic is low and operating an endpoint is not worth it; accept the per-call price and the vendor's version lifecycle."}],
+  caps:["tail","cost","cache","degrade"],
+  failures:[{f:"Cold start on a live request",s:"A single request an order of magnitude slower, invisible in the mean",m:"p99 by endpoint, and model-load events"},
+    {f:"Version mismatch with the collection",s:"Confident, wrong ranking",m:"startup assertion; recall against the CI fixture"}],
+  example:"Encodes 'quiet waterfront cabin with a wood fireplace' — never the price or the bed count, which became predicates."
+});
+
+defPhys({
+  id:"px-embed-image", name:"Image embedding", group:"Encoding", tier:"optional", intro:3,
+  runtime:"gpu", cx:3, sub:"image tower · only when an image is supplied", parallel:"encoding",
+  realises:["imageimagevec"],
+  departure:"The logical image-to-image leg assumes an encoded image. Physically that means fetching the uploaded object and running the image tower — a second GPU endpoint with a different instance profile from the text one, gated on an input that most requests do not have.",
+  purpose:"Encodes a user-supplied image with the same dual-tower model that produced the collection's image vectors, so the query and the corpus share one space.",
+  substrate:{service:"Amazon SageMaker", unit:"real-time endpoint, CLIP/SigLIP image tower",
+    sizing:["gated: most requests never touch it","tower version pinned to the collection's image vectors"]},
+  contract:{in:"image reference", out:"image-tower vector"},
+  dials:[{n:"Gate",v:"an image is present in the request"},
+         {n:"Preprocessing",v:"identical to index time — resize and crop included"},
+         {n:"Minimum capacity",v:"can be lower than the text endpoint; the gate is narrow"}],
+  budget:{deadline:"shares the encoding band with the text encoder, concurrently",
+    timeout:"the deadline",
+    onExpiry:"drop the image-to-image leg; the text legs still answer the query",
+    retry:"none"},
+  optimisation:[{o:"Cache on the image content hash",when:"Always. Re-uploading the same photo is the normal refinement gesture."},
+    {o:"Run concurrently with the text encoder",when:"Always. They are independent, and serialising them lengthens the critical path for no reason."}],
+  gotchas:[{g:"Query-side preprocessing differs from index-side",
+    why:"Different resize, crop or colour handling puts the query in a subtly different place in the same space. Recall degrades with no error, exactly like an analyser mismatch on the lexical side.",
+    fix:"One preprocessing implementation, shared by the indexer and the query path, tested on a fixture image."},
+    {g:"Two towers, one version number",
+    why:"Text and image towers are compatible only as a matched pair. Upgrading one and not the other breaks cross-modal search while leaving each leg individually plausible.",
+    fix:"Version the pair, not the towers, and pin it in the collection name."}],
+  scaling:[{axis:"Image queries grow", response:"Instance count. The gate rate is the capacity input, not overall QPS."}],
+  cost:"GPU instance-hours for a gated path — the least well-utilised endpoint in the design, and the easiest to over-provision.",
+  alternatives:[{a:"One multimodal endpoint serving both towers", when:"Volume is low enough that two endpoints is mostly idle capacity."}],
+  caps:["tail","cost","pii"],
+  failures:[{f:"Preprocessing drift between index and query",s:"Image search returns weak matches with no error",m:"image probe suite against known pairs"}],
+  example:"Runs only if the reader uploads a photo of a fireplace; otherwise the visual facets are served entirely by the text tower against image vectors."
+});
+
+defPhys({
+  id:"px-embed-sparse", name:"Sparse encoder", group:"Encoding", tier:"optional", intro:3,
+  runtime:"gpu", cx:3, sub:"query term expansion with learned weights", parallel:"encoding",
+  realises:["sparse"],
+  departure:"The logical learned-sparse leg is one retrieval stage. Physically the query side of it is an encoder — producing weighted terms — and the retrieval side rides the same OpenSearch request as BM25. So one logical leg splits across an encoder and an engine that is already being called, which is the whole reason sparse is cheap here.",
+  purpose:"Expands the query into weighted vocabulary terms that the OpenSearch sparse clause scores. The expansion happens in the model, inside one round trip, rather than in a feedback loop with a second one.",
+  substrate:{service:"Amazon SageMaker", unit:"SPLADE-style encoder",
+    sizing:["bounded expansion term count","vocabulary version pinned to the index"]},
+  decisions:[{
+    q:"Where does the sparse encoder run?",
+    opts:["A SageMaker endpoint","Inside OpenSearch as a neural-sparse processor","Not at all"],
+    def:"Either, but decide deliberately",
+    why:"Engine-side encoding removes a hop and couples the encoder's lifecycle to the cluster's; endpoint-side keeps them separable at the cost of the hop. The choice is real and neither answer is obviously right — which is exactly why it is drawn as a component instead of assumed."
+  }],
+  contract:{in:"query text", out:"weighted term vector"},
+  dials:[{n:"Expansion cap",v:"bounded — every added term is postings work"},
+         {n:"Vocabulary version",v:"pinned to the index"},
+         {n:"Weight floor",v:"drop the long tail of near-zero weights"}],
+  budget:{deadline:"shares the encoding band, concurrently with the other encoders",
+    timeout:"the deadline",
+    onExpiry:"drop the sparse clause; BM25 still runs in the same request",
+    retry:"none"},
+  gotchas:[{g:"Expansion inflates the query's term count",
+    why:"A sparse query is a large boolean over expanded terms. It rides the same request as BM25 for free in network terms, but not in engine terms — clause limits and terminate_after settings were sized for a human-length query.",
+    fix:"Cap expansion, and check the cluster's clause limits against the encoder's actual output rather than its typical output."}],
+  scaling:[{axis:"Corpus grows", response:"Sparse postings grow faster than lexical ones, because the encoder expands documents too. Index size is the axis to watch."}],
+  cost:"An endpoint hop, or engine CPU. The retrieval itself is nearly free — it rides a request you were already making.",
+  alternatives:[{a:"The engine's own neural-sparse encoder", when:"You would rather couple the encoder's lifecycle to the cluster's than pay the hop. It removes a deployment unit and takes away your ability to version the two independently."},
+    {a:"Query expansion instead (px-expand)", when:"Never both by default. They solve the same vocabulary-mismatch problem, and the learned encoder does it inside one round trip while expansion needs two."}],
+  caps:["cost","tail"],
+  failures:[{f:"Encoder and index vocabularies diverge",s:"Sparse leg silently contributes nothing",m:"per-leg contribution to the fused top-10"}],
+  example:"Expands 'cabin' and 'waterfront' into related weighted terms the document text may use instead."
+});
+
+/* ---------- band 6 · candidate retrieval ---------- */
+defPhys({
+  id:"px-os-search", name:"OpenSearch query", group:"Candidate retrieval", tier:"core", intro:1,
+  runtime:"engine", cx:4, sub:"one _msearch · BM25 and sparse in the same request", parallel:"retrieval",
+  realises:["lexical","sparse"],
+  departure:"Two logical retrieval legs become one network call. BM25 and the learned-sparse clause are both postings lookups over the same inverted structure, so they share one request, one filter and one round trip. The legs stay two distinct queries with two distinct rank lists — they simply stop being two round trips, which is the largest single latency saving in the design and the reason sparse lives on this engine.",
+  purpose:"Runs everything sparse. Exact and rare terms via BM25 with per-field weighting, learned-sparse expansion in the same request, both scoped by the compiled hard predicate in filter context.",
+  substrate:{service:"Amazon OpenSearch Service", unit:"managed domain",
+    sizing:["3 data nodes minimum, dedicated masters","20–40 GB per shard, shard count fixed at creation","2 replicas","private subnets, no public endpoint"]},
+  byLevel:{
+    1:{sub:"BM25, field-weighted", chips:["1 clause"]},
+    2:{sub:"BM25, field-weighted · filter-cached", chips:["1 clause"]},
+    3:{sub:"BM25 + learned sparse, one request", chips:["2 clauses, 1 round trip"]}
+  },
+  decisions:[{
+    q:"How do the lexical and sparse legs reach the engine?",
+    opts:["Two separate searches","One _msearch","One bool query combining both"],
+    def:"One _msearch, two named sub-queries",
+    why:"Two searches double the round trips and the tail for two clauses that hit the same postings and the same filter. One bool query would mix the two scoring regimes into a single score, which destroys the separate rank lists that fusion needs. _msearch keeps them distinct and keeps them cheap."
+  },{
+    q:"Where does the hard predicate go?",
+    opts:["bool.filter","bool.must","A post_filter"],
+    def:"bool.filter, always",
+    why:"Filter context is unscored and cacheable, so a repeated predicate is nearly free on the second query. In must context the same clause is scored — which both pollutes the BM25 ranking with constraint terms and defeats the filter cache. post_filter is worse still: it filters after scoring and after aggregation, so it returns fewer results than it should and cannot prune any work."
+  },{
+    q:"How is paging done?",
+    opts:["from + size","search_after","search_after with a PIT"],
+    def:"search_after, with a PIT where the ranking must be stable",
+    why:"from + size re-sorts the whole window on every shard for every page. Beyond the first page or two it is the most expensive mistake available in this component. The fused order is not reproducible from the index alone, so page stability has to be pinned deliberately rather than assumed."
+  }],
+  contract:{in:"lexical text + expanded sparse terms + compiled bool.filter + per-clause k",
+    out:"two named rank lists of [_id, _score], no _source"},
+  dials:[{n:"Field weights",v:"title-heavy",note:"A query-time change, not a reindex — which is what makes it safe to tune."},
+         {n:"k per clause",v:"100–200"},
+         {n:"Shards",v:"20–40 GB each, fixed at index creation"},
+         {n:"Replicas",v:"2"},
+         {n:"preference",v:"session-stable, for shard-cache locality"},
+         {n:"Per-clause timeout",v:"set — a slow sub-query holds the whole _msearch response"}],
+  budget:{deadline:"the retrieval band's allocation, shared with the Qdrant call",
+    timeout:"deadline plus one round trip",
+    onExpiry:"return whatever the completed clauses produced; disclose the missing leg",
+    retry:"none inside the band — a retry cannot fit in a budget already spent"},
+  optimisation:[{o:"Request ids and scores only, never _source",
+    when:"Always. Hydration happens later and over a smaller set; _source on the retrieval response is bytes on the critical path you are about to discard."},
+    {o:"Keep every hard predicate in filter context",
+    when:"Always. It is the difference between a cached bitset and a scored clause."},
+    {o:"Set preference to a session-stable value",
+    when:"Always. Successive requests from one user hit the same shard copies and the same caches. Free, and easy to never think of."},
+    {o:"docvalue_fields rather than _source for anything needed at ranking time",
+    when:"A final-ranking pass needs an attribute before hydration — diversity capping, for instance."}],
+  gotchas:[{g:"Query-time and index-time analysis diverge",
+    why:"Different analysers on the two sides mean an exact title query stops matching its own document. It is the lexical equivalent of an encoder version mismatch: no error, plausible results, ruined known-item search.",
+    fix:"Assert analysis parity in CI with _analyze on a fixture set, and keep the exact-match probe suite as a hard gate."},
+    {g:"The request cache is assumed to cache hits",
+    why:"OpenSearch's request cache applies to size:0 requests — aggregations, not search hits. Believing otherwise leads to capacity plans built on a cache that never fires.",
+    fix:"Measure the cache hit rate rather than assuming it, and cache search results, if at all, in your own tier where you control the key."},
+    {g:"A slow sub-query holds the whole _msearch",
+    why:"One malformed clause does not fail the batch, but one slow clause delays the entire response — so the cheap clause inherits the expensive clause's latency.",
+    fix:"Per-clause timeouts, and watch the two clauses' latencies separately even though they share a request."},
+    {g:"Oversharding at creation",
+    why:"Shard count is fixed at index creation and every shard costs per-query coordination. Oversharding buys nothing and is paid on every request forever; undersharding forces a reindex.",
+    fix:"Size on projected corpus at 20–40 GB per shard, and change it by rebuilding behind an alias."}],
+  scaling:[{axis:"Corpus grows", response:"More shards, which means a rebuild behind an alias rather than an in-place change. Plan the alias swap before you need it."},
+    {axis:"QPS grows", response:"Replicas, then more data nodes. Replicas cost disk and heap but scale reads linearly."},
+    {axis:"Sparse enabled", response:"Postings grow substantially — the encoder expands documents as well as queries. This is an index-size decision, not just a query one."}],
+  cost:"Node-hours and storage, dominated by the replica factor. Predictable and boring, which is the point.",
+  alternatives:[{a:"Elasticsearch", when:"Licensing and existing tooling favour it; the architecture here is identical."},
+    {a:"OpenSearch Serverless", when:"Traffic is spiky and operational simplicity outweighs control over shard layout and warm caches."},
+    {a:"OpenSearch k-NN for the dense legs too", when:"Documented on px-qdrant-search — it is an argument about the whole design, not about this node."}],
+  caps:["parity","freshness","identity","rollback","cost"],
+  notes:["This node and px-qdrant-search are the same shape and the same size on the diagram, and that is deliberate: the design's central claim is that neither engine is the search engine. Each owns what it is good at, and the thing that combines them is neither."],
+  failures:[{f:"Analyser mismatch after an index change",s:"Known-item queries stop ranking first",m:"exact-match probe suite, hard CI gate"},
+    {f:"Deep paging with from + size",s:"Latency grows with page number until pages time out",m:"latency by page depth"}],
+  example:"Takes the full six-facet string with title-weighted BM25, plus the compiled beds/price/geo predicate in filter context — the only leg that sees the query text intact."
+});
+
+defPhys({
+  id:"px-qdrant-search", name:"Qdrant query", group:"Candidate retrieval", tier:"core", intro:1,
+  runtime:"engine", cx:4, sub:"one Query API call · named vectors · prefetch branches", parallel:"retrieval",
+  realises:["textvec","textimagevec","imageimagevec","multivec"],
+  departure:"Four logical retrieval legs become one network call. Qdrant's Query API takes several prefetch branches in one request, each over a different named vector on the same points, sharing one payload filter. The legs are still four distinct queries — they just stop being four round trips. The panel's branch list keeps them visible.",
+  purpose:"Runs everything dense. Text-to-text, text-to-image, image-to-image and late-interaction branches over named vectors on the same points, all scoped by the same compiled payload filter.",
+  substrate:{service:"Qdrant Cloud Hybrid (BYOC)", unit:"collection",
+    sizing:["shards ≈ 2× nodes","replication factor 2","gRPC, not REST","data plane stays in the customer VPC"]},
+  byLevel:{
+    1:{sub:"one branch · text_dense", chips:["1 prefetch branch"]},
+    2:{sub:"two branches · text_dense, image_clip", chips:["2 prefetch branches"]},
+    3:{sub:"four branches · + image-to-image, multivector", chips:["4 prefetch branches"]}
+  },
+  decisions:[{
+    q:"One call with prefetch branches, or one call per leg?",
+    opts:["One call per leg","One call, N prefetch branches","Server-side fusion in Qdrant"],
+    def:"One call, N prefetch branches, fused in the orchestrator",
+    why:"Per-leg calls multiply the round trip and the tail: the leg you wait on becomes the slowest of N independent network calls rather than the slowest of N concurrent index scans. Qdrant can also fuse the branches server-side with RRF, and you still should not let it — the OpenSearch ranks are not in that request, so a server-side fusion produces a confident ranking over half the candidates."
+  },{
+    q:"How is the hard predicate applied?",
+    opts:["Payload filter with payload indexes","Post-filter the top-k","Pre-fetch ids from OpenSearch"],
+    def:"Payload filter, with a payload index on every filtered field",
+    why:"Without a payload index Qdrant cannot use the filterable-HNSW path and degrades toward a scan; with one it prunes inside the graph traversal. Post-filtering a truncated top-k is the failure the logical view already warns about, arriving here as a config omission rather than a design choice."
+  }],
+  contract:{in:"query vectors + compiled Qdrant Filter + per-branch limits",
+    out:"points with id, score, branch and a minimal payload subset"},
+  dials:[{n:"HNSW m / ef_construct",v:"16 / 128",note:"Raise m for high-dimensional or high-recall collections. It costs memory permanently and cannot be changed without a rebuild."},
+         {n:"ef (search)",v:"128",note:"The recall-versus-work dial. Tune it against exact search until the logical target — recall@100 ≥ 0.95 — holds at production filter selectivity, not on an unfiltered benchmark."},
+         {n:"Quantization",v:"scalar int8, rescore on, oversampling 2×"},
+         {n:"Vectors on disk",v:"mmap, quantized vectors resident"},
+         {n:"Transport",v:"gRPC"}],
+  budget:{deadline:"the retrieval band's allocation, shared with the OpenSearch call",
+    timeout:"deadline plus one round trip",
+    onExpiry:"drop the branches the router marked optional, keep text_dense",
+    retry:"none inside the band — a retry cannot fit in a deadline that has already expired"},
+  optimisation:[{o:"A payload index on every field the predicate can name",
+    when:"Always. This is not an optimisation; it is what makes filtered ANN work at all."},
+    {o:"Scalar quantization with rescore and 2× oversampling",
+    when:"Once the collection no longer fits comfortably in RAM."},
+    {o:"Return ids and scores only; hydrate elsewhere",
+    when:"Always. Payload in the search response is bytes on the critical path you are about to overwrite."},
+    {o:"gRPC over REST",when:"Always, for a service-to-service caller. REST is for the console."},
+    {o:"indexing_threshold to 0 during bulk load, restored afterwards",
+    when:"Backfill and reindex only — and the restore is the half people forget."}],
+  gotchas:[{g:"Filter parity drift between the two engines",
+    why:"The OpenSearch filter and the Qdrant filter are compiled from one AST but executed by two engines with different type coercion, different null semantics and different range-boundary handling. They diverge silently, and the symptom is a fusion ranking over two differently-filtered candidate sets.",
+    fix:"Golden-file the compiler's two outputs, and assert equal result-id sets for a filter-only, scoring-free query in CI against a fixture corpus."},
+    {g:"Recall measured unfiltered",
+    why:"Filtered HNSW recall at 1% selectivity is a different number from unfiltered recall, and it is the one production experiences.",
+    fix:"Benchmark ef against exact search at the selectivity your predicates actually produce."},
+    {g:"Point id space diverges from the OpenSearch _id",
+    why:"RRF fuses rank lists by document id. If the engines disagree about identity, fusion silently ranks two half-populated lists and the symptom is mediocre relevance rather than an error.",
+    fix:"One canonical id assigned upstream in the indexer, used verbatim as both the Qdrant point id and the OpenSearch _id. Qdrant ids are UUID or unsigned integer, so a string business key needs a deterministic UUIDv5 derivation."},
+    {g:"Quantized search returns without rescore",
+    why:"Ranking changes with no error, no latency signal and no obvious symptom.",
+    fix:"Rescore on, oversampling set, and recall@100 against exact search on the CI fixture as the gate."}],
+  scaling:[{axis:"Corpus grows",
+    response:"More shards, and quantization before more RAM. Resharding is a rebuild, so overshard slightly at the start."},
+    {axis:"QPS grows",
+    response:"Replication factor, then read spread. Each replica costs the full index in memory."},
+    {axis:"Branches grow",
+    response:"Cost is roughly additive per branch within one call; the call itself does not get more expensive. This is why four legs here cost so much less than four legs would anywhere else."}],
+  cost:"Memory-dominated. Vector count × dimensions × replication, mitigated by quantization.",
+  alternatives:[{a:"OpenSearch k-NN for the dense legs too, retiring Qdrant",
+    when:"The corpus is small enough that one engine's operational simplicity outweighs ANN control, or the team cannot run a second stateful system. It removes the entire filter-parity class of gotcha — the strongest argument against this design's own central choice, and it is stated here on purpose."},
+    {a:"Separate collections per modality instead of named vectors",
+    when:"The modalities have genuinely different point populations — far more images than documents, for instance — because every point otherwise carries every named vector's overhead."}],
+  caps:["parity","identity","freshness","tail","cost"],
+  failures:[{f:"Filtered ANN degrades to a scan under a selective predicate",
+    s:"The retrieval deadline expires on exactly the queries with the most specific constraints",
+    m:"deadline-expiry rate segmented by predicate selectivity"},
+    {f:"Quantized search returns without rescore",
+    s:"Ranking quality drops with no error and no latency change",
+    m:"recall@100 against exact search, on the CI fixture"}],
+  example:"Carries the constraint-stripped text — 'quiet waterfront cabin with a wood fireplace' — as text_dense, the same text against image_clip, and the compiled beds/price/geo predicate as the payload filter on every branch."
+});
+
+defPhys({
+  id:"px-deadline", name:"Deadline controller", group:"Candidate retrieval", tier:"recommended", control:true, intro:2,
+  runtime:"inproc", cx:4, sub:"budget, hedging, breakers, drop order",
+  realises:["degradation"],
+  purpose:"Owns what happens when the budget runs out. Holds the per-band allocation, decides what to drop and in what order, and opens the breakers that keep a failing dependency from becoming a failing request.",
+  substrate:{service:"In-process", unit:"budget object + circuit breakers",
+    sizing:["drop order in AppConfig, so it can be changed and tested without a deploy"]},
+  decisions:[{
+    q:"What is dropped first when the budget runs short?",
+    opts:["Whatever is running when time expires","A fixed, configured order","Whatever is cheapest to cancel"],
+    def:"A fixed order: optional verification, then rerank depth, then the slowest nonessential leg",
+    why:"This is the logical degradation default made operational. A fixed order is testable, explainable and disclosable; dropping whatever happens to be running produces a different ranking every time under load, which is the worst possible behaviour to debug. Putting the order in config means you can rehearse it."
+  },{
+    q:"Are hedged requests used?",
+    opts:["No","Yes, on the retrieval calls","Yes, everywhere"],
+    def:"Hedge the retrieval reads only, at a low rate",
+    why:"Hedging is tail control, not error handling, and it costs real duplicate load. It is defensible on idempotent engine reads at a small hedge rate and indefensible on a GPU endpoint, where the second request costs as much as the first."
+  }],
+  contract:{in:"remaining budget, per-band allocations, breaker state",
+    out:"go/no-go per stage + the degradation record for the response"},
+  dials:[{n:"Band allocations",v:"summing to less than the request deadline, with a reserve"},
+         {n:"Recovery reserve",v:"budget held back so a second retrieval pass can still fit"},
+         {n:"Hedge rate",v:"low, retrieval reads only"},
+         {n:"Breaker thresholds",v:"per dependency, with a half-open probe"}],
+  budget:{deadline:"it is the deadline",
+    timeout:"n/a",
+    onExpiry:"return the best complete ordering held, with the degradation disclosed",
+    retry:"none — this component exists to stop retries happening inside a spent budget"},
+  optimisation:[{o:"Check the budget before dispatching an expensive stage, not after",
+    when:"Always. A cross-encoder batch started with no budget left is pure waste and it is the single easiest degradation win available."},
+    {o:"Propagate the deadline to the engines as their own timeout",
+    when:"Always. A deadline only the caller knows about cancels the caller, not the query."}],
+  gotchas:[{g:"A breaker that fails the request instead of degrading it",
+    why:"An open breaker on the cross-encoder should produce the fused ordering, not an error. Circuit breakers exist to protect the whole request path, not to protect the failing dependency from traffic.",
+    fix:"Every breaker's open state names a fallback behaviour, and a test exercises it."},
+    {g:"Retrying inside a band",
+    why:"If the deadline is spent, a retry cannot fit — it converts a degraded response into a failed one, more slowly.",
+    fix:"Retry belongs at the connection level for genuine connect failures. Nowhere else in this diagram."},
+    {g:"Hedging used as error handling",
+    why:"Hedges multiply load at exactly the moment the system is already struggling, which turns a tail problem into a capacity problem.",
+    fix:"Cap the hedge rate, hedge only idempotent reads, and alert when the rate rises."}],
+  scaling:[{axis:"Load rises", response:"Degradation should fire more often and the response should say so. A system whose degradation rate does not move under load is not degrading, it is queueing."}],
+  cost:"Nothing directly. It is the component that decides what everything else is allowed to cost.",
+  caps:["tail","degrade","blast","observe","cost"],
+  notes:["The band costs its slowest member, and its p99 is roughly the maximum of the legs' p99s. Adding a leg makes the tail worse even when it makes the mean better — which is why this component appears at Recommended, the moment the diagram grows a second concurrent leg."],
+  failures:[{f:"Degradation is silent",s:"A response missing a leg looks identical to a complete one",m:"degradation events per thousand requests, by dropped stage"},
+    {f:"No reserve for recovery",s:"Zero-result recovery never fits, so it never runs",m:"recovery attempts versus zero-result events"}],
+  example:"On a slow request, drops the visual verification pass first and keeps the six-facet ranking rather than failing it."
+});
+
+/* ---------- band 7 · candidate generation ---------- */
+defPhys({
+  id:"px-sufficiency", name:"Sufficiency check", group:"Candidate generation", tier:"recommended", decision:true, intro:2,
+  runtime:"inproc", cx:2, sub:"per-leg floors, after union and before pruning",
+  realises:["sufficiency"],
+  purpose:"Decides whether the candidate set is worth ranking. Applies calibrated per-leg floors to the unioned set and routes to recovery when it is not.",
+  substrate:{service:"In-process", unit:"floors loaded from AppConfig",
+    sizing:["one floor per leg, tuned separately"]},
+  contract:{in:"unioned candidates with per-leg ranks", out:"sufficient, or a recovery trigger with a reason"},
+  dials:[{n:"Per-leg floors",v:"calibrated separately; the legs return different volumes by nature"},
+         {n:"Position",v:"after union, before pruning — pruning would hide the shortfall"}],
+  gotchas:[{g:"One global floor across legs",
+    why:"A dense leg always returns k results and a filtered lexical leg may return three. One threshold across both either fires constantly or never.",
+    fix:"Floors per leg, calibrated against real selectivity, and stored where they can be tuned without a deploy."}],
+  cost:"CPU, negligible.",
+  caps:["degrade","observe"],
+  failures:[{f:"Floors set on unfiltered traffic",s:"Recovery never fires on the queries that need it",m:"recovery trigger rate by predicate selectivity"}],
+  example:"With six facets compiled to hard filters, this is the query most likely to trip the floor and route into recovery."
+});
+
+defPhys({
+  id:"px-recovery", name:"Recovery controller", group:"Candidate generation", tier:"recommended", intro:2,
+  runtime:"inproc", cx:3, sub:"bounded relaxation · two passes, hard-capped",
+  realises:["relax","zerofallback"],
+  departure:"Two logical stages, one physical controller — they are two branches of the same bounded loop with one pass counter. The loop's target also moves: logically relaxation returns to pre-filtering, but physically it must return to the predicate compiler, because a relaxed constraint has to be recompiled into both engine dialects before either can be re-queried.",
+  purpose:"Escapes a zero or thin result set by loosening the softest constraints and re-querying, at most twice, never touching a constraint the user set or the authorizer imposed.",
+  substrate:{service:"In-process", unit:"bounded loop with a pass counter",
+    sizing:["relaxation ladder in AppConfig","hard cap of two passes","never loosens a non-relaxable node"]},
+  decisions:[{
+    q:"Where does a relaxed query re-enter the pipeline?",
+    opts:["Straight back to the retrieval calls","Back to the predicate compiler","Back to query understanding"],
+    def:"Back to the predicate compiler",
+    why:"A relaxed constraint must be recompiled into both dialects before either engine can be re-queried. Loosening the OpenSearch filter and not the Qdrant filter would fuse two incomparable candidate sets — the relaxation would produce worse results than the query it was rescuing. This is the clearest place in the diagram where the physical loop is not the logical loop."
+  }],
+  contract:{in:"the AST, the relaxable set, the pass count",
+    out:"a relaxed AST for recompilation + the relaxation record for the response"},
+  dials:[{n:"Ladder",v:"domain-specific, ordered by confidence — the least certain constraint goes first"},
+         {n:"Pass cap",v:"2, hard"},
+         {n:"Budget",v:"drawn from the reserve px-deadline held back"}],
+  budget:{deadline:"the reserve, not the main allocation",
+    timeout:"whatever remains",
+    onExpiry:"return the thin result set with the shortfall disclosed",
+    retry:"the pass counter is the retry, and it is capped"},
+  gotchas:[{g:"Relaxation reaches a non-relaxable predicate",
+    why:"Loosening an authorization or entitlement clause to escape a zero-result condition turns a relevance feature into a data-access bug — and it will look like it worked.",
+    fix:"Flag those nodes at compile time, and assert in a test that no ladder step can reach one."},
+    {g:"An uncapped loop",
+    why:"Without a hard cap, the worst-case request is unbounded and it is exactly the request that is already going badly.",
+    fix:"Cap the passes, reserve the budget in advance, and count the cap being hit."}],
+  scaling:[{axis:"Recovery rate rises", response:"Effective load rises by more than the rate suggests, because each pass is a full retrieval band. It is a capacity input, not just a relevance signal."}],
+  cost:"A second retrieval band inside one request, on the queries where it fires.",
+  caps:["degrade","pii","observe"],
+  failures:[{f:"Relaxation not disclosed in the response",s:"The user sees results that do not meet the constraints they stated",m:"relaxation events by constraint, and by source"}],
+  example:"Widens 'within 2 hours' before anything else, because it is the one facet the compiler marked ambiguous and low-confidence."
+});
+
+defPhys({
+  id:"px-fuse", name:"Union, prune and fuse", group:"Candidate generation", tier:"core", intro:1,
+  runtime:"inproc", cx:3, sub:"RRF, k = 60 · ranks only, never scores",
+  realises:["union","prune","fusion"],
+  departure:"Three logical stages, one physical component: three passes over one array in one process. Drawing three boxes for three loops would be dishonest at this abstraction level — but the reason they can merge is worth stating, because it is the design's whole argument. Fusion runs here rather than in either engine, because reciprocal rank fusion needs both rank lists in one process and neither engine can see the other's.",
+  purpose:"Unions the two engines' rank lists on a shared document id, prunes per leg, and produces one ordering by reciprocal rank fusion. This is the component that makes two engines into one search system.",
+  substrate:{service:"In-process", unit:"one pass over the candidate array",
+    sizing:["k = 60","per-leg top-N with conservative floors","per-leg ranks and evidence retained to the end"]},
+  decisions:[{
+    q:"Ranks or scores across the engine boundary?",
+    opts:["Normalise and combine scores","Combine ranks (RRF)","Train a fusion model"],
+    def:"Ranks, via RRF with k = 60",
+    why:"BM25 scores and cosine similarities have no common scale, and calibrating them across two engines is a standing maintenance cost that changes every time either engine's scoring does. RRF needs no calibration, so no raw score ever crosses the engine boundary and no score-normalisation service exists anywhere in this design. That absence is the single largest simplification the physical view inherits from a logical default."
+  },{
+    q:"What joins the two rank lists?",
+    opts:["A canonical id assigned upstream","The engines' native ids","A URL or business key"],
+    def:"A canonical id, assigned once in the indexer",
+    why:"Fusion is a join. If the two engines disagree about identity, the join half-fails and the result is two partially-populated lists ranked confidently against each other — mediocre relevance with no error and nothing in the logs. This is the most consequential three lines of code in the indexer."
+  }],
+  contract:{in:"two engines' rank lists + per-leg ranks and evidence",
+    out:"one fused ordering with fused_score, per-leg ranks and provenance retained"},
+  dials:[{n:"RRF k",v:"60",note:"Results are insensitive between roughly 20 and 100. Tuning it is time not spent on rerank depth, which does move nDCG."},
+         {n:"Per-leg top-N",v:"conservative floors — this is what sizes the cross-encoder batch"},
+         {n:"Leg weights",v:"equal for lexical and dense; text-to-image down-weighted"}],
+  optimisation:[{o:"Keep per-leg provenance on the candidate to the end",
+    when:"Always. It is what makes a degraded response explainable and a relevance regression diagnosable, and it costs a few fields."}],
+  gotchas:[{g:"Document identity diverges between the engines",
+    why:"Detailed on px-qdrant-search, and it lands here: the join silently half-fails. Nothing errors, nothing is slow, and relevance is quietly worse than either engine alone.",
+    fix:"One canonical id from the indexer, and a CI assertion that a fixture document is retrievable by the same id from both engines."},
+    {g:"A missing leg treated as a shorter list",
+    why:"When degradation drops a leg, the fused ordering is not the same list minus some documents — every rank below the missing leg's contributions changes. It is a different ranking, and it should be disclosed as one.",
+    fix:"Record which legs contributed, disclose it in the response, and never compare a degraded ranking with a complete one in an evaluation."},
+    {g:"Fusion treated as a failure when only one leg answers",
+    why:"With one leg live, fusion is an identity operation, not an error condition.",
+    fix:"Preserve that leg's order and continue."}],
+  scaling:[{axis:"Candidate volume grows", response:"Per-request CPU in the orchestrator, linear in candidates. Pruning is the control, and it is the same dial that sizes the reranker."}],
+  cost:"CPU inside a task you already run. The cheapest important component in the diagram.",
+  alternatives:[{a:"Server-side fusion in one engine", when:"Never, in this topology. It is available in both engines and it would rank half the candidates. It becomes correct only in a single-engine design."},
+    {a:"Distribution-based score fusion", when:"You need score-aware combination without calibration — but it assumes near-Gaussian score distributions, which BM25's is not, and it must impute scores for single-leg candidates."}],
+  caps:["identity","degrade","replay","observe"],
+  failures:[{f:"Id mismatch between the engines",s:"Fusion ranks two half-populated lists",m:"overlap rate between the two legs' id sets on a fixture query"},
+    {f:"One leg dominates every query",s:"The other engine is decorative",m:"per-leg contribution to the fused top-10, by intent class"}],
+  example:"Joins the OpenSearch list that found 'cabin' and 'waterfront' with the Qdrant list that found the fireplace photo, on one shared listing id."
+});
+
+/* ---------- band 8 · the rerank cascade ---------- */
+defPhys({
+  id:"px-semrerank", name:"Semantic rerank", group:"Reranking", tier:"optional", intro:3,
+  runtime:"inproc", cx:2, sub:"ONNX bi-encoder · off by default",
+  realises:["semrerank"],
+  purpose:"A cheap in-process rescoring pass over the fused set, kept only where the cross-encoder cannot afford the depth it would need. Its default state is absent.",
+  substrate:{service:"In-process", unit:"quantized bi-encoder via ONNX Runtime",
+    sizing:["CPU only — if it needs a GPU it is the wrong tier","deployment-gated, off"]},
+  decisions:[{
+    q:"Is a cheap semantic pass worth having at all?",
+    opts:["Always run it","Only when the cross-encoder is depth-limited","Never"],
+    def:"Only when the cross-encoder cannot afford full depth",
+    why:"The logical view's default here is to skip it, and physically that is a component that does not exist rather than one that is switched off. It earns its place only when the candidate set is too large for the cross-encoder's batch and something has to narrow it cheaply first. Two rerankers where one would do is the most common way a cascade becomes expensive without becoming better."
+  }],
+  contract:{in:"fused candidates + query vector", out:"reordered candidates, same set"},
+  dials:[{n:"Depth",v:"the fused set, capped"},
+         {n:"Gate",v:"deployment configuration, not a per-query decision"},
+         {n:"Model",v:"quantized, CPU-resident, loaded at task start"}],
+  budget:{deadline:"a small slice of the rerank band",
+    timeout:"n/a, in-process",
+    onExpiry:"skipped — a skipped cascade tier passes candidates through unchanged",
+    retry:"none"},
+  gotchas:[{g:"A second reranker that reorders what the first will reorder anyway",
+    why:"Cascade tiers only pay for themselves when each one narrows the set for the next. Two passes over the same depth is twice the cost for one pass's benefit.",
+    fix:"Justify each tier by the depth it saves the tier below it, and measure the pair rather than each in isolation."}],
+  cost:"CPU in the orchestrator. Cheap, which is exactly why it gets left on when it should not be.",
+  caps:["cost","degrade"],
+  notes:["A skipped cascade tier is not a failure: it passes candidates through. Every gated stage in this band shares that contract, which is what makes the cascade safely optional."],
+  failures:[{f:"Left enabled after the cross-encoder gained headroom",s:"An extra pass with no measurable effect on ranking",m:"paired evaluation with the tier disabled"}],
+  example:"Would narrow a large fused set before the cross-encoder sees it, if the six-facet query returned more candidates than the GPU batch can hold."
+});
+
+defPhys({
+  id:"px-rescore-late", name:"Late-interaction rescore", group:"Reranking", tier:"optional", intro:3,
+  runtime:"engine", cx:4, sub:"Qdrant multivector MaxSim · inside retrieval", ridesCall:"px-qdrant-search",
+  realises:["latererank"],
+  departure:"The logical cascade puts late-interaction reranking after fusion. Physically it is a multivector MaxSim rescore over points Qdrant has already retrieved — a clause in the query, not a service — so it runs before fusion, not after. That is a real ordering departure, and it is the clearest case in this diagram of an engine capability changing where a stage belongs rather than just how it is built.",
+  purpose:"Rescores the dense candidate set with token-level late interaction, inside the same Qdrant request that retrieved it. No service, no GPU, and no extra round trip.",
+  substrate:{service:"Qdrant Cloud Hybrid (BYOC)", unit:"rescore clause over a multivector named vector",
+    sizing:["multivectors quantized and on disk","narrow candidate set only","storage scales with tokens, not documents"]},
+  decisions:[{
+    q:"Where does late interaction run?",
+    opts:["A GPU reranking service after fusion","A rescore clause inside Qdrant","Not at all"],
+    def:"A rescore clause inside Qdrant",
+    why:"The stored representations are already in the collection, so scoring them where they live costs no network and no second copy. The price is the ordering departure: it can only see Qdrant's candidates, so it improves the dense ranking that enters fusion rather than the fused ranking itself. Both placements are defensible; only one is buildable without a second inference tier."
+  }],
+  contract:{in:"query multivector + the branch's candidate points", out:"rescored dense ordering"},
+  dials:[{n:"Rescore depth",v:"narrow — this is a refinement over an already-short list"},
+         {n:"Quantization",v:"on, and on disk"},
+         {n:"Chunking",v:"structural, with overlap; parent id on every point"}],
+  budget:{deadline:"inside the retrieval band, because it is inside the retrieval call",
+    timeout:"the retrieval timeout",
+    onExpiry:"the branch returns its pre-rescore ordering",
+    retry:"none"},
+  optimisation:[{o:"Treat it strictly as a rescore over a narrow set",
+    when:"Always. Late interaction as a first-stage retriever is the fastest way to make the collection unaffordable."},
+    {o:"Quantize the multivectors and keep them on disk",
+    when:"Always. Their storage scales with tokens, so they dominate the collection long before the single vectors do."}],
+  gotchas:[{g:"Multivector cost is per token, not per document",
+    why:"A corpus that fits comfortably as one vector per document may be an order of magnitude larger as token-level representations, and the growth is invisible until the collection stops fitting.",
+    fix:"Size on token count, quantize, keep them on disk, and treat the multivector population as a separate capacity line."},
+    {g:"The passage population breaks 'one point per document'",
+    why:"Chunked representations mean the collection's point count is not the corpus size, and every roll-up, filter and count that assumed otherwise is quietly wrong.",
+    fix:"Parent id on every point, roll up in the orchestrator, and never report point count as corpus size."}],
+  scaling:[{axis:"Corpus grows", response:"Faster than anything else in the collection. This is the first component to make quantization mandatory."}],
+  cost:"Memory and disk in Qdrant, scaling with tokens. No compute tier of its own, which is the whole benefit.",
+  alternatives:[{a:"A late-interaction reranking service after fusion", when:"You want it to see both engines' candidates and can afford a second inference tier. It restores the logical ordering at the price of a hop."}],
+  caps:["cost","tail"],
+  notes:["This is a remote component that costs no round trip, because it rides the retrieval call rather than following it. That combination — engine runtime, no hop — is why the hop count cannot simply be read off the runtime."],
+  failures:[{f:"Used as a retriever rather than a rescorer",s:"Retrieval latency and collection size both grow sharply",m:"multivector storage share, and per-branch latency"}],
+  example:"Rescores the dense candidates on token-level evidence for 'wood fireplace' — before those candidates ever meet the OpenSearch list."
+});
+
+defPhys({
+  id:"px-crossenc", name:"Cross-encoder rerank", group:"Reranking", tier:"recommended", intro:2,
+  runtime:"gpu", cx:4, sub:"top 100, one batched call",
+  realises:["crossenc"],
+  purpose:"The precision stage. Scores query-document pairs jointly on a GPU endpoint, at the depth the logical view settled on, in one batch inside one deadline.",
+  substrate:{service:"Amazon SageMaker", unit:"real-time endpoint, Triton dynamic batching",
+    sizing:["one batch of 100 pairs per request","sequence length truncated","provisioned minimum capacity"]},
+  decisions:[{
+    q:"How is the batch dispatched?",
+    opts:["One request per pair","One request with the whole batch","Chunked into several requests"],
+    def:"One request with the whole batch",
+    why:"A hundred sequential requests is a hundred round trips and a hundred chances to miss the deadline, for work a GPU wants to do in one pass. Dynamic batching on the server gets this right by default; a naive loop in the client does not, and the difference between the two is the difference between shipping this stage and abandoning it."
+  },{
+    q:"When is the deadline checked?",
+    opts:["Before dispatch","After the call returns","Not at all"],
+    def:"Before dispatch",
+    why:"A rerank started with no budget left is pure waste: the GPU does the work, the deadline expires, the result is discarded. Checking first is one comparison and it is the single easiest degradation win in the whole diagram."
+  }],
+  contract:{in:"query + top-100 candidate texts (title and one informative field, truncated)",
+    out:"relevance scores for the reranked depth"},
+  dials:[{n:"Depth",v:"100",note:"The logical default, measured against 25/50/200. It is also the batch size the endpoint must clear inside its deadline, so depth and capacity are one decision here."},
+         {n:"Sequence length",v:"truncated — it bounds the batch's cost far more than depth does"},
+         {n:"Instance family",v:"the smallest GPU that clears the deadline at full batch"},
+         {n:"Minimum capacity",v:"≥ 1"}],
+  budget:{deadline:"a hard slice of the rerank band, checked before dispatch",
+    timeout:"the deadline",
+    onExpiry:"return the fused ordering unchanged and disclose it",
+    retry:"none"},
+  optimisation:[{o:"One batched call, never a loop",when:"Always."},
+    {o:"Check the remaining budget before dispatch",when:"Always."},
+    {o:"Truncate aggressively",when:"Always. Cost is quadratic in sequence length and roughly linear in depth, so the field selection matters more than the depth does."}],
+  gotchas:[{g:"Depth raised without resizing the endpoint",
+    why:"Rerank depth is a relevance dial in the logical view and a capacity decision here. Doubling it doubles the batch the GPU must clear inside an unchanged deadline, so the stage starts timing out rather than getting better.",
+    fix:"Treat depth changes as capacity changes; measure the full batch against the deadline before shipping the dial."},
+    {g:"Cold starts on a scaled-to-zero endpoint",
+    why:"The first request after a scale-in waits behind a model load, which is enormous and invisible in a mean.",
+    fix:"Provisioned minimum capacity, and read the tail."},
+    {g:"Breaker opens and the request fails",
+    why:"This stage is an improvement over an ordering that already exists. Failing the request when it is unavailable converts an optional precision gain into a hard dependency.",
+    fix:"The open state returns the fused ordering, disclosed. Test that path as often as the happy one."}],
+  scaling:[{axis:"QPS grows", response:"Instance count, and it is the most expensive scaling axis in the diagram."},
+    {axis:"Depth grows", response:"Batch size per request grows with it. Capacity and relevance are the same decision here, which is not true anywhere else."}],
+  cost:"GPU instance-hours, sized for peak concurrency times batch. The dominant compute cost of the whole pipeline.",
+  alternatives:[{a:"A managed reranking API", when:"Traffic is low and an endpoint is mostly idle."},
+    {a:"A distilled or quantized cross-encoder", when:"The deadline is binding and the measured quality loss is acceptable — usually the first thing to try before buying a larger instance."}],
+  caps:["tail","degrade","cost","blast"],
+  failures:[{f:"Rerank dispatched with no budget remaining",s:"GPU capacity consumed for results that are discarded",m:"reranks completed after their deadline"},
+    {f:"Truncation drops the informative field",s:"Reranking on titles alone; precision gain disappears",m:"paired evaluation on truncation length"}],
+  example:"Scores the query against 100 candidate listings jointly — the first stage that can tell a cabin with a wood fireplace from one that merely mentions firewood."
+});
+
+defPhys({
+  id:"px-vlm", name:"Vision-language rerank", group:"Reranking", tier:"optional", intro:3,
+  runtime:"foundation", cx:4, sub:"top 10–20 · gated on visual intent",
+  realises:["vlmrerank"],
+  purpose:"Verifies visual claims on a handful of finalists by looking at the images. Tiny depth, hard deadline, and the first thing degradation drops.",
+  substrate:{service:"Amazon Bedrock", unit:"vision model, on-demand invocation",
+    sizing:["depth 10–20, never more","gated on inferred visual intent","cached on document and attribute"]},
+  decisions:[{
+    q:"How deep does visual verification go?",
+    opts:["The rerank depth","The top 10–20","The top result only"],
+    def:"The top 10–20",
+    why:"Per-item cost here is orders of magnitude above every other stage, and the value is concentrated at the very top of the list where a wrong visual claim is most visible. Depth is the only cost control available, so it is set small and left small."
+  }],
+  contract:{in:"query visual attributes + finalist images", out:"per-item verification and an adjustment"},
+  dials:[{n:"Depth",v:"10–20"},
+         {n:"Gate",v:"visual intent inferred by routing"},
+         {n:"Cache",v:"on document id and attribute — the answer does not change per query"},
+         {n:"Drop order",v:"first out under budget pressure"}],
+  budget:{deadline:"a hard slice, and the first slice reclaimed",
+    timeout:"the deadline",
+    onExpiry:"keep the previous ordering; verification is additive by construction",
+    retry:"none"},
+  optimisation:[{o:"Cache the verification on document and attribute, not on the query",
+    when:"Always. Whether a listing's photos show a wood fireplace is a property of the listing, so the same answer serves every query that asks."}],
+  gotchas:[{g:"Per-item cost mistaken for per-request cost",
+    why:"Twenty items is twenty model invocations. A depth change that looks small multiplies the most expensive call in the diagram.",
+    fix:"Budget in invocations per thousand searches, cache on the document, and alert on the rate rather than the bill."}],
+  scaling:[{axis:"Visual queries grow", response:"Cache hit rate carries it, because the answers are per-document. Without the cache this does not scale at any depth."}],
+  cost:"Per-token vision pricing on the request path. The most expensive per-item stage here by a wide margin.",
+  alternatives:[{a:"An offline attribute-extraction job", when:"The attributes are known in advance — which they usually are. Extracting 'has a wood fireplace' at index time turns a request-path model call into a payload filter, and that is the better system whenever the attribute vocabulary is closed."}],
+  caps:["cost","degrade","tail"],
+  failures:[{f:"Verification treated as a hard filter",s:"Good results dropped on a model's uncertain judgement",m:"suppression rate, sampled and reviewed"}],
+  example:"Looks at the photos of the top ten cabins and checks that the fireplace is actually wood-burning — the one claim no text signal can settle."
+});
+
+defPhys({
+  id:"px-ltr", name:"Learning-to-Rank", group:"Reranking", tier:"optional", intro:3,
+  runtime:"inproc", cx:4, sub:"LightGBM via ONNX · in-process by necessity",
+  realises:["ltr"],
+  departure:"Not the OpenSearch LTR plugin, and not by preference. The plugin can only score documents OpenSearch retrieved, and half the candidates came from Qdrant. Blended retrieval rules out engine-side learning-to-rank entirely — a direct, non-obvious consequence of the design's central choice, and one nobody discovers until they try it.",
+  purpose:"Combines relevance and soft behavioural signals into one learned ordering over the reranked set, in the orchestrator, where both engines' candidates exist.",
+  substrate:{service:"In-process", unit:"gradient-boosted model exported to ONNX",
+    sizing:["model versioned with the feature list","features computed from data already on the candidate"]},
+  decisions:[{
+    q:"Where does learning-to-rank run?",
+    opts:["The OpenSearch LTR plugin","In the orchestrator","A dedicated ranking service"],
+    def:"In the orchestrator — there is no alternative",
+    why:"Engine-side LTR sees only that engine's candidates. In a blended design that is half the list, so the model would rank a set that is not the set being returned. This is the sharpest illustration in the whole diagram that a physical view is not the logical view with logos on it: a perfectly standard feature becomes unavailable because of a choice made two bands earlier."
+  },{
+    q:"What goes in the model?",
+    opts:["Everything, including business rules","Relevance and soft signals only"],
+    def:"Relevance and soft signals only",
+    why:"Hard business rules stay outside the model, in px-final, where they are auditable and reversible. A rule learned into a model cannot be explained to the person who asked for it, and cannot be turned off for one query."
+  }],
+  contract:{in:"reranked candidates with per-leg evidence and behavioural features",
+    out:"learned ordering"},
+  dials:[{n:"Feature list",v:"versioned with the model — a mismatch is silent"},
+         {n:"Model format",v:"ONNX, loaded at task start"},
+         {n:"Depth",v:"the reranked set"}],
+  gotchas:[{g:"Training and serving compute features differently",
+    why:"The classic training-serving skew. The offline job and the request path both compute 'per-leg rank' and disagree about a tie-break, and the model serves a distribution it never saw.",
+    fix:"One feature implementation, exercised by both paths, with the feature list versioned alongside the model artefact."},
+    {g:"Features that only exist after hydration",
+    why:"A feature the model needs but the candidate does not carry forces a hydration call before ranking — reversing the order of the last two bands.",
+    fix:"Decide the feature list against what retrieval and fusion already produce, and carry anything else on the candidate from the start."}],
+  scaling:[{axis:"Feature count grows", response:"Per-request CPU, linear in candidates times features. Cheap until the feature needs a store lookup, at which point it is not a feature, it is a hop."}],
+  cost:"CPU in the orchestrator. The training job is where the money goes, and it is offline.",
+  alternatives:[{a:"The OpenSearch LTR plugin", when:"Single-engine retrieval only. It is genuinely the better answer in that topology and unavailable in this one."}],
+  caps:["replay","cost","observe"],
+  failures:[{f:"Feature-list drift between the trainer and the request path",s:"Ranking quality degrades with no deploy and no error",m:"feature-distribution comparison between training data and live requests"}],
+  example:"Blends the fused relevance evidence with click behaviour on similar cabins — using candidates that came from both engines, which is only possible here."
+});
+
+/* ---------- band 9 · final ranking ---------- */
+defPhys({
+  id:"px-personal", name:"Personalisation", group:"Final ranking", tier:"optional", intro:3,
+  runtime:"store", cx:3, sub:"one profile read · a few slots adjusted",
+  realises:["personalisation"],
+  purpose:"Reads the user's durable profile and adjusts a small number of result slots, leaving the rest unpersonalised on purpose.",
+  substrate:{service:"Amazon DynamoDB", unit:"profile item, single read",
+    sizing:["one key read per personalised request","cached, short TTL","updated asynchronously from events"]},
+  decisions:[{
+    q:"How much of the ranking is personalised?",
+    opts:["The whole list","A few slots, with reserved unpersonalised ones","None"],
+    def:"A few slots, with reserved unpersonalised ones",
+    why:"The reserved slots are a relevance decision logically and a blast-radius control physically: a corrupt or mis-keyed profile can only damage the slots it was allowed to touch. It also keeps the unpersonalised ranking observable, which is what makes personalisation measurable at all."
+  }],
+  contract:{in:"subject id + the ranked list", out:"adjusted ordering + which slots moved"},
+  dials:[{n:"Adjustable slots",v:"a small fraction, fixed"},
+         {n:"Read consistency",v:"eventually consistent"},
+         {n:"Cache TTL",v:"short — a profile changes slowly, a session does not"}],
+  budget:{deadline:"a small slice, skippable",
+    timeout:"tight",
+    onExpiry:"return the unpersonalised ordering",
+    retry:"none"},
+  gotchas:[{g:"The profile read becomes mandatory",
+    why:"A store read on the critical path that cannot be skipped makes DynamoDB availability a search availability dependency, for a feature that adjusts three slots.",
+    fix:"Skip on timeout, and make sure the skipped path is exercised — not just implemented."},
+    {g:"Profile data crosses into the analytics lake unfiltered",
+    why:"The profile is personal data with a purpose. Landing it in the lake alongside impressions quietly widens that purpose.",
+    fix:"Log the adjustment that was made, not the profile that caused it."}],
+  scaling:[{axis:"QPS grows", response:"Read units, and the cache absorbs the head. Linear and cheap by the standards of this diagram."}],
+  cost:"Read units plus cache. Trivial next to any inference stage.",
+  caps:["pii","blast","degrade"],
+  failures:[{f:"Personalisation applied without a fallback",s:"A profile-store blip becomes a search outage",m:"requests where the profile read was skipped, which should be non-zero"}],
+  example:"Might raise a lakeside cabin the reader saved last month by one or two slots — never enough to displace the six-facet match."
+});
+
+defPhys({
+  id:"px-final", name:"Final ranking passes", group:"Final ranking", tier:"recommended", intro:2,
+  runtime:"inproc", cx:3, sub:"four ordered passes, one traversal",
+  realises:["freshness","dedup","diversity","business"],
+  departure:"Four logical stages, one physical component: four re-sorts of one array in a fixed order, in one process. The panel keeps the order explicit rather than hiding it, because the audit trail depends on it — 'why is this result here' is answerable only if the sequence of adjustments is known and stable.",
+  purpose:"Applies the last adjustments in the order the logical view fixed: freshness decay, near-duplicate removal, per-attribute diversity capping, then hard business rules. Each records what it did.",
+  substrate:{service:"In-process", unit:"four ordered passes",
+    sizing:["order fixed in code","rule set in AppConfig","applied_rules recorded per result"]},
+  decisions:[{
+    q:"Do business rules go in the model or after it?",
+    opts:["Learned as features","Applied after the model as hard rules"],
+    def:"After the model, as hard rules",
+    why:"A rule someone asked for must be explainable to them, reversible without retraining, and visible in the response. A rule learned into a ranking model is none of those. The soft preferences can be features; the hard rules cannot."
+  }],
+  contract:{in:"ranked candidates + attributes needed at ranking time",
+    out:"final ordering + applied_rules[] per result"},
+  dials:[{n:"Freshness decay",v:"per intent class"},
+         {n:"Near-duplicate threshold",v:"SimHash or embedding distance"},
+         {n:"Diversity cap",v:"per attribute, per page"},
+         {n:"Rule set",v:"AppConfig, versioned"}],
+  gotchas:[{g:"Ranking-time attributes are only available after hydration",
+    why:"Diversity capping needs the attribute it caps on, and freshness needs a trustworthy timestamp. If those only arrive at hydration, this band has to run after the band below it — which is not what the diagram says and not what the deadline assumes.",
+    fix:"Carry the small set of ranking-time attributes on the candidate from retrieval onward, using doc values rather than a second fetch."},
+    {g:"The near-duplicate key computed at query time",
+    why:"Comparing every pair of candidates on the request path is quadratic work for something that does not depend on the query.",
+    fix:"Compute the duplicate key at index time and carry it on the candidate — a physical requirement the logical view has no reason to surface."},
+    {g:"Pass order changed casually",
+    why:"Capping before deduplication and capping after produce different pages, and both look correct in isolation.",
+    fix:"Fix the order, state it on the card, and treat a change as a ranking change with an evaluation behind it."}],
+  scaling:[{axis:"Page size grows", response:"Linear, and irrelevant at these depths. The cost is entirely in the attributes the passes need present."}],
+  cost:"CPU, negligible.",
+  caps:["freshness","observe","replay"],
+  failures:[{f:"applied_rules not returned",s:"Nobody can explain why a result is where it is",m:"presence of the disclosure field on sampled responses"}],
+  example:"Caps how many cabins from one operator reach the first page, then applies whatever hard eligibility rules the business keeps outside the model."
+});
+
+/* ---------- band 10 · response ---------- */
+defPhys({
+  id:"px-hydrate", name:"Hydration", group:"Results", tier:"core", intro:1,
+  runtime:"engine", cx:3, sub:"_mget from OpenSearch + volatile fields from DynamoDB",
+  realises:["assembly"],
+  departure:"One logical stage, two physical components. Fetching the fields is a network call — two, in fact, because volatile fields do not belong in either index — while shaping the response is not. Splitting them separates a hop with a deadline from a pure transformation, which is the distinction this whole view exists to draw.",
+  purpose:"Turns ranked ids into displayable documents. Reads the stable fields from OpenSearch, the volatile ones from DynamoDB, and revalidates eligibility as defence in depth.",
+  substrate:{service:"Amazon OpenSearch Service + Amazon DynamoDB", unit:"_mget + BatchGetItem",
+    sizing:["page size only, never the candidate set","two concurrent reads","eligibility revalidated on the way out"]},
+  decisions:[{
+    q:"Where do volatile fields live?",
+    opts:["In both indexes","In OpenSearch only","In a separate store, read at hydration"],
+    def:"In a separate store, read at hydration",
+    why:"Price and availability change far more often than the text does. Putting them in the indexes means every change is a reindex in two engines, and the freshness skew between those engines becomes visible as inconsistent prices. Keeping them out means the indexes change slowly and the volatile truth is read once, late, from one place."
+  }],
+  contract:{in:"the final page of ids", out:"documents with display fields, media and eligibility state"},
+  dials:[{n:"Fetch depth",v:"the page, not the candidate set"},
+         {n:"Concurrency",v:"the two reads run together"},
+         {n:"Revalidation",v:"eligibility re-checked here as defence in depth"}],
+  budget:{deadline:"a slice reserved at the end, because a ranked page nobody can render is worth nothing",
+    timeout:"tight — this is a key lookup, not a search",
+    onExpiry:"return fewer, complete results rather than more, empty ones",
+    retry:"a single fast retry is defensible here; it is a point read, not a scan"},
+  optimisation:[{o:"Hydrate the page, never the candidate set",
+    when:"Always. Hydrating a hundred candidates to display ten is the most common wasted work in a search backend."},
+    {o:"Run the two reads concurrently",when:"Always. They are independent."}],
+  gotchas:[{g:"A document deleted from one engine and not the other",
+    why:"It still appears in the fused list with a single rank, and hydration is the last place that can catch it before a user sees a listing that no longer exists.",
+    fix:"Revalidate eligibility here, and let deletions ride the same ordered log that writes both engines."},
+    {g:"Hydrating before ranking finishes",
+    why:"If a final-ranking pass needs a field that only hydration provides, the fetch quietly moves earlier and grows from ten documents to a hundred.",
+    fix:"Carry ranking-time attributes on the candidate from retrieval; keep hydration strictly after the last re-sort."}],
+  scaling:[{axis:"QPS grows", response:"Read units and shard read capacity. Flat in candidate volume, because it is sized by page rather than by fan-out."}],
+  cost:"Read units and engine reads, bounded by page size. Cheap unless the depth rule slips.",
+  alternatives:[{a:"A dedicated content service", when:"Several consumers need the same document view and the shaping logic is worth centralising."}],
+  caps:["freshness","pii","identity"],
+  failures:[{f:"Stale volatile fields shown",s:"A price on the results page that the detail page contradicts",m:"disagreement rate sampled between the two surfaces"},
+    {f:"Hydration depth follows candidate depth",s:"Cost grows with fan-out for no user-visible benefit",m:"documents hydrated per result returned"}],
+  example:"Fetches title, photos and location from OpenSearch and the current nightly rate from DynamoDB, so the $300 constraint is checked against the price actually charged."
+});
+
+defPhys({
+  id:"px-assemble", name:"Response assembly", group:"Results", tier:"core", io:true, intro:1,
+  runtime:"inproc", cx:2, sub:"disclosure fields · paging token",
+  realises:["assembly"],
+  departure:"The data half of this logical stage is px-hydrate, a network call with a deadline. What remains here is pure shaping — and it is where the request's honesty lives: what was relaxed, what was dropped, which route ran. Those fields exist because the physical pipeline degrades, which is a fact the logical view does not have to model.",
+  purpose:"Shapes the response and says what happened to it. Carries the relaxation record, the degradation record, the route and the experiment variant, plus a paging token that pins the ranking snapshot.",
+  substrate:{service:"In-process", unit:"response serialisation",
+    sizing:["paging token encodes the ranking snapshot","disclosure fields always present, even when empty"]},
+  decisions:[{
+    q:"What does the response disclose?",
+    opts:["Results only","Results plus relaxation","Results plus relaxation, degradation and route state"],
+    def:"Results plus relaxation, degradation and route state",
+    why:"Every one of those is a way the delivered ranking differs from the ranking the query asked for. Without them the client cannot explain the page, the evaluation cannot exclude degraded requests, and nobody can tell a relevance regression from a capacity incident."
+  },{
+    q:"How is paging made stable?",
+    opts:["Offset","A token carrying the ranking snapshot","Re-run the query per page"],
+    def:"A token carrying the ranking snapshot",
+    why:"The fused order is not reproducible from either index alone — it depends on both engines' state, the route, the variant and whatever degradation happened. Re-running the query for page two can produce a different ranking, so page two is not the continuation of page one. The token has to pin it."
+  }],
+  contract:{in:"hydrated page + relaxation, degradation, route and variant records",
+    out:"{ results[], relaxation, degradation, route, variant, page_token }"},
+  dials:[{n:"Paging token",v:"pins the snapshot the ranking was computed against"},
+         {n:"Disclosure",v:"always present; an empty record is information"}],
+  gotchas:[{g:"Degradation disclosed to logs but not to the client",
+    why:"The client renders a page it believes is complete, and the user sees a ranking that is missing a leg with no indication. It also means the client cannot decide to retry or to soften its own copy.",
+    fix:"Same record in both places, and treat the response field as part of the contract rather than as debug output."}],
+  cost:"CPU, negligible.",
+  caps:["observe","replay","degrade"],
+  failures:[{f:"Paging token does not pin the snapshot",s:"Page two repeats or omits results from page one",m:"duplicate and gap rate across page boundaries"}],
+  example:"Returns the ten cabins, and states plainly that 'within 2 hours' was widened and that visual verification did not run."
+});
+
+/* ---------- band 11 · operations, feedback and control ---------- */
+defPhys({
+  id:"px-appconfig", name:"Configuration & flags", group:"Operations", tier:"recommended", control:true, intro:2,
+  runtime:"control", cx:2, sub:"the control plane, physically",
+  realises:["fusionpolicy"],
+  departure:"Three logical control components — routing, degradation policy and fusion policy — become two in-process controllers reading one config store. The control plane physically is AppConfig plus two objects, and saying so is more useful than drawing three services that do not exist.",
+  purpose:"Holds every decision that must be changeable without a deployment: routing rules, drop order, leg weights, sufficiency floors, business rules and experiment definitions.",
+  substrate:{service:"AWS AppConfig", unit:"configuration profile with a deployment strategy",
+    sizing:["polled by each task","validators on the schema","gradual rollout, automatic rollback on alarm"]},
+  decisions:[{
+    q:"Config store or deployment?",
+    opts:["Ship policy in the container image","A polled configuration store","A database read per request"],
+    def:"A polled configuration store",
+    why:"Policy here changes on a different clock from code, and the reason to separate them is rollback speed: reverting a bad routing rule should take a minute, not a build. A per-request database read would make the control plane a request-path dependency, which is exactly what a control plane must not be."
+  }],
+  contract:{in:"a configuration profile version", out:"typed policy objects, in every task"},
+  dials:[{n:"Poll interval",v:"short — it is the true rollback latency"},
+         {n:"Deployment strategy",v:"gradual, with an alarm-triggered rollback"},
+         {n:"Schema validation",v:"on, so a malformed profile is rejected before it deploys"}],
+  gotchas:[{g:"A config change is a deployment and is not treated like one",
+    why:"Rolling a leg weight or a drop order changes ranking or availability across the fleet, without a build, a review or a version in the impression log.",
+    fix:"Version every profile, stamp the version on every impression, and give config changes the same gradual rollout and automatic rollback as code."},
+    {g:"The fleet runs two policies during a rollout",
+    why:"Tasks poll independently, so for one interval some requests use the old rules and some the new. Any measurement taken across that window is measuring a mixture.",
+    fix:"Know the interval, exclude the window from evaluation, and prefer variant assignment for anything you actually want to measure."}],
+  cost:"Negligible. The leverage-to-cost ratio here is the highest in the diagram, in both directions.",
+  caps:["rollback","blast","observe"],
+  failures:[{f:"Config version absent from the impression",s:"A ranking change with no traceable cause",m:"impressions carrying a resolved config version"}],
+  example:"Holds the RRF weights, the relaxation ladder that widened the two-hour radius, and the drop order that skipped visual verification."
+});
+
+defPhys({
+  id:"px-experiment", name:"Experiment assignment", group:"Operations", tier:"recommended", control:true, intro:2,
+  runtime:"inproc", cx:2, sub:"deterministic hash · variant on every impression",
+  realises:["experiment"],
+  purpose:"Assigns the request to a variant by hashing the unit, and makes sure that variant reaches every decision and every log line that depends on it.",
+  substrate:{service:"In-process", unit:"hash of the assignment unit + definitions from AppConfig",
+    sizing:["unit = user, per the logical default","no network call — assignment is a hash"]},
+  contract:{in:"assignment unit + active experiment definitions", out:"variant per experiment"},
+  dials:[{n:"Assignment unit",v:"user — so a session's ranking does not change mid-task"},
+         {n:"Salt",v:"per experiment, so exposures do not correlate"}],
+  gotchas:[{g:"The variant is missing from a ranking-affecting cache key",
+    why:"Two variants share a cache entry and the experiment measures the cache instead of the change. The result looks like a null effect, which is the most expensive wrong answer an experiment can give.",
+    fix:"Make the variant a structural part of every key that can affect ranking — query understanding, embeddings, results — rather than something remembered per cache."},
+    {g:"Assignment by request rather than by user",
+    why:"The user sees a different ranking on every refinement, and paired analysis is impossible.",
+    fix:"Hash a stable unit, and log the unit alongside the variant."}],
+  cost:"A hash. Free.",
+  caps:["replay","cache","observe"],
+  failures:[{f:"Variant not logged with the impression",s:"The experiment cannot be analysed at all",m:"impressions carrying a variant, which must be all of them"}],
+  example:"Decides whether this reader's six-facet query goes through the tuned RRF weights or the current ones, and stamps that on the impression."
+});
+
+defPhys({
+  id:"px-otel", name:"Tracing & metrics", group:"Operations", tier:"recommended", control:true, intro:2,
+  runtime:"control", cx:2, sub:"one trace id, propagated to both engines",
+  realises:[], departure:"Observability is not a retrieval concern and the logical view is right to leave it out. Physically it is the only way to answer the question this diagram most often provokes: which of these hops was slow. A fan-out to two engines with two encoders in front of it is not debuggable from an aggregate latency number.",
+  purpose:"Carries one trace across every hop and records the per-leg timings, degradation events and cache outcomes that make a slow request attributable rather than mysterious.",
+  substrate:{service:"AWS Distro for OpenTelemetry", unit:"sidecar collector → X-Ray and CloudWatch",
+    sizing:["trace id propagated to both engines","tail-based sampling on slow and degraded requests"]},
+  decisions:[{
+    q:"What is sampled?",
+    opts:["A fixed fraction","Everything","Tail-based: all slow and degraded requests, a fraction of the rest"],
+    def:"Tail-based",
+    why:"Head sampling at a low rate misses exactly the requests worth looking at, because the interesting ones are rare by definition. Tracing everything is affordable until it is not, and the transition is invisible. Deciding after the fact keeps the tail and drops the bulk."
+  }],
+  contract:{in:"span events from every stage", out:"traces, metrics, and the per-leg attribution"},
+  dials:[{n:"Sampling",v:"tail-based; keep every degraded request"},
+         {n:"Propagation",v:"trace id sent to both engines, not just held locally"},
+         {n:"Cardinality",v:"bounded — document ids are not metric dimensions"}],
+  gotchas:[{g:"The trace stops at the engine boundary",
+    why:"Without the trace id going out on the wire, a slow request can be attributed to 'retrieval' and no further — which is the least useful possible granularity in a design whose whole point is that retrieval is two engines.",
+    fix:"Propagate the id into both engine requests and correlate on it in the engines' own slow logs."},
+    {g:"Query strings in span attributes",
+    why:"Search queries are user text, sometimes personal. A tracing backend is not where you meant to store them, and retention there follows a different policy.",
+    fix:"Hash or omit the query in spans; keep the raw text in the one place with a retention rule for it."}],
+  scaling:[{axis:"QPS grows", response:"Sampling rate, and cardinality discipline. Metrics cost is driven by dimensions, not by traffic."}],
+  cost:"Ingestion and retention, driven by cardinality far more than by request rate.",
+  caps:["observe","tail","pii"],
+  failures:[{f:"Per-leg timings not recorded separately",s:"A fan-out slowdown cannot be attributed to a leg",m:"presence of per-leg spans on sampled traces"}],
+  example:"Shows the six-facet request as one trace: cache miss, encoder hop, two concurrent engine calls, and the rerank that ran out of budget."
+});
+
+defPhys({
+  id:"px-events", name:"Impression events", group:"Operations", tier:"recommended", intro:2,
+  runtime:"stream", cx:2, sub:"fire-and-forget, off the critical path",
+  realises:["behavioural"],
+  purpose:"Records what was shown, in what order, under which route and variant, and what the user did about it. Buffered in-process and flushed asynchronously, so the request never waits for it.",
+  substrate:{service:"Amazon Kinesis Data Firehose", unit:"delivery stream → S3 as Parquet",
+    sizing:["buffered in the task, flushed on size or time","no back-pressure onto the request path"]},
+  decisions:[{
+    q:"Is event recording on the request path?",
+    opts:["Synchronous write before responding","Buffered and flushed asynchronously","Client-side only"],
+    def:"Buffered and flushed asynchronously",
+    why:"This is the only component in the request path drawn without a network hop, and that is a deliberate claim rather than an oversight: a search response must never wait on analytics. The cost is that events can be lost on a task restart, which is an acceptable trade for behavioural data and would not be for anything the ranking depends on."
+  }],
+  contract:{in:"the assembled response + route, variant, degradation and relaxation records",
+    out:"impression records in the lake"},
+  dials:[{n:"Buffer",v:"size or time, whichever comes first"},
+         {n:"Loss on restart",v:"accepted, and quantified"},
+         {n:"Schema",v:"versioned — this is the training input for two models"}],
+  gotchas:[{g:"Impressions without the route and variant",
+    why:"Behavioural data whose ranking context is unknown cannot debias anything. It records that a user clicked position three without recording what produced position three, which makes it useless for exactly the models it exists to train.",
+    fix:"Log the resolved route, config version, variant and degradation record with every impression, as fields rather than as a blob."},
+    {g:"Back-pressure reaching the request",
+    why:"A blocked flush that blocks the buffer that blocks the handler turns an analytics outage into a search outage.",
+    fix:"Bounded buffer, drop on overflow, and count the drops."}],
+  scaling:[{axis:"QPS grows", response:"Firehose absorbs it. The cost is in the lake, not in the stream."}],
+  cost:"Per-GB ingestion, and it is the cheapest durable record of what your system actually did.",
+  caps:["pii","observe","replay","cost"],
+  notes:["The logical view puts behavioural logging at Recommended — from day one — and the physical reading is the same: this is a Recommended-level component, not a Full one. Everything learned later is trained on data you either started collecting early or did not."],
+  failures:[{f:"Events lost silently on deploy",s:"Gaps in training data aligned with releases",m:"impressions per search, tracked as a ratio"}],
+  example:"Records the ten cabins in the order shown, the widened radius, the skipped verification pass and which of them the reader opened."
+});
+
+defPhys({
+  id:"px-lake", name:"Evaluation store", group:"Operations", tier:"recommended", control:true, intro:2,
+  runtime:"control", cx:3, sub:"S3 + Glue + Athena, drawn as one node",
+  realises:["offlineeval"],
+  departure:"One logical component, one physical stack: object storage, a catalogue and a query engine. It is drawn as one node because that is how it is used and how it fails — as a place you ask questions of — rather than as three services with a boundary between them.",
+  purpose:"Where a ranking is replayed, a labelled set is scored, and a candidate change is judged before it reaches traffic.",
+  substrate:{service:"Amazon S3 + AWS Glue + Amazon Athena", unit:"partitioned Parquet with a catalogue",
+    sizing:["partitioned by date and variant","schema evolution handled in the catalogue","query cost scales with bytes scanned"]},
+  decisions:[{
+    q:"What makes a replay trustworthy?",
+    opts:["Re-run the pipeline","Replay from the logged ranking context","Compare live traffic only"],
+    def:"Replay from the logged ranking context",
+    why:"Re-running the pipeline reproduces today's system, not the one that served the impression. Replay is only meaningful if everything that varied — route, variant, config version, degradation, and any model output that is not deterministic — was recorded at the time. That requirement is what keeps a foundation model out of the Core and Recommended request path."
+  }],
+  contract:{in:"impressions, labels and ranking context", out:"offline metrics and replayed comparisons"},
+  dials:[{n:"Partitioning",v:"date and variant — it is what bounds every query's cost"},
+         {n:"Retention",v:"tiered; labelled sets outlive raw impressions"},
+         {n:"Schema",v:"catalogued, evolved rather than rewritten"}],
+  gotchas:[{g:"Comparing degraded and complete requests",
+    why:"A request that lost a leg produced a different ranking, not a worse one. Averaged together they make a capacity incident look like a relevance regression, and vice versa.",
+    fix:"Filter on the degradation record in every offline comparison — which is only possible because px-assemble records it."},
+    {g:"Unpartitioned scans",
+    why:"Athena bills bytes scanned. An unpartitioned table turns an exploratory query into a genuinely expensive one, repeatedly.",
+    fix:"Partition on the dimensions people actually filter by, and keep the files large enough to be worth opening."}],
+  scaling:[{axis:"History grows", response:"Partitioning and file sizing, not compute. Storage is cheap; scanning it carelessly is not."}],
+  cost:"Storage plus bytes scanned. Entirely a function of partitioning discipline.",
+  caps:["replay","cost","pii"],
+  failures:[{f:"Ranking context missing from the impression",s:"Replay reproduces a ranking that was never served",m:"share of impressions with a complete context record"}],
+  example:"Replays the six-facet query against a candidate change and shows whether widening the radius earlier would have helped or hurt."
+});
+
+defPhys({
+  id:"px-train", name:"Training jobs", group:"Operations", tier:"optional", control:true, intro:3,
+  runtime:"control", cx:3, sub:"offline · versioned artefacts · never in the request path",
+  realises:[], departure:"The logical view has training as a relationship — behavioural events train learning-to-rank — rather than as a component, and at that level that is right. Physically it is a scheduled pipeline producing versioned artefacts, and it is worth drawing precisely because it must never appear on the request path. It is here to be visibly elsewhere.",
+  purpose:"Fits the reranking and fusion-policy models from lake data and publishes versioned artefacts the request path loads at start-up.",
+  substrate:{service:"Amazon SageMaker + AWS Step Functions", unit:"scheduled training and evaluation pipeline",
+    sizing:["artefacts versioned with their feature list","promotion gated on the offline metric","no request-path dependency at any point"]},
+  contract:{in:"labelled and behavioural data from the lake",
+    out:"a versioned model artefact plus its feature list and evaluation report"},
+  dials:[{n:"Cadence",v:"scheduled, not continuous"},
+         {n:"Promotion gate",v:"an offline metric, checked before the artefact is publishable"},
+         {n:"Artefact versioning",v:"model and feature list together, always"}],
+  gotchas:[{g:"Training features computed differently from serving features",
+    why:"The skew is silent: both implementations look correct, the model serves a distribution it never saw, and quality drifts with no deploy to blame.",
+    fix:"One feature implementation used by both, and a periodic distribution comparison between training data and live requests."},
+    {g:"A model promoted without a matching feature list",
+    why:"The request path loads an artefact expecting features in an order or a form it no longer produces. Sometimes it errors; more often it does not.",
+    fix:"Publish them as one artefact and refuse to load a mismatch."}],
+  scaling:[{axis:"Data grows", response:"Job size and cost, offline and interruptible. The one place in this diagram where slow is genuinely fine."}],
+  cost:"Training instance-hours, scheduled and off the request path — the easiest cost in the diagram to control.",
+  caps:["replay","cost","rollback"],
+  failures:[{f:"An artefact promoted on a metric nobody checked",s:"Ranking changes with no evaluation behind it",m:"promotions with a recorded gate result"}],
+  example:"Fits the learning-to-rank model on months of impressions like this one, offline, and publishes it for the next deployment to load."
+});
+
+/* =======================================================================
+   THE DATA PLANE — six logical indexes and stores, landing on two engines.
+
+   This is the reading worth the price of the tab. ds-text, ds-sparse and
+   ds-doc-store are three separate logical dependencies with different
+   analysis and update requirements, and the logical view is right to keep
+   them apart. Here they are one OpenSearch index. ds-doc-ann, ds-image-ann
+   and ds-passage-ann are three ANN indexes logically and three named
+   vectors on one Qdrant collection here. Both readings are correct; seeing
+   them side by side is what the realisation link is for.
+   ======================================================================= */
+defStore({
+  id:"pxd-os-index", name:"OpenSearch index", sub:"analysed text, sparse postings and _source in one place",
+  plane:"data", runtime:"engine", tier:"core", intro:1,
+  realises:["ds-text","ds-sparse","ds-doc-store"],
+  departure:"Three logical dependencies, one physical index. They share an inverted structure, an analysis chain and a refresh cycle, so separating them would mean three copies of the same document, three refresh clocks and three chances to disagree about what exists. The logical view keeps them distinct because their requirements differ; the physical view co-locates them because their storage does not.",
+  purpose:"Serve every sparse retrieval leg and hydrate the response, from one copy of the document.",
+  representation:"Analysed text fields with per-field weights, learned-sparse rank features in the same postings, filterable metadata as doc values, and _source for hydration.",
+  filtering:"The compiled hard predicate executes in filter context, unscored and cacheable, inside the search operation.",
+  updates:"Refresh interval governs visibility; analysis changes require a rebuild behind an alias. Volatile fields deliberately live elsewhere so ordinary price changes are not reindexes.",
+  implementation:"Amazon OpenSearch Service managed domain, private subnets, dedicated master nodes.",
+  substrate:{service:"Amazon OpenSearch Service", unit:"index behind an alias",
+    sizing:["20–40 GB per shard, count fixed at creation","2 replicas","blue-green on the alias, not the cluster"]},
+  dials:[{n:"Refresh interval",v:"the freshness/throughput dial"},
+         {n:"Shards",v:"fixed at creation — the one irreversible sizing decision"},
+         {n:"Replicas",v:"2"},
+         {n:"Alias",v:"every read goes through it, so rollback is a swap"}],
+  gotchas:[{g:"Blue-green on the cluster instead of the alias",
+    why:"Rebuilding a cluster to change an index is an outage-shaped operation for something an alias swap does instantly and reversibly.",
+    fix:"Read through an alias from day one, build the new index alongside, swap, and keep the old one until you are sure."},
+    {g:"Volatile fields indexed for convenience",
+    why:"Price and availability change constantly. Indexing them means every change is a write to two engines and the freshness skew between them becomes user-visible as inconsistent prices.",
+    fix:"Keep them in DynamoDB and read them at hydration."}],
+  scaling:[{axis:"Corpus grows", response:"Reshard by rebuilding behind the alias."},
+    {axis:"QPS grows", response:"Replicas first, then data nodes."}],
+  cost:"Node-hours and storage, multiplied by the replica factor.",
+  caps:["freshness","rollback","identity"],
+  notes:["Sharing an index does not make lexical and learned-sparse construction interchangeable — they have different storage growth and different rebuild triggers. Co-location is a deployment fact, not a modelling one, which is exactly why both views exist."]
+});
+
+defStore({
+  id:"pxd-qdrant-collection", name:"Qdrant collection", sub:"three named vectors on one point",
+  plane:"data", runtime:"engine", tier:"core", intro:1,
+  realises:["ds-doc-ann","ds-image-ann","ds-passage-ann"],
+  departure:"Three logical ANN indexes, one physical collection. Named vectors let one point carry a document vector, an image vector and a multivector, sharing a payload, a filter and an id — so a filter compiled once applies to all three and a document retrieved by any of them is the same point. The passage population is the exception that proves the rule: it needs its own points with a parent id, so the collection's point count is not the corpus size.",
+  purpose:"Serve every dense retrieval leg from one point population, under one payload filter.",
+  representation:"Named vectors per point — text_dense, image_clip and a quantized multivector — with the filterable payload duplicated from the source of truth and a canonical id shared with OpenSearch.",
+  filtering:"A payload filter with a payload index on every filtered field, so filtering happens inside the graph traversal rather than after it.",
+  updates:"Written only by the indexer, from the same ordered log as OpenSearch. Encoder version is part of the collection name, so an encoder change is a rebuild and an alias-style swap rather than an in-place migration.",
+  implementation:"Qdrant Cloud Hybrid — control plane managed, data plane in the customer VPC.",
+  substrate:{service:"Qdrant Cloud Hybrid (BYOC)", unit:"collection, versioned by encoder",
+    sizing:["shards ≈ 2× nodes","replication factor 2","quantized vectors resident, full vectors mmapped"]},
+  dials:[{n:"HNSW m",v:"16 — permanent, set at creation"},
+         {n:"Quantization",v:"scalar int8 with rescore"},
+         {n:"Payload indexes",v:"one per filterable field, derived from the compiler's allow-list"},
+         {n:"Collection name",v:"carries the encoder version"}],
+  gotchas:[{g:"Payload parity with the source of truth drifts",
+    why:"Every field the predicate can filter on must exist in the payload. A field added to the source and to OpenSearch but not to the payload produces a filter that works in one engine and not the other — the parity problem, arriving through the data model rather than the compiler.",
+    fix:"One indexer writes both engines from one record, and the payload field list is derived from the same allow-list the compiler uses."},
+    {g:"Re-embedding treated as a migration",
+    why:"An encoder change invalidates every vector. Attempting it in place gives a collection that is half one space and half another, with no error and no way to tell which points are which.",
+    fix:"Encoder version in the collection name, build the new one alongside, swap when it is complete."},
+    {g:"Point count read as corpus size",
+    why:"Passage-level points break the one-point-per-document assumption, so every count, every capacity estimate and every roll-up built on it is quietly wrong.",
+    fix:"Parent id on every point, and report document count separately from point count."}],
+  scaling:[{axis:"Corpus grows", response:"Shards, and quantization before more memory. Resharding is a rebuild — overshard slightly at creation."},
+    {axis:"Modalities grow", response:"Another named vector on the same points, which is cheap. Another point population is not."}],
+  cost:"Memory-dominated: vectors × dimensions × replication, mitigated by quantization.",
+  caps:["parity","identity","freshness","cost"],
+  notes:["Named vectors are the right choice when the modalities describe the same entity, and the wrong one when the populations differ sharply — far more images than documents, say — because every point then carries every named vector's overhead."]
+});
+
+defStore({
+  id:"pxd-cache", name:"Cache tier", sub:"three caches, three TTLs, one cluster",
+  plane:"data", runtime:"store", tier:"recommended", intro:2,
+  realises:[], departure:"Caching is not a retrieval concern and the logical view has no reason to model it. Physically it is what removes a GPU hop from most requests, and it is where the experiment variant most often gets forgotten — so it is drawn once, with the three distinct caches it actually holds.",
+  purpose:"Hold query understanding, query embeddings and — only where the response is genuinely anonymous — results.",
+  representation:"Three keyspaces with different invalidation rules: understanding keyed on the normalised query and normaliser version; embeddings keyed on the encoder input and encoder version; results keyed on everything that can affect ranking, variant included.",
+  filtering:"None. A cache that filters is a store, and this one must never become the source of an eligibility decision.",
+  updates:"Invalidation is by version, not by expiry. A normaliser or encoder change is a version change, and the old entries simply stop being addressed.",
+  implementation:"Amazon ElastiCache (Valkey), cache-aside, failing open on every error.",
+  substrate:{service:"Amazon ElastiCache (Valkey)", unit:"cluster",
+    sizing:["entry count, not value size, is the sizing axis","fail open, always"]},
+  dials:[{n:"Understanding TTL",v:"long — it is deterministic"},
+         {n:"Embedding TTL",v:"long, versioned by encoder"},
+         {n:"Result TTL",v:"short, and only if the response is genuinely anonymous"}],
+  gotchas:[{g:"The experiment variant is missing from a ranking-affecting key",
+    why:"The experiment measures the cache rather than the change, and reports no effect.",
+    fix:"Variant in the key by construction for anything that can affect ranking."},
+    {g:"Caching a personalised response",
+    why:"One user's ranking served to another. It is the one failure here with a consequence outside relevance.",
+    fix:"Cache results only when the response carries no personalisation and no session state — which, once personalisation exists, is almost never."}],
+  scaling:[{axis:"Query distribution flattens", response:"Hit rate falls and the encoder endpoint absorbs the difference. Track hit rate as a capacity input for the GPU, not as a cache statistic."}],
+  cost:"Node-hours, and it pays for itself in GPU seconds at any real hit rate.",
+  caps:["cache","cost","pii"]
+});
+
+defStore({
+  id:"pxd-ddb", name:"Profile & volatile fields", sub:"what changes faster than an index can be rebuilt",
+  plane:"data", runtime:"store", tier:"optional", intro:3,
+  realises:[], departure:"The logical view folds volatile fields into the document store, and at that level they are the same dependency. Physically they cannot be: fields that change hourly do not belong in an index whose refresh and rebuild cycle is measured in minutes and hours across two engines. Separating them is what keeps the freshness skew between the engines invisible to the user.",
+  purpose:"Hold the fields that change too often to index and the durable profile that personalisation reads.",
+  representation:"Key-value items: current price and availability by document id, and a per-subject profile.",
+  filtering:"None at retrieval — these fields are read after ranking, at hydration. A constraint on a volatile field is therefore a post-ranking check, not a predicate, and that limitation is real.",
+  updates:"Written continuously and read late. No index rebuild, no refresh interval, and no dependence on the ordered log that feeds the two engines.",
+  implementation:"Amazon DynamoDB, on-demand capacity, with a TTL attribute on session items.",
+  substrate:{service:"Amazon DynamoDB", unit:"table per concern",
+    sizing:["single-key reads only","batch reads at hydration","eventually consistent reads are correct here"]},
+  dials:[{n:"Capacity",v:"on-demand until the shape of the traffic is known"},
+         {n:"Consistency",v:"eventually consistent — a stale read beats a slow one"},
+         {n:"TTL",v:"set on anything session-shaped"}],
+  gotchas:[{g:"A volatile field used as a hard constraint",
+    why:"Filtering on price is a predicate the indexes can push down; filtering on the price in DynamoDB happens after ranking, so it removes results from a page rather than from a candidate set — and the page comes back short.",
+    fix:"Index a stable approximation for filtering and read the exact value for display, or accept that the constraint is a display-time check and size the page for it."}],
+  scaling:[{axis:"QPS grows", response:"Read units, linear and boring. This is the cheapest store in the design."}],
+  cost:"Request units, dominated by hydration reads that are bounded by page size.",
+  caps:["freshness","pii"]
+});
+
+defStore({
+  id:"pxd-s3", name:"Data lake", sub:"impressions and labels, partitioned Parquet",
+  plane:"data", runtime:"store", tier:"recommended", intro:2,
+  realises:[], departure:"The logical view treats offline evaluation as one component and does not need to say where the data sits. Physically the storage layer is the part that determines whether evaluation is cheap or unaffordable, and the decision that determines it — partitioning — is made once, early, and is painful to revisit.",
+  purpose:"Durably hold what the system did, in a form that can be queried and replayed.",
+  representation:"Parquet, partitioned by date and variant, catalogued in Glue, with impressions carrying the full ranking context.",
+  filtering:"Partition pruning is the only filtering that matters — it is what bounds the cost of every question anyone asks.",
+  updates:"Append-only from Firehose. Schema evolves in the catalogue rather than by rewriting history.",
+  implementation:"Amazon S3 with an AWS Glue catalogue, queried by Athena.",
+  substrate:{service:"Amazon S3 + AWS Glue", unit:"partitioned Parquet dataset",
+    sizing:["files large enough to be worth opening","lifecycle tiering on raw impressions","labelled sets kept longer than raw data"]},
+  dials:[{n:"Partitions",v:"date and variant"},
+         {n:"File size",v:"large — many small files is the classic lake mistake"},
+         {n:"Lifecycle",v:"tier raw impressions, retain labels"}],
+  gotchas:[{g:"Personal data lands here by default",
+    why:"Impressions contain what people searched for and what they clicked. A lake is the easiest place for that to accumulate past any purpose it was collected for.",
+    fix:"Decide retention per field rather than per dataset, hash the subject where the analysis does not need it, and keep profile data out entirely."}],
+  scaling:[{axis:"History grows", response:"Storage tiering, and query cost stays flat if the partitioning was right. If it was not, every query gets more expensive forever."}],
+  cost:"Storage, plus bytes scanned by whoever asks a question.",
+  caps:["replay","pii","cost"]
+});
+
+/* =======================================================================
+   THE CONSISTENCY PLANE — the write path, off by default.
+
+   Two engines holding derived copies of one document is the fact every
+   dual-store gotcha descends from, and the only thing that keeps derived
+   datasets consistent is deriving them from one ordered log. These three
+   nodes are drawn so the panels can say that honestly, without inventing
+   a full ingestion pipeline the query view has no business showing.
+   ======================================================================= */
+defStore({
+  id:"pxi-source", name:"Source of truth", sub:"the record everything else is derived from",
+  plane:"consistency", runtime:"store", tier:"recommended", intro:2,
+  realises:[], departure:"The logical view starts at the index because retrieval starts there. Physically the index is derived data, and naming the thing it is derived from is what makes the freshness and parity discussions below possible at all.",
+  purpose:"Hold the authoritative listing record. Neither engine is a source of truth; both are projections of this.",
+  representation:"The canonical listing, including the canonical id that both engines use verbatim.",
+  filtering:"Not a query-path store. It is never read during a search.",
+  updates:"Written by the application. Every change emits an ordered, versioned event.",
+  implementation:"Amazon Aurora or DynamoDB, depending on the shape of the write workload.",
+  substrate:{service:"Amazon Aurora", unit:"the operational store",
+    sizing:["canonical id assigned here or in the indexer, never in an engine"]},
+  gotchas:[{g:"An engine treated as a source of truth",
+    why:"Reindexing from OpenSearch into Qdrant, or vice versa, propagates whatever is already wrong and adds a second lineage. The two copies then diverge from each other and from reality, with no authority to reconcile against.",
+    fix:"Rebuild both from this store, always, and treat both indexes as disposable."}],
+  cost:"Ordinary operational database cost, unrelated to search.",
+  caps:["identity","freshness"]
+});
+
+defStore({
+  id:"pxi-log", name:"Change log", sub:"the ordering authority",
+  plane:"consistency", runtime:"stream", tier:"recommended", intro:2,
+  realises:[], departure:"There is no logical equivalent, and there should not be — ordering is not a retrieval concern. Physically it is the single mechanism that keeps two derived datasets consistent, and its absence is the most expensive architectural mistake available in this design.",
+  purpose:"Carry every change in one order, so both engines apply the same changes in the same sequence.",
+  representation:"Ordered, partitioned change events carrying the canonical id and a version stamp.",
+  filtering:"None. Every change rides it, deletions included.",
+  updates:"Fed by change data capture from the source of truth, never by application code writing twice.",
+  implementation:"DynamoDB Streams or DMS into Amazon Kinesis Data Streams.",
+  substrate:{service:"Amazon Kinesis Data Streams", unit:"stream, partitioned by document id",
+    sizing:["partition key = canonical id, so one document's changes stay ordered","retention long enough to replay a bad deploy"]},
+  dials:[{n:"Partition key",v:"the canonical id — ordering is per document, which is all that is needed"},
+         {n:"Retention",v:"long enough to reprocess, not just to recover"}],
+  gotchas:[{g:"Dual-writing from the application instead",
+    why:"Two writers and two orderings produce permanent divergence with no way to detect it — no error, no lag metric, just two indexes that quietly disagree about a growing set of documents. This is the failure that motivates the entire consistency plane.",
+    fix:"One ordered log, one writer. The application writes the source of truth and nothing else."},
+    {g:"Deletions handled out of band",
+    why:"A document removed from one engine and not the other still appears in fused results with a single rank, and looks like a relevance bug.",
+    fix:"Deletions ride the same log as every other change, and hydration revalidates eligibility as defence in depth."}],
+  cost:"Shard-hours. Trivial relative to what it prevents.",
+  caps:["identity","freshness","parity"]
+});
+
+defStore({
+  id:"pxi-indexer", name:"Dual-target indexer", sub:"the only writer of either engine",
+  plane:"consistency", runtime:"service", tier:"recommended", intro:2,
+  realises:[], departure:"Logically, keeping an index current is a property of the index. Physically it is a separate consumer with its own failure modes, its own rebuild cadence per engine, and the sole responsibility for the canonical id that fusion later joins on — which makes it the most consequential component in this diagram that never touches a query.",
+  purpose:"Consume the ordered log and write both engines idempotently, assigning the canonical id and stamping the version that makes re-delivery safe.",
+  representation:"Not a store. A consumer that projects each change into an OpenSearch document and a Qdrant point.",
+  filtering:"Applies the payload field list derived from the predicate compiler's allow-list, so both engines can filter on the same fields.",
+  updates:"Idempotent, version-stamped upserts. Re-delivery is normal and must be harmless.",
+  implementation:"An ECS consumer service, with the embedding pipeline behind it for the vector side.",
+  substrate:{service:"Amazon ECS on Fargate", unit:"stream consumer, one per shard group",
+    sizing:["idempotent, version-stamped writes","per-engine rebuild runnable independently","canonical id derived deterministically"]},
+  decisions:[{
+    q:"How do two indexes stay consistent?",
+    opts:["Dual-write from the request path","Two independent indexing jobs","One consumer of one ordered log"],
+    def:"One consumer of one ordered log",
+    why:"Both indexes are derived data, and the only thing that keeps derived datasets consistent is deriving them from one ordered log with idempotent, version-stamped writes. Two writers means two orderings and permanent, undetectable divergence. Dual-writing from the request path adds a search-availability dependency on both engines being writable, which is worse again."
+  },{
+    q:"Where does the canonical id come from?",
+    opts:["Each engine's native id","A hash of the URL","One id assigned here and used verbatim in both"],
+    def:"One id assigned here and used verbatim in both",
+    why:"Fusion is a join on this id. Qdrant point ids must be a UUID or an unsigned integer, so a string business key needs a deterministic UUIDv5 derivation rather than an arbitrary hash — one you can compute again from the same input, in a rebuild, years later."
+  }],
+  dials:[{n:"Idempotency",v:"version-stamped upserts; re-delivery is expected"},
+         {n:"Rebuild cadence",v:"independent per engine — re-analysing is cheap, re-embedding is not"},
+         {n:"Backfill mode",v:"Qdrant indexing_threshold to 0, restored afterwards"}],
+  gotchas:[{g:"Reindex asymmetry treated as one operation",
+    why:"An analyser change rebuilds OpenSearch entirely; an encoder change rebuilds Qdrant entirely. They are triggered by different events and cost wildly different amounts, so a combined rebuild pipeline makes the cheap one as expensive as the dear one.",
+    fix:"Two independently runnable rebuilds from the same log, each with its own alias or collection swap."},
+    {g:"indexing_threshold left at 0 after a backfill",
+    why:"The collection stays unindexed: fast to write, slow to query, and correct enough that nothing alerts.",
+    fix:"Restore it as part of the backfill job, not as a manual step, and assert the indexed state afterwards."},
+    {g:"Freshness skew is not measured",
+    why:"The two engines acknowledge a write at different times, so a new document is briefly retrievable by one leg and not the other. It enters fusion with one rank instead of two and is systematically under-ranked — a relevance bug caused entirely by timing.",
+    fix:"Measure per-engine indexing lag against the log, bound it, and accept the residual skew knowingly."}],
+  scaling:[{axis:"Write rate grows", response:"Consumer parallelism per shard group, bounded by the ordering guarantee — which is per document, so this scales."},
+    {axis:"Re-embedding required", response:"A full rebuild of the Qdrant side, independent of OpenSearch. Plan the swap before the encoder upgrade, not during it."}],
+  cost:"Consumer task-hours, plus the embedding compute for the vector side — which is where a rebuild actually hurts.",
+  caps:["identity","parity","freshness","rollback"],
+  notes:["Everything in the request path assumes this component did its job: fusion assumes one id space, the predicate compiler assumes both engines can filter the same fields, and hydration assumes both engines agree a document exists. It is off by default in the diagram and load-bearing in the system, which is a fair description of most write paths."]
 });
 
 /* =======================================================================

@@ -2,7 +2,8 @@
 
 **Target:** `search-query-pipeline-diagram-tool.html` — plus
 `search-query-pipeline-diagram-tool-architecture.md` and the About tab in Phase 6.
-**Status:** **Phase 1 done** (`bda600e`, 25 Aug 2026); Phases 2–6 outstanding.
+**Status:** **Phase 1 done** (`bda600e`, 25 Aug 2026). **Phase 2 done** (uncommitted,
+26 Aug 2026) — the registry is in and the tool is still output-identical. Phases 3–6 outstanding.
 Written 25 Aug 2026.
 **Scope:** a fourth tab, **Physical architecture**, sitting between _Build order_ and _About_,
 rendering the AWS + OpenSearch + Qdrant realisation of the same three levels.
@@ -11,10 +12,10 @@ D3 query path plus a collapsed consistency plane · D4 managed-first on ECS Farg
 D5 configured numbers only, never measured ones · D6 physical inherits the logical defaults ·
 D7 cross-view fidelity is a validator, not a convention · D8 no physical build order in pass one.
 
-Line numbers below are as at `777849e`, **before Phase 1**, and are now stale — the file is
-4971 lines at `bda600e`. Re-grep before acting on any of them. Phase 1's own section has been
-rewritten to describe what was built; §2.1 of that section records the four places where the
-built shape differs from the shape planned here, and what each one means for Phases 2–5.
+Line numbers below are as at `777849e`, **before Phase 1**, and are long stale — the file is
+6734 lines. Re-grep before acting on any of them. Phases 1 and 2 each end with a
+"where the built shape departs from this plan" table (§1.7, §2.7) recording what changed and
+what each change means for the phases that follow; read those before starting Phase 3.
 
 ---
 
@@ -134,21 +135,24 @@ keeps reading the logical model. Revisit once the physical inventory settles.
 | Phase | Change                                                               | Output changes? | Fixture?               | Size             | Risk     | Status |
 | ----- | -------------------------------------------------------------------- | --------------- | ---------------------- | ---------------- | -------- | ------ |
 | **1** | Extract the pipeline-model type; a view per level                    | **no**          | reshaped, same content | +666 / −433      | **high** | **done** `bda600e` |
-| **2** | Physical component registry, data plane, consistency plane, panels   | new tab renders | new                    | ~1400 new lines  | medium   | todo   |
+| **2** | Physical component registry, data plane, consistency plane, panels   | **no**          | n/a — data only        | +1751            | medium   | **done** (uncommitted) |
 | **3** | Physical templates, relations, gates, baseline, two invariants       | new tab correct | new                    | ~350 lines       | medium   | todo   |
 | **4** | Tab, LHS options panel, RHS panel spec, hover card, cross-view links | new tab usable  | no                     | ~450 lines + CSS | medium   | todo   |
 | **5** | "Follow one request" stepper — the query dataflow narrative          | new             | no                     | ~200 lines       | low      | todo   |
 | **6** | About tab, architecture doc, TODO reconciliation                     | prose           | no                     | 3 files          | lowest   | todo   |
 
-**Order: 1 → 2 → 3 → 4 → 5 → 6.** One commit per phase. Phase 1 left the tool
-pixel-identical; Phases 2–3 must leave it rendering with the new tab reachable but possibly
-rough; Phase 4 is where it becomes usable.
+**Order: 1 → 2 → 3 → 4 → 5 → 6.** One commit per phase. Phases 1 and 2 both left the tool
+pixel-identical — Phase 2 adds registries and no render path, so the "new tab renders" cell
+above was wrong and has been corrected. Phase 3 leaves the physical model registered and
+validated but still undrawn; Phase 4 is where the tab appears and becomes usable.
 
 Phase 1 was the only phase that could break the existing view, and the only one with a free
 correctness oracle. It is done and verified (§1.6). From Phase 2 on, the existing view is
 protected by the same oracle for free — **any change to the logical render path must still
-reproduce `163328:4705a20e` at 1280×900**, and a Phase 2–5 change that moves it is a bug in the
-shared layer, not a physical-view decision.
+reproduce the logical view's render signature at 1280×900**, and a Phase 2–5 change that moves
+it is a bug in the shared layer, not a physical-view decision. Phase 2 re-measured it with the
+probe written out in §2.6; that probe reads `231160:887ea613` and is the one to reuse from
+here, since it is cheap to re-run against the previous commit and needs no stored number.
 
 ---
 
@@ -305,7 +309,11 @@ Two smaller notes for later phases:
 
 ---
 
-## Phase 2 — The physical registry
+## Phase 2 — The physical registry — **DONE** (uncommitted)
+
+Sections 2.1–2.4 are the design as planned and still describe what was built; §2.5–2.7
+record what landed, how it was verified, and the five places the built shape differs.
+Line numbers anywhere in this plan remain stale — the file is 6734 lines.
 
 ### 2.1 The component record
 
@@ -664,6 +672,91 @@ The corresponding `px-os-search` panel is the mirror image: analyser parity, `bo
 cacheability, `search_after` instead of `from`+`size`, shard sizing, `preference` for cache
 locality, and the neural-sparse clause riding the same request.
 
+### 2.5 What was built
+
+**+1751 lines, one new region** — `PHYSICAL DATA`, sitting between the logical model's
+`defModel` call and `VIEW STATE`, so the file now reads _shared model type → logical
+registries → logical model → physical registries_ (→ physical model, in Phase 3).
+
+**Two registries, not three.** `PX` holds the 38 request-path and control-plane components;
+`PXD` holds all 8 plane nodes — the five data-plane stores and the three consistency-plane
+ones — each carrying `plane:"data"` or `plane:"consistency"`. The model type has exactly two
+node registries, `components` and `dataSources`, so a third registry would have had nothing
+to map onto. `plane` is a field, and Phase 3 slices on it.
+
+**One definition helper, two names.** `defPhysical(registry, record)` does the load-time
+resolution; `defPhys` and `defStore` are its two bindings. It rejects, at load:
+
+| Check                                                     | Why here rather than in a validator                                   |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| duplicate id                                              | the registry is the identity map                                       |
+| unknown `runtime` key                                     | `defGate`'s contract, applied to the other vocabulary registry         |
+| a `caps` entry not declared in `CONCERNS`                 | same                                                                   |
+| a `realises` id absent from the logical model             | resolvable here — `LOGICAL` is already registered above                |
+| no `departure` when `realises.length !== 1`               | the local half of D7; the cross-model half stays in §3.4               |
+| `ridesCall` naming a component not yet defined            | forward references are how a typo survives to render time              |
+
+`RUNTIME` (9 entries) and `CONCERNS` (12) are module-global, alongside `GATE_KINDS` and the
+relation-kind registry, for the reason stated in the model-type banner: two levels must not
+be able to disagree about what a word means.
+
+**Panel depth is deliberately uneven.** Eleven components carry the full field set at the
+depth of §2.4's worked example — `px-orch`, `px-predicate`, `px-os-search`,
+`px-qdrant-search`, `px-fuse`, `px-crossenc`, `px-embed-text`, `px-rescore-late`, `px-ltr`,
+`px-hydrate`, `pxi-indexer`. The rest are complete but tighter. The eleven are the ones the
+tab exists to explain; a uniform depth would have buried them.
+
+**CSS**: nine `--rt-*` tokens added to all three theme blocks (light, `prefers-color-scheme`
+dark, explicit dark). No rule references them yet — Phase 4 §4.5 adds `.node .rtchip`. They
+are here so `RUNTIME`'s `color` field points at something real rather than at a phantom.
+
+### 2.6 Acceptance — met
+
+Phase 2 adds data and no render path, so the acceptance bar is the same as Phase 1's: the
+tool must be **output-identical**.
+
+- **Render signature `231160:887ea613`**, identical on the pre-Phase-2 and post-Phase-2
+  builds. One probe, run identically on both at a pinned 1280×900: for each of 3 levels ×
+  the data-source plane on/off, `setTpl` → `render()` → `drawWires()` (synchronously — it is
+  rAF-deferred, and sampling before the frame is a false alarm, not a regression), then hash
+  the concatenated `[data-el="wires"]` and `[data-el="rows"]` markup. Pinning the viewport
+  matters: navigation resets it, and an unpinned comparison compares two layouts.
+- `validation 216:15c8727e`, `modelValidation 122:7675389e`, `ladderValidation 53:a491c8f7`
+  — identical on both builds.
+- Zero console errors; `node --check` clean; the drawer still opens and renders.
+- 38 + 8 = 46 records load and pass every definition-time check.
+- **All 12 concerns are covered** by at least one component, so Phase 4's coverage panel has
+  no empty rows at Full.
+- **Every logical component and data source is realised except `q-text`** — see §2.7.
+
+### 2.7 Where the built shape departs from this plan, and what it means downstream
+
+| #   | Planned                                                                | Built                                                                                                                            | Consequence                                                                                                                                                                                                                             |
+| --- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `hop` is a property of `RUNTIME`, and the hop metric reads it (§4.2)   | new field **`ridesCall`**; `record.hop = RUNTIME[runtime].hop && !ridesCall`                                                      | Runtime alone over-counts. `px-rescore-late` runs **on** Qdrant and costs **no** round trip — it is a clause in the retrieval call. `px-waf` evaluates at the distribution. **Phase 4's metric must read `component.hop`, never `RUNTIME[runtime].hop`.** |
+| 2   | "Core is 6; Full is 11" network hops (§4.2)                            | Core **6**, Recommended **9**, Full **14**, counting parallel groups once                                                        | Core is exactly as advertised. Full is 14, not 11 — the estimate predated the inventory. **Update the §4.2 copy to 6 → 14**; it is a better number for the tab's argument anyway.                                                       |
+| 3   | "Unrealised logical components — none" (§2.3)                          | `q-text` is unrealised, and correctly so                                                                                        | `q-text` is the logical model's own `ladderExempt` — the query arrives, it is not built. The same exemption applies to realisation for the same reason. **§3.4 rule 2 must exempt `logical.ladderExempt`**, not carry a second list.     |
+| 4   | `substrate.service` is the key for "distinct deployment units" (§4.2)  | it is a display string, and five components legitimately name two or three services                                              | A naive unique count returns 23 where the answer is about 15. **Phase 4 needs a canonical key** — either `substrate.services[]` or a service-id registry. The compound five: `px-hydrate`, `px-session`, `px-lake`, `px-train`, `pxd-s3`. |
+| 5   | `byLevel` on every component that varies (§2.4)                        | on `px-os-search` and `px-qdrant-search` only                                                                                    | These are the two nodes whose branch count genuinely changes per level, and the change is the point. Adding the field elsewhere would have been data no renderer reads. Phase 4 renders it where present, as §2.4 specifies.            |
+
+Three smaller notes for later phases:
+
+- **`defModel` will clobber the plane nodes' `intro`.** It derives `dataSources[].intro` from
+  the earliest consumer in `serving`. That is right for the data plane and wrong for the
+  consistency plane, which has no serving consumers — `Math.min()` over an empty array is
+  `Infinity`. The records already declare `tier` and `intro` explicitly. **Phase 3 must let a
+  declared `intro` win, or derive only for nodes reachable from `serving`.**
+- **§3.4's eight rules are now four.** Rules 1, 3, 5 and 7 are enforced at definition time by
+  `defPhysical` and need no invariant. Rule 4's condition already holds across the built
+  inventory — every logical id realised by more than one physical component has a `departure`
+  on each participant. That leaves rules 2 (totality, exempting `ladderExempt`), 6 (intro
+  never regresses) and 8 (request-path components declare `budget`) for `PHYSICAL_INVARIANTS`.
+- **§3.5's `MEASURED_CLAIM` regex will fire on prose that is not a measured claim.** The
+  panels use words like "latency" descriptively — "tail latency control" is a concern label,
+  "it lengthens the critical path" is a design statement. Scope the rule to the fields where
+  a number would be a claim, rather than to every string; the `\blatenc` branch in particular
+  matches far more than it should.
+
 ---
 
 ## Phase 3 — Templates, relationships, gates and the validator wall
@@ -824,6 +917,14 @@ in each node's `departure` text.
 > `(model, {componentRelations, servingRelations, usedKinds})`. Ship the eight rules below as
 > `PHYSICAL_INVARIANTS[0]`, using the module-level `assertComponent(model,id,context)` helper.
 > The logical model's four invariants are the worked example of the shape.
+>
+> **Revised again after Phase 2.** Four of the eight rules are already enforced, at
+> definition time, by `defPhysical` — 1 (`realises` ids resolve), 3 and 5 (`departure`
+> required unless the mapping is exactly one-to-one) and 7 (`runtime` is a known key). Rule
+> 4's condition already holds across the built inventory. **Write rules 2, 6 and 8 only**,
+> and write rule 2 to exempt `logical.ladderExempt`: `q-text` is unrealised because the query
+> arrives rather than being built, which is the same reason it is exempt from the build
+> ladder. Do not maintain a second exemption list.
 
 New, and the most valuable thing in this phase:
 
@@ -851,6 +952,12 @@ capability the logical view has not introduced yet.
 ### 3.5 The numbers rule validator (D5)
 
 > **Revised after Phase 1.** Ship as `PHYSICAL_INVARIANTS[1]`, for the same reason as §3.4.
+>
+> **Revised again after Phase 2.** The regex as written will fire on prose. The panels use
+> "latency" descriptively — `tail latency control` is a concern label, and several `why`
+> texts argue about latency without claiming a number. Scope the rule to the fields where a
+> number would be a claim rather than walking every string, and drop or narrow the
+> `\blatenc` branch before the `\$\d` one.
 
 ```js
 const MEASURED_CLAIM =
@@ -939,8 +1046,8 @@ toggles by declaring them.
 
 | Metric                           | Computation                                                                                                  | Why it earns the space                                                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| Network hops in the request path | count of enabled components with `RUNTIME[runtime].hop`, counting a parallel group once at its widest member | The headline number. Core is 6; Full is 11. Watching it move as you toggle components is the whole argument of the tab. |
-| Distinct deployment units        | unique `substrate.service` over enabled components                                                           | What you actually have to run, patch and page on.                                                                       |
+| Network hops in the request path | count of enabled components with **`component.hop`** (not `RUNTIME[runtime].hop` — see §2.7), counting a parallel group once at its widest member | The headline number. Measured on the built inventory: Core **6**, Recommended **9**, Full **14**. Watching it move as you toggle components is the whole argument of the tab. |
+| Distinct deployment units        | needs a canonical key first — `substrate.service` is a display string and five components name two or three services (§2.7 #4) | What you actually have to run, patch and page on.                                                                       |
 | GPU endpoints in the path        | `runtime === "gpu"` count                                                                                    | The cost and cold-start axis, and the physical echo of "models in the request path".                                    |
 | Operational burden               | sum of `cx`, banded like the logical one                                                                     | With an explicit note that `cx` means something different here (§2.1) so the two indexes are not compared.              |
 
@@ -1242,13 +1349,14 @@ better argument for the tab than any prose.
 | Risk                                                                                     | Likelihood | Mitigation                                                                                                                                                                                                           |
 | ---------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ~~Phase 1 changes rendered output subtly~~ — **retired**                                 | —          | Did not happen. Verified byte-identical (§1.6). The snapshot stays useful: it now guards the shared render path against Phases 2–5.                                                                                  |
-| A Phase 2–5 change to the shared render path breaks the logical view                     | medium     | Re-run the §1.6 comparison before each commit; the logical view must still hash to `163328:4705a20e` at 1280×900. A move means the change belongs inside the physical model, not in the shared layer.                |
+| A Phase 3–5 change to the shared render path breaks the logical view                     | medium     | Re-run the §2.6 probe against the previous commit before each commit, both pinned to 1280×900. It held through Phase 2. A move means the change belongs inside the physical model, not in the shared layer.          |
 | The physical view's two planes do not work because the toggle is still singular          | high       | Known and recorded (§1.7 row 4, §4.2). It is the first task of Phase 4 and it is small — the declarations, the state slice and `Model.dependencies` are already plane-driven.                                        |
 | The physical baseline fixture becomes a maintenance tax                                  | high       | Generate it with `emitBaseline` and review; assert the consistency plane as an invariant rather than enumerating it (§3.6).                                                                                          |
 | Two parallel groups plus a stage group in one template exceeds what the geometry handles | medium     | Rows 7, 8 and 11–15 use only existing mechanisms, but they have never coexisted. Build P3's rows _first_, before writing any panel prose, so a layout problem surfaces while the data is still cheap to move.        |
 | The retrieval band collapsing 6 logical legs into 2 nodes reads as a loss of fidelity    | medium     | It is the point, and it is defended in `departure` and in the branch tables — but if reviewers reject it, splitting the two nodes back into per-leg nodes is a template-and-baseline change only, not a code change. |
-| Panel prose drifts from AWS and engine reality                                           | medium     | Every `substrate`, `dials` and `gotchas` entry needs a citation in `REFS` under the same id, resolved and title-checked, as the existing REFS banner (1856) requires.                                                |
-| The tab is simply too dense                                                              | medium     | The plane toggles and the level selector are the pressure valve. Physical Core is 13 nodes — smaller than logical Core+recommended. Land it, look at Core, and cut from Full if Full is unreadable.                  |
+| Panel prose drifts from AWS and engine reality                                           | **high**   | **Now live** — 46 records of it landed in Phase 2, unsourced. Every `substrate`, `dials` and `gotchas` entry needs a citation in `REFS` under the same id, resolved and title-checked, as the existing REFS banner requires. Do this before Phase 6, not during it. |
+| The hop count is wrong because it is read off `runtime`                                  | **retired**| Found and fixed in Phase 2 by `ridesCall` (§2.7 #1). The number is now `component.hop`, and it is 6 / 9 / 14. |
+| The tab is simply too dense                                                              | medium     | The plane toggles and the level selector are the pressure valve. Physical Core is 13 nodes — smaller than logical Core+recommended. Land it, look at Core, and cut from Full if Full is unreadable. Checkpoint 3 (Appendix D) is the moment for this call.        |
 | `observes` wires bury the canvas                                                         | low        | Ship it behind a plane toggle if the first render is noisy (§3.2).                                                                                                                                                   |
 
 ---
