@@ -866,7 +866,8 @@ table.mini .met{color:var(--accent)}
           Retrieval routing owns every request gate, while a deployment gate is a standing
           configuration choice with no runtime owner.
           Branches select a decision outcome; returns retry an earlier stage.
-          Control-plane components steer without transforming candidates. Feeds carry telemetry; trains is offline.
+          Control-plane components steer without transforming candidates. Feeds carry data beside the spine — query
+          variants forward, impression telemetry back; trains is offline.
           Updates change durable profile state without implying model training.
           Serving sources are logical indexes or stores, not prescribed products or deployments.
         </p>
@@ -1508,7 +1509,7 @@ def({
     q:"Where does exact deduplication happen?",
     opts:["Here, by content hash","At final ranking","Both"],
     def:"Exact-hash collapse here; add near-duplicate collapse at final ranking when enabled",
-    why:"Exact collapse is cheap and shrinks everything downstream, including the expensive rerank. Near-duplicate detection is expensive and only needs to be right for the page you show."
+    why:"Exact collapse is cheap and shrinks everything downstream, including the expensive rerank. Near-duplicate detection is expensive, so it runs once at final ranking, over the shortlist that is about to become a page."
   }],
   contract:{in:"per-leg ranked lists", out:"Candidate{ doc_id, per_leg{rank, raw}, evidence, filter_state }"},
   notes:[
@@ -1749,9 +1750,11 @@ def({
     def:"Per-attribute capping",
     why:"Cruder than MMR, but far easier to explain to stakeholders and to debug when someone asks why their listing dropped. Debuggability wins for a stage that visibly reorders the page."
   }],
-  contract:{in:"ranked candidates", out:"diversified ranking"},
+  contract:{in:"deduplicated ranking", out:"diversified ranking"},
   dials:[{n:"Cap",v:"max 3 per group in the top 20"},{n:"MMR lambda",v:"0.7 if using MMR"}],
-  failures:[{f:"Diversity applied too hard",s:"The best result is displaced by a worse, different one",m:"nDCG@10 before and after diversification"}]
+  failures:[
+    {f:"Diversity applied too hard",s:"The best result is displaced by a worse, different one",m:"nDCG@10 before and after diversification"},
+    {f:"Diversified over near-duplicates",s:"Cap slots are spent on the same item twice, so the page is narrow anyway",m:"distinct groups in the top 10, with deduplication on and off"}]
 });
 
 def({
@@ -1762,7 +1765,7 @@ def({
     q:"What is the duplicate key?",
     opts:["Content hash","SimHash / MinHash","Embedding similarity threshold"],
     def:"Hash for exact at union; SimHash or embedding threshold for near-duplicates here",
-    why:"Splitting the stage puts the cheap collapse where it shrinks the most work, and the expensive one where it only has to be right for the page being shown."
+    why:"Splitting the stage puts the cheap exact-hash collapse at union, where it shrinks every expensive stage below it, and the costly near-duplicate pass here, where it produces the distinct set that Diversity then arranges."
   }],
   contract:{in:"ranked candidates", out:"deduplicated ranking + collapsed_group[] for the UI"},
   notes:["Do not collapse documents that are textually or visually similar but differ in access rights, availability, price, locale or another user-visible property. Define duplicate identity in product terms before choosing the representative."],
@@ -2102,6 +2105,8 @@ Object.keys(FAILS).forEach(k=>{ if(S[k]) S[k].failures = FAILS[k]; });
 
 /* =======================================================================
    TEMPLATES — rows are laid out as [left aside | centre spine | control]
+   Only the centre spine generates flow edges. A component placed in an aside
+   sits on the row where it is produced and reaches its consumers through REL.
    ======================================================================= */
 
 const BRANCHES = [
@@ -2146,8 +2151,8 @@ const TPL = {
       {c:["crossenc"]},
       {c:["business"]},
       {c:["freshness"]},
-      {c:["diversity"]},
       {c:["dedup"]},
+      {c:["diversity"]},
       {c:["assembly"], r:["behavioural"]}
     ],
     extra:BRANCHES
@@ -2160,8 +2165,7 @@ const TPL = {
       {l:["q-image"], c:["q-text"], r:["session"]},
       {c:["normalise"]},
       {c:["understand"], r:["confidence"]},
-      {c:["rewrite"]},
-      {c:["expand"]},
+      {l:["expand"], c:["rewrite"]},
       {c:["prefilter"], r:["routing"]},
       {c:["lexical","textvec","textimagevec","imageimagevec","sparse","multivec","late"], r:["degradation"]},
       {c:["union"]},
@@ -2176,8 +2180,8 @@ const TPL = {
       {c:["business"]},
       {c:["freshness"]},
       {c:["personalisation"]},
-      {c:["diversity"]},
       {c:["dedup"]},
+      {c:["diversity"]},
       {c:["assembly"], r:["behavioural"]}
     ],
     extra:BRANCHES  /* control, data and training wires are generated from REL — see relEdges() */
@@ -2378,6 +2382,7 @@ const REL = {
   "q-image":    { steers:["routing"], feeds:["imageimagevec"] },
   session:      { steers:["understand","rewrite","routing","personalisation"] },
   confidence:   { steers:["prefilter","relax"] },
+  expand:       { feeds:["lexical","sparse"] },
   routing:      { steers:LEGS.concat(GATED_RERANKERS) },
   degradation:  { steers:LEGS.concat(["latererank","crossenc","vlmrerank"]) },
   fusionpolicy: { steers:["fusion"] },
@@ -2564,9 +2569,9 @@ const DEPENDENCY_BASELINE = {
       ["fusion","crossenc"],
       ["crossenc","business"],
       ["business","freshness"],
-      ["freshness","diversity"],
-      ["diversity","dedup"],
-      ["dedup","assembly"]
+      ["freshness","dedup"],
+      ["dedup","diversity"],
+      ["diversity","assembly"]
     )),
     gated:baselinePairs(["prefilter","textimagevec"]),
     branch:BASELINE_RECOVERY.branch,
@@ -2586,8 +2591,7 @@ const DEPENDENCY_BASELINE = {
   3:{
     flow:BASELINE_QUERY_START.concat(baselinePairs(
       ["understand","rewrite"],
-      ["rewrite","expand"],
-      ["expand","prefilter"],
+      ["rewrite","prefilter"],
       ["prefilter",BASELINE_ALWAYS_RETRIEVAL_LEGS],
       ["lexical","union"],
       ["sparse","union"],
@@ -2603,9 +2607,9 @@ const DEPENDENCY_BASELINE = {
       ["ltr","business"],
       ["business","freshness"],
       ["freshness","personalisation"],
-      ["personalisation","diversity"],
-      ["diversity","dedup"],
-      ["dedup","assembly"]
+      ["personalisation","dedup"],
+      ["dedup","diversity"],
+      ["diversity","assembly"]
     )),
     gated:baselinePairs(
       ["prefilter",BASELINE_GATED_FULL_RETRIEVAL_LEGS],
@@ -2626,6 +2630,7 @@ const DEPENDENCY_BASELINE = {
     ),
     feeds:baselinePairs(
       ["q-image","imageimagevec"],
+      ["expand",["lexical","sparse"]],
       ["assembly","behavioural"]
     ),
     trains:baselinePairs(
@@ -2986,8 +2991,8 @@ const STEPS = [
    build:"Add down-weighted text-to-image ANN with max rollup, then use inspectable intent rules to fire it only for queries with visual meaning.",
    trigger:"Users search for attributes only visible in images.",
    buys:"Unlocks an indexed modality without paying for it on abstract or strictly navigational queries."},
-  {n:6, t:2, title:"Auditable final-ranking controls", stages:["business","freshness","diversity","dedup"],
-   build:"Apply capped soft business preferences, intent-aware recency, per-attribute diversity, and near-duplicate collapse after relevance ranking.",
+  {n:6, t:2, title:"Auditable final-ranking controls", stages:["business","freshness","dedup","diversity"],
+   build:"Apply capped soft business preferences, intent-aware recency, near-duplicate collapse, and per-attribute diversity after relevance ranking.",
    trigger:"The top-10 is repetitive or stale, duplicates crowd the page, or explicit business preferences need an auditable home.",
    buys:"More useful result pages without moving mandatory policy out of Core filtering."},
   {n:7, t:2, title:"Query rewriting", stages:["rewrite"],
