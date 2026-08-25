@@ -798,46 +798,46 @@ table.mini .met{color:var(--accent)}
         <button data-tpl="2" aria-pressed="false"><span class="n">2</span>Core + recommended</button>
         <button data-tpl="3" aria-pressed="false"><span class="n">3</span>Full surface</button>
       </div>
-      <button class="dep-toggle" id="servingToggle" aria-pressed="false" aria-controls="rows" aria-label="Show data sources">
+      <button class="dep-toggle" data-el="servingToggle" aria-pressed="false" aria-label="Show data sources">
         <span>Show data sources</span><span class="dep-sw" aria-hidden="true"></span>
       </button>
-      <span class="pill new" id="diffPill" hidden></span>
+      <span class="pill new" data-el="diffPill" hidden></span>
     </div>
     <div class="trace">
       <span class="lbl">Worked example</span>
-      <span class="q" id="exQuery"></span>
+      <span class="q" data-el="exQuery"></span>
       <span class="lbl" style="margin-left:4px">Trace a facet</span>
-      <span id="facets"></span>
+      <span data-el="facets"></span>
     </div>
   </div>
 
   <div class="app">
     <aside class="side">
-      <div class="panel focusbox" id="focusBox" hidden>
-        <h3>Focus <button class="fclear" id="clearFocus">clear</button></h3>
-        <p class="fdesc" id="focusDesc"></p>
-        <div class="reflist" id="focusList"></div>
+      <div class="panel focusbox" data-el="focusBox" hidden>
+        <h3>Focus <button class="fclear" data-el="clearFocus">clear</button></h3>
+        <p class="fdesc" data-el="focusDesc"></p>
+        <div class="reflist" data-el="focusList"></div>
       </div>
       <div class="panel">
-        <h3>Pipeline shape <span class="pill" id="stageCount"></span></h3>
+        <h3>Pipeline shape <span class="pill" data-el="stageCount"></span></h3>
         <div class="metric">
           <div class="top"><span class="name">Stages by phase</span></div>
-          <div class="legendrow" id="phaseLegend"></div>
+          <div class="legendrow" data-el="phaseLegend"></div>
         </div>
         <div class="metric">
-          <div class="top"><span class="name">Build &amp; run complexity</span><span class="val" id="cxVal"></span></div>
-          <div class="bar"><i class="cx" id="cxBar"></i></div>
-          <div class="note" id="cxNote"></div>
+          <div class="top"><span class="name">Build &amp; run complexity</span><span class="val" data-el="cxVal"></span></div>
+          <div class="bar"><i class="cx" data-el="cxBar"></i></div>
+          <div class="note" data-el="cxNote"></div>
         </div>
         <div class="metric">
-          <div class="top"><span class="name">Models in the request path</span><span class="val" id="mdlVal"></span></div>
-          <div class="note" id="mdlNote"></div>
+          <div class="top"><span class="name">Models in the request path</span><span class="val" data-el="mdlVal"></span></div>
+          <div class="note" data-el="mdlNote"></div>
         </div>
       </div>
 
       <div class="panel">
         <h3>Capability coverage</h3>
-        <div class="caps" id="caps"></div>
+        <div class="caps" data-el="caps"></div>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
           Click any capability to see which components provide it.
         </p>
@@ -853,10 +853,10 @@ table.mini .met{color:var(--accent)}
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
           <span><i class="data-key"></i>data plane</span>
         </div>
-        <div class="legend-label" id="gateLegendLabel">Gate conditions</div>
-        <div class="gate-legend" id="gateLegend"></div>
+        <div class="legend-label" data-el="gateLegendLabel">Gate conditions</div>
+        <div class="gate-legend" data-el="gateLegend"></div>
         <div class="legend-label">Relationships</div>
-        <div class="legendrow relation-legend" id="relationLegend"></div>
+        <div class="legendrow relation-legend" data-el="relationLegend"></div>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
           Flow moves requests or candidates. A gated stage runs only when its condition holds:
           Retrieval routing owns every request gate, while a deployment gate is a standing
@@ -870,9 +870,9 @@ table.mini .met{color:var(--accent)}
       </div>
 
       <div class="panel complist">
-        <h3>Components <span class="pill" id="offCount" hidden></span></h3>
-        <div id="compList"></div>
-        <button class="btn-ghost" id="resetBtn" style="margin-top:12px">Reset level defaults</button>
+        <h3>Components <span class="pill" data-el="offCount" hidden></span></h3>
+        <div data-el="compList"></div>
+        <button class="btn-ghost" data-el="resetBtn" style="margin-top:12px">Reset level defaults</button>
         <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
           Switch components off to compose a variant and watch the shape change. Core components are locked.
         </p>
@@ -880,9 +880,9 @@ table.mini .met{color:var(--accent)}
     </aside>
 
     <main class="stage-area">
-      <div class="canvas" id="canvas">
-        <svg class="wires" id="wires" aria-hidden="true"></svg>
-        <div id="rows"></div>
+      <div class="canvas" data-el="canvas">
+        <svg class="wires" data-el="wires" aria-hidden="true"></svg>
+        <div data-el="rows"></div>
       </div>
     </main>
   </div>
@@ -1009,6 +1009,136 @@ table.mini .met{color:var(--accent)}
 
 <script>
 "use strict";
+
+/* =======================================================================
+   PIPELINE MODEL — the complete, geometry-free description of one abstraction
+   level: its components, templates, relationships, gates and serving data.
+   Every renderer and every validator takes a model; nothing reaches for a
+   registry global. Adding an abstraction level is adding a model, not adding
+   a renderer.
+
+   Vocabulary shared by every level — relationship types, gate kinds, tier
+   labels — deliberately stays module-global. Two levels must not be able to
+   disagree about what "steers" means.
+
+   `Model` holds the pure queries a model answers. They are the only ones both
+   the validators and the view need, so they take the model explicitly; every
+   other model-aware function opens with a destructuring preamble instead.
+   ======================================================================= */
+const PIPELINE_MODELS = {};
+
+const Model = {
+  /* Every component the template draws, in row order. */
+  stages(model,templateId){
+    const out=[];
+    model.templates[templateId].rows.forEach(row=>
+      (row.l||[]).concat(row.c||[],row.r||[]).forEach(id=>out.push(id)));
+    return out;
+  },
+
+  /* The gate on a component, once the level is far enough along to draw it. */
+  gate(model,id,templateId){
+    const gate = model.gates[id];
+    return gate && templateId>=gate.from ? gate : null;
+  },
+
+  relationDetail(model,from,kind,to){
+    return model.relationDetails[[from,kind,to].join("|")] || null;
+  },
+
+  /* Every relationship endpoint the given level draws, independent of geometry.
+     `planes` is the set of optional overlays that are switched on; a plane
+     declaring `serves:true` is what admits the serving edges. */
+  dependencies(model,templateId,{planes={},off=new Set()}={}){
+    const template = model.templates[templateId];
+    if(!template) throw new Error("Unknown pipeline template: "+templateId);
+
+    const present = new Set(Model.stages(model,templateId));
+    const active = id=>present.has(id) && !off.has(id);
+    const dependencies = [];
+    const add = (from,to,kind,label="")=>dependencies.push({
+      from,to,kind,label,detail:Model.relationDetail(model,from,kind,to)
+    });
+    const groups = template.rows
+      .map(row=>({ids:(row.c||[]).filter(active),label:row.nextLabel||""}))
+      .filter(group=>group.ids.length);
+
+    for(let i=0;i<groups.length-1;i++){
+      const fromGroup=groups[i], toGroup=groups[i+1];
+      fromGroup.ids.forEach(from=>toGroup.ids.forEach(to=>{
+        const kind=Model.gate(model,to,templateId) ? "gated" : "flow";
+        add(from,to,kind,fromGroup.ids.length===1 && toGroup.ids.length===1 ? fromGroup.label : "");
+      }));
+    }
+
+    (template.extra||[]).forEach(([from,to,label,kind])=>{
+      if(active(from) && active(to)) add(from,to,kind,label||"");
+    });
+
+    Object.entries(model.relations).forEach(([from,relations])=>{
+      if(!active(from)) return;
+      COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
+        if(active(to)) add(from,to,kind);
+      }));
+    });
+
+    if(model.servesPlanes.some(id=>planes[id])){
+      Object.entries(model.serving).forEach(([sourceId,consumers])=>
+        consumers.forEach(to=>{ if(active(to)) add(sourceId,to,"serves"); }));
+    }
+    return dependencies;
+  }
+};
+
+/* A component id that must exist, named with the place that claimed it, so a
+   typo fails at load rather than printing `undefined` onto a card. */
+function assertComponent(model,id,context){
+  if(!model.components[id]) throw new Error("Unknown component in "+context+": "+id);
+}
+
+/* Everything a level must survive before it becomes reachable. */
+function validateModel(model){
+  return Object.freeze({
+    dependencies:  validateDependencyBaseline(model),
+    relationships: validateRelationshipModel(model),
+    ladder:        validateBuildLadder(model)
+  });
+}
+
+/* Registers a level and derives everything that can be derived, so no model
+   reaches a renderer half-built. Validation runs here for the same reason:
+   a level that cannot pass its own rules must not become reachable. */
+function defModel(spec){
+  const model = Object.assign({planes:[], steps:null}, spec);
+
+  model.reverseRelations = {};
+  Object.keys(model.relations).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
+    (model.relations[from][kind]||[]).forEach(to=>{
+      (model.reverseRelations[to] = model.reverseRelations[to] || {});
+      (model.reverseRelations[to][kind] = model.reverseRelations[to][kind] || []).push(from);
+    })));
+
+  model.reverseServing = {};
+  Object.keys(model.serving).forEach(sourceId=> model.serving[sourceId].forEach(componentId=>{
+    (model.reverseServing[componentId] = model.reverseServing[componentId] || []).push(sourceId);
+  }));
+
+  /* A source is introduced by its earliest consumer: nothing can be drawn
+     before something asks it for data. */
+  Object.keys(model.dataSources).forEach(sourceId=>{
+    const intro = Math.min(...(model.serving[sourceId]||[])
+      .map(componentId=>model.components[componentId].intro));
+    Object.assign(model.dataSources[sourceId],
+      {intro, tier: intro===1 ? "core" : intro===2 ? "recommended" : "optional"});
+  });
+
+  model.maxCx = Object.values(model.components).reduce((a,s)=>a+(s.cx||0),0);
+  model.servesPlanes = model.planes.filter(plane=>plane.serves).map(plane=>plane.id);
+  model.validation = validateModel(model);
+
+  PIPELINE_MODELS[model.id] = model;
+  return model;
+}
 
 /* =======================================================================
    DATA — logical components of a query-time hybrid multimodal pipeline.
@@ -2272,17 +2402,6 @@ const SERVING_REL = {
   "ds-doc-store":["assembly"]
 };
 
-const RSERVING = {};
-Object.keys(SERVING_REL).forEach(sourceId=> SERVING_REL[sourceId].forEach(componentId=>{
-  (RSERVING[componentId] = RSERVING[componentId] || []).push(sourceId);
-}));
-Object.keys(DATA_SOURCES).forEach(sourceId=>{
-  const intros = (SERVING_REL[sourceId]||[]).map(componentId=>S[componentId].intro);
-  const intro = Math.min(...intros);
-  DATA_SOURCES[sourceId].intro = intro;
-  DATA_SOURCES[sourceId].tier = intro===1 ? "core" : intro===2 ? "recommended" : "optional";
-});
-
 /* =======================================================================
    COMPONENT RELATIONSHIPS — the single source of truth.
    The template-3 control wires AND the drawer's dependency sections are
@@ -2374,11 +2493,6 @@ const SELECTIVE_RERANK_CASCADE = Object.freeze([
 const GATED_RERANKERS = Object.freeze([
   "semrerank","latererank","vlmrerank","ltr"
 ]);
-function executionGate(id,templateId){
-  const gate=GATED_EXECUTION[id];
-  return gate && templateId>=gate.from ? gate : null;
-}
-
 const REL = {
   "q-image":    { steers:["routing"], feeds:["imageimagevec"] },
   session:      { steers:["understand","rewrite","routing","personalisation"] },
@@ -2418,9 +2532,6 @@ const RELATION_DETAILS = Object.freeze({
     label:"debiased judgements", payload:"versioned query-document judgements with position-aware features", cadence:"offline, on the evaluation cycle"
   })
 });
-function relationDetail(from,kind,to){
-  return RELATION_DETAILS[[from,kind,to].join("|")]||null;
-}
 
 const RELATION_TYPES = Object.freeze({
   flow:{
@@ -2500,14 +2611,6 @@ const RELATION_TYPES = Object.freeze({
 const COMPONENT_RELATION_KINDS = Object.freeze(
   Object.entries(RELATION_TYPES).filter(([,relation])=>relation.componentRelation).map(([kind])=>kind)
 );
-
-/* reverse index, built once */
-const RREL = {};
-Object.keys(REL).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
-  (REL[from][kind]||[]).forEach(to=>{
-    (RREL[to] = RREL[to] || {});
-    (RREL[to][kind] = RREL[to][kind] || []).push(from);
-  })));
 
 /* =======================================================================
    DEPENDENCY BASELINE — logical endpoints, independent of SVG geometry.
@@ -2669,54 +2772,14 @@ const DEPENDENCY_BASELINE = {
   }
 };
 
-function logicalDependencies(templateId,{showServing=false,off=new Set()}={}){
-  const template = TPL[templateId];
-  if(!template) throw new Error("Unknown pipeline template: "+templateId);
-
-  const present = new Set(tplStages(templateId));
-  const active = id=>present.has(id) && !off.has(id);
-  const dependencies = [];
-  const add = (from,to,kind,label="")=>dependencies.push({
-    from,to,kind,label,detail:relationDetail(from,kind,to)
-  });
-  const groups = template.rows
-    .map(row=>({ids:(row.c||[]).filter(active),label:row.nextLabel||""}))
-    .filter(group=>group.ids.length);
-
-  for(let i=0;i<groups.length-1;i++){
-    const fromGroup=groups[i], toGroup=groups[i+1];
-    fromGroup.ids.forEach(from=>toGroup.ids.forEach(to=>{
-      const kind=executionGate(to,templateId) ? "gated" : "flow";
-      add(from,to,kind,fromGroup.ids.length===1 && toGroup.ids.length===1 ? fromGroup.label : "");
-    }));
-  }
-
-  (template.extra||[]).forEach(([from,to,label,kind])=>{
-    if(active(from) && active(to)) add(from,to,kind,label||"");
-  });
-
-  Object.entries(REL).forEach(([from,relations])=>{
-    if(!active(from)) return;
-    COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
-      if(active(to)) add(from,to,kind);
-    }));
-  });
-
-  if(showServing){
-    Object.entries(SERVING_REL).forEach(([sourceId,consumers])=>
-      consumers.forEach(to=>{ if(active(to)) add(sourceId,to,"serves"); }));
-  }
-  return dependencies;
-}
-
 function dependencyKey({from,to,kind,label=""}){
   return [kind,from,to,label].join("|");
 }
 
-function expectedDependencies(templateId,showServing){
-  const fixture = DEPENDENCY_BASELINE[templateId];
+function expectedDependencies(model,templateId,servesShown){
+  const fixture = model.baseline[templateId];
   return DEPENDENCY_KINDS.flatMap(kind=>
-    kind==="serves" && !showServing ? [] :
+    kind==="serves" && !servesShown ? [] :
     (fixture[kind]||[]).map(([from,to,label=""])=>({from,to,kind,label})));
 }
 
@@ -2737,31 +2800,34 @@ function assertDependencySet(actual,expected,context){
   }
 }
 
-function validateDependencyBaseline(){
-  const expectedSourceCounts = {1:3,2:4,3:6};
-  const expectedServingCounts = {1:3,2:4,3:7};
+function validateDependencyBaseline(model){
+  const {serving:SERVING_REL, expectedCounts} = model;
+  const tplStages   = templateId=>Model.stages(model,templateId);
+  const dependencies = (templateId,opts)=>Model.dependencies(model,templateId,opts);
+  /* Every serving plane on at once: the fixture describes the fullest diagram. */
+  const sourcesShown = {planes:Object.fromEntries(model.servesPlanes.map(id=>[id,true]))};
   const summary = {};
 
-  [1,2,3].forEach(templateId=>{
+  Object.keys(model.templates).map(Number).forEach(templateId=>{
     const templateStages = tplStages(templateId);
-    const hidden = logicalDependencies(templateId);
-    const shown = logicalDependencies(templateId,{showServing:true});
+    const hidden = dependencies(templateId);
+    const shown = dependencies(templateId,sourcesShown);
     const serving = shown.filter(edge=>edge.kind==="serves");
     const nonServing = shown.filter(edge=>edge.kind!=="serves");
     const sourceCount = new Set(serving.map(edge=>edge.from)).size;
 
-    assertDependencySet(hidden,expectedDependencies(templateId,false),"template "+templateId+", sources hidden");
-    assertDependencySet(shown,expectedDependencies(templateId,true),"template "+templateId+", sources shown");
+    assertDependencySet(hidden,expectedDependencies(model,templateId,false),"template "+templateId+", sources hidden");
+    assertDependencySet(shown,expectedDependencies(model,templateId,true),"template "+templateId+", sources shown");
     assertDependencySet(nonServing,hidden,"template "+templateId+", source visibility invariant");
 
-    if(sourceCount!==expectedSourceCounts[templateId] || serving.length!==expectedServingCounts[templateId]){
+    if(sourceCount!==expectedCounts.sources[templateId] || serving.length!==expectedCounts.servingEdges[templateId]){
       throw new Error("Serving baseline mismatch for template "+templateId+
-        ": expected "+expectedSourceCounts[templateId]+" sources / "+expectedServingCounts[templateId]+
+        ": expected "+expectedCounts.sources[templateId]+" sources / "+expectedCounts.servingEdges[templateId]+
         " edges, got "+sourceCount+" sources / "+serving.length+" edges");
     }
 
     templateStages.forEach(componentId=>{
-      const disabled = logicalDependencies(templateId,{showServing:true,off:new Set([componentId])});
+      const disabled = dependencies(templateId,{...sourcesShown,off:new Set([componentId])});
       if(disabled.some(edge=>edge.from===componentId || edge.to===componentId)){
         throw new Error("Disabled component remains connected in template "+templateId+": "+componentId);
       }
@@ -2770,7 +2836,7 @@ function validateDependencyBaseline(){
     Object.entries(SERVING_REL).forEach(([sourceId,consumers])=>{
       const templateConsumers = consumers.filter(id=>templateStages.includes(id));
       if(!templateConsumers.length) return;
-      const disabled = logicalDependencies(templateId,{showServing:true,off:new Set(templateConsumers)});
+      const disabled = dependencies(templateId,{...sourcesShown,off:new Set(templateConsumers)});
       if(disabled.some(edge=>edge.kind==="serves" && edge.from===sourceId)){
         throw new Error("Inactive source remains connected in template "+templateId+": "+sourceId);
       }
@@ -2787,15 +2853,17 @@ function validateDependencyBaseline(){
   return Object.freeze(summary);
 }
 
-function validateRelationshipModel(){
+function validateRelationshipModel(model){
+  const {components:S, templates:TPL, relations:REL, gates:GATED_EXECUTION,
+         relationDetails:RELATION_DETAILS, dataSources:DATA_SOURCES,
+         serving:SERVING_REL, reverseRelations:RREL, reverseServing:RSERVING} = model;
+  const tplStages = templateId=>Model.stages(model,templateId);
   const templateIds = Object.keys(TPL).map(Number);
   const usedKinds = new Set(["flow","gated","serves"]);
   const componentRelations = [];
   const servingRelations = [];
 
-  const requireComponent = (id,context)=>{
-    if(!S[id]) throw new Error("Unknown component in "+context+": "+id);
-  };
+  const requireComponent = (id,context)=>assertComponent(model,id,context);
   const assertUnique = (relations,context)=>{
     const seen = new Set();
     relations.forEach(({from,to,kind})=>{
@@ -2838,23 +2906,6 @@ function validateRelationshipModel(){
       throw new Error("Gate decider does not steer its gated component: "+id);
     }
   });
-  if(new Set(SELECTIVE_RERANK_CASCADE).size!==SELECTIVE_RERANK_CASCADE.length){
-    throw new Error("Duplicate component in selective rerank cascade");
-  }
-  SELECTIVE_RERANK_CASCADE.forEach(id=>{
-    requireComponent(id,"selective rerank cascade");
-    if(S[id].group!=="Reranking") throw new Error("Non-reranking component in selective cascade: "+id);
-  });
-  if(new Set(GATED_RERANKERS).size!==GATED_RERANKERS.length){
-    throw new Error("Duplicate component in gated reranker set");
-  }
-  GATED_RERANKERS.forEach(id=>{
-    requireComponent(id,"gated reranker set");
-    if(!SELECTIVE_RERANK_CASCADE.includes(id) || !executionGate(id,3)){
-      throw new Error("Invalid gated reranker: "+id);
-    }
-  });
-
   Object.entries(REL).forEach(([from,relations])=>{
     requireComponent(from,"REL source");
     Object.keys(relations).forEach(kind=>{
@@ -2875,12 +2926,6 @@ function validateRelationshipModel(){
   });
   assertUnique(componentRelations,"component");
 
-  const routedRerankers=new Set((REL.routing?.steers||[]).filter(id=>S[id]?.group==="Reranking"));
-  if(GATED_RERANKERS.some(id=>!routedRerankers.has(id)) ||
-     [...routedRerankers].some(id=>!GATED_RERANKERS.includes(id))){
-    throw new Error("Retrieval routing must target every gated reranker, and no deterministic reranker");
-  }
-
   const componentKeys=new Set(componentRelations.map(({from,to,kind})=>[from,kind,to].join("|")));
   Object.entries(RELATION_DETAILS).forEach(([key,detail])=>{
     if(!componentKeys.has(key)) throw new Error("Relationship detail has no component relationship: "+key);
@@ -2888,16 +2933,6 @@ function validateRelationshipModel(){
       throw new Error("Incomplete relationship detail: "+key);
     }
   });
-  /* Every relation leaving the feedback plane must carry a complete detail; every
-     other plane is annotated by exception. See FEEDBACK_PLANE_SOURCES for why. */
-  componentRelations.filter(({from})=>FEEDBACK_PLANE_SOURCES.includes(from))
-    .forEach(({from,to,kind})=>{
-      if(!relationDetail(from,kind,to)){
-        throw new Error("Feedback relationship lacks transmission detail: "+[from,kind,to].join("|"));
-      }
-    });
-  FEEDBACK_PLANE_SOURCES.forEach(id=>requireComponent(id,"feedback plane source"));
-
   templateIds.forEach(templateId=>(TPL[templateId].extra||[]).forEach(([from,to,,kind])=>{
     requireComponent(from,"template "+templateId+" extra source");
     requireComponent(to,"template "+templateId+" extra target");
@@ -2960,6 +2995,10 @@ function validateRelationshipModel(){
     markerColors.set(marker,color);
   });
 
+  /* Rules only this level can state. The checks above prove the relationship
+     model is coherent; these prove this particular pipeline says what it means. */
+  (model.invariants||[]).forEach(rule=>rule(model,{componentRelations,servingRelations,usedKinds}));
+
   return Object.freeze({
     relationTypes:usedKinds.size,
     componentRelations:componentRelations.length,
@@ -2969,9 +3008,6 @@ function validateRelationshipModel(){
     reverseIndexes:2
   });
 }
-
-const DEPENDENCY_BASELINE_RESULT = validateDependencyBaseline();
-const RELATIONSHIP_MODEL_RESULT = validateRelationshipModel();
 
 /* components that cannot exist without a parent */
 const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency", imageimagevec:"q-image" };
@@ -3053,9 +3089,10 @@ const STEPS = [
    satisfied before it was written down: every stage is real, no component is
    built twice, everything is built once, and a step's tier is the tier of the
    latest component it introduces. */
-const LADDER_UNBUILT = "q-text";  /* the query itself — arrives, is not built */
-
-function validateBuildLadder(){
+function validateBuildLadder(model){
+  const {components:S, steps:STEPS, ladderExempt} = model;
+  /* A level may legitimately have no build order to check. */
+  if(!STEPS) return null;
   const seen = new Map();
   STEPS.forEach(step=>{
     if(!Array.isArray(step.stages) || !step.stages.length){
@@ -3075,36 +3112,237 @@ function validateBuildLadder(){
     }
   });
 
-  if(seen.has(LADDER_UNBUILT)){
-    throw new Error("Component "+LADDER_UNBUILT+" is the query itself and has no build step");
+  if(seen.has(ladderExempt)){
+    throw new Error("Component "+ladderExempt+" is the query itself and has no build step");
   }
-  const unbuilt = Object.keys(S).filter(id=>id!==LADDER_UNBUILT && !seen.has(id));
+  const unbuilt = Object.keys(S).filter(id=>id!==ladderExempt && !seen.has(id));
   if(unbuilt.length) throw new Error("Components with no build step: "+unbuilt.join(", "));
 
-  return Object.freeze({steps:STEPS.length, componentsBuilt:seen.size, exempt:[LADDER_UNBUILT]});
+  return Object.freeze({steps:STEPS.length, componentsBuilt:seen.size, exempt:[ladderExempt]});
 }
 
-const BUILD_LADDER_RESULT = validateBuildLadder();
 
 /* =======================================================================
-   STATE
+   THE LOGICAL MODEL — every registry above, assembled into one level and
+   handed to defModel, which derives the reverse indexes and runs the
+   validators. Nothing below this line reads a registry by its own name.
    ======================================================================= */
+
+/* Composition bands for the sidebar: which phase a component's group sits in. */
+const PHASES = [
+  {id:"query",  label:"Query processing", groups:["Query inputs","Query processing","Constraint handling"], color:"var(--core-line)"},
+  {id:"retr",   label:"Retrieval",        groups:["Candidate retrieval"],                                    color:"var(--rec-line)"},
+  {id:"merge",  label:"Merge & fuse",     groups:["Candidate generation","Fusion"],                          color:"var(--opt-line)"},
+  {id:"rerank", label:"Rerank",           groups:["Reranking"],                                              color:"var(--warn)"},
+  {id:"final",  label:"Rank & assemble",  groups:["Final ranking","Results"],                                color:"var(--ctrl-line)"},
+  {id:"eval",   label:"Evaluation",       groups:["Evaluation"],                                          color:"var(--wire-train)"}
+];
+
+/* Rows whose centre members run concurrently, and the stage groups drawn as
+   one boundary. Both are this level's layout vocabulary, not the renderer's. */
+const PARALLEL_GROUPS = Object.freeze({
+  retrieval:Object.freeze({
+    ingressLabel:"retrieval fan-out",
+    ingressGatedLabel:"conditional legs",
+    egressLabel:"candidate fan-in",
+    padding:Object.freeze({x:22,y:20}),
+    boundary:Object.freeze({
+      title:"Retrieval components",
+      note:"legs run concurrently \u00b7 the group costs its slowest member"
+    }),
+    controlPorts:Object.freeze({
+      routing:"gates legs and depth",
+      degradation:"cuts or skips"
+    })
+  })
+});
+const STAGE_GROUPS = Object.freeze({
+  "selective-rerank-cascade":Object.freeze({
+    label:"selective rerank cascade",
+    members:SELECTIVE_RERANK_CASCADE,
+    padding:Object.freeze({x:22,y:28}),
+    boundary:Object.freeze({
+      title:"Selective rerank cascade",
+      note:"gated passes \u00b7 skipped stages pass candidates through"
+    }),
+    controlPorts:Object.freeze({routing:"selects gated passes"}),
+    controlSides:Object.freeze({routing:"right"})
+  })
+});
+
+/* Rules only the logical level can state. The shared validator proves the
+   relationship model is coherent; these prove this pipeline says what it
+   means to say. */
+const LOGICAL_INVARIANTS = [
+  /* The cascade is the reranking order. A stage outside Reranking in it, or a
+     stage named twice, means the list and the registry have drifted. */
+  model=>{
+    if(new Set(SELECTIVE_RERANK_CASCADE).size!==SELECTIVE_RERANK_CASCADE.length){
+      throw new Error("Duplicate component in selective rerank cascade");
+    }
+    SELECTIVE_RERANK_CASCADE.forEach(id=>{
+      assertComponent(model,id,"selective rerank cascade");
+      if(model.components[id].group!=="Reranking"){
+        throw new Error("Non-reranking component in selective cascade: "+id);
+      }
+    });
+  },
+  /* A gated reranker is a cascade member that the Full surface actually gates. */
+  model=>{
+    if(new Set(GATED_RERANKERS).size!==GATED_RERANKERS.length){
+      throw new Error("Duplicate component in gated reranker set");
+    }
+    GATED_RERANKERS.forEach(id=>{
+      assertComponent(model,id,"gated reranker set");
+      if(!SELECTIVE_RERANK_CASCADE.includes(id) || !Model.gate(model,id,3)){
+        throw new Error("Invalid gated reranker: "+id);
+      }
+    });
+  },
+  /* Routing owns every request gate, so it must steer every gated reranker and
+     no deterministic one. */
+  model=>{
+    const routed = new Set((model.relations.routing?.steers||[])
+      .filter(id=>model.components[id]?.group==="Reranking"));
+    if(GATED_RERANKERS.some(id=>!routed.has(id)) ||
+       [...routed].some(id=>!GATED_RERANKERS.includes(id))){
+      throw new Error("Retrieval routing must target every gated reranker, and no deterministic reranker");
+    }
+  },
+  /* Every relation leaving the feedback plane must say what it carries; every
+     other plane is annotated by exception. See FEEDBACK_PLANE_SOURCES for why. */
+  (model,{componentRelations})=>{
+    FEEDBACK_PLANE_SOURCES.forEach(id=>assertComponent(model,id,"feedback plane source"));
+    componentRelations.filter(({from})=>FEEDBACK_PLANE_SOURCES.includes(from))
+      .forEach(({from,to,kind})=>{
+        if(!Model.relationDetail(model,from,kind,to)){
+          throw new Error("Feedback relationship lacks transmission detail: "+[from,kind,to].join("|"));
+        }
+      });
+  }
+];
+
+const LOGICAL = defModel({
+  id:"logical",
+  abstraction:"logical",
+  label:"Logical pipeline",
+
+  components:S,            templates:TPL,
+  relations:REL,           relationDetails:RELATION_DETAILS,
+  gates:GATED_EXECUTION,   requires:REQUIRES,
+  dataSources:DATA_SOURCES, serving:SERVING_REL,
+  phases:PHASES,           capabilities:CAPS,        facets:FACETS,
+  parallelGroups:PARALLEL_GROUPS, stageGroups:STAGE_GROUPS,
+  steps:STEPS,             ladderExempt:"q-text",  /* the query itself — arrives, is not built */
+
+  example:"quiet waterfront cabin with a wood fireplace, sleeps 6, under $300 a night, within 2 hours of the city",
+  /* Sets of components the narrow layout names collectively rather than one
+     by one, because a chip listing six retrieval legs is unreadable. */
+  collapseGroups:[{members:LEGS,            label:"retrieval legs",  min:3},
+                  {members:GATED_RERANKERS, label:"gated rerankers", min:2}],
+
+  /* Optional overlays the reader can switch on. A plane marked `serves` is what
+     admits the serving edges into the dependency set. */
+  planes:[{id:"serving", label:"Show data sources", serves:true, defaultOn:false}],
+
+  baseline:DEPENDENCY_BASELINE,
+  expectedCounts:{sources:{1:3,2:4,3:6}, servingEdges:{1:3,2:4,3:7}},
+  invariants:LOGICAL_INVARIANTS
+});
+
+/* =======================================================================
+   VIEW STATE
+   ======================================================================= */
+/* Which tab is showing, and one independent slice of composition state per
+   level — switching tabs must never reset the other view. */
 const state = {
-  view:"pipe", tpl:1, prevTpl:null, showServing:false,
-  off:{1:new Set(),2:new Set(),3:new Set()}, collapsedGroups:new Set(),
-  sel:null, focus:null
+  view:"pipe",
+  models:Object.fromEntries(Object.values(PIPELINE_MODELS).map(model=>[model.id,{
+    tpl:1, prevTpl:null,
+    planes:Object.fromEntries(model.planes.map(plane=>[plane.id,plane.defaultOn])),
+    off:{1:new Set(),2:new Set(),3:new Set()},
+    collapsedGroups:new Set(), sel:null, focus:null
+  }]))
 };
 
 const $  = (s,r)=> (r||document).querySelector(s);
 const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
-const canvas = $("#canvas"), wires = $("#wires"), rowsEl = $("#rows");
 
-function tplStages(t){
-  const out=[];
-  TPL[t].rows.forEach(r=>{ (r.l||[]).concat(r.c||[],r.r||[]).forEach(id=>out.push(id)); });
-  return out;
+/* =======================================================================
+   SHARED PAGE FURNITURE — one drawer, one hover card, one page. Views fill
+   them in; they do not own them.
+   ======================================================================= */
+const isNarrowLayout = () => window.matchMedia("(max-width:700px)").matches;
+
+function escapeAttribute(value){
+  return String(value).replace(/[&"<>]/g,char=>({"&":"&amp;","\"":"&quot;","<":"&lt;",">":"&gt;"})[char]);
 }
-function isOff(id){ return state.off[state.tpl].has(id); }
+
+const DRAWER = {
+  root:$("#drawer"), scrim:$("#scrim"),  title:$("#dTitle"), tags:$("#dTags"),
+  purpose:$("#dPurpose"), chips:$("#dChips"), gate:$("#dGate"),
+  body:$("#dBody"), toggle:$("#dToggle")
+};
+const drawerSect = (title,body)=> '<div class="sect"><h4>'+title+'</h4>'+body+'</div>';
+
+/* Whichever view opened the drawer clears its own selection when it shuts,
+   even if the reader has since changed tabs. */
+let drawerOwner = null;
+function closeDrawer(){
+  DRAWER.root.classList.remove("open"); DRAWER.scrim.classList.remove("open");
+  drawerOwner?.clearSelection();
+  drawerOwner = null;
+}
+
+const hoverCard = document.createElement("div");
+hoverCard.className = "hovercard";
+hoverCard.hidden = true;
+document.body.appendChild(hoverCard);
+const finePointer = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+/* =======================================================================
+   PIPELINE VIEW — one instance per abstraction level. Everything a view
+   touches is a parameter: the model it draws, the slice of state it owns,
+   and the part of the page it renders into. Two views share this code and
+   share nothing else.
+
+   The body is deliberately left at the file's own indentation rather than
+   nested a level: it is a module's worth of code, and the banners below are
+   easier to read flush left. It ends at THE VIEW.
+   ======================================================================= */
+function createPipelineView(model, slice, root){
+
+/* This level's registries, under the names the renderer knows them by. */
+const {components:S, templates:TPL, relations:REL, reverseRelations:RREL,
+       requires:REQUIRES, dataSources:DATA_SOURCES, serving:SERVING_REL,
+       reverseServing:RSERVING, phases:PHASES, capabilities:CAPS, facets:FACETS,
+       parallelGroups:PARALLEL_GROUPS, stageGroups:STAGE_GROUPS, maxCx:MAX_CX} = model;
+
+/* Selectors are scoped to this view's root so both views can share one markup
+   vocabulary: ids belong to the document, `data-el` names belong to a view,
+   and ui() is the only way to reach one. */
+const $  = (sel,scope)=> (scope||root).querySelector(sel);
+const $$ = (sel,scope)=> Array.from((scope||root).querySelectorAll(sel));
+const ui = name => root.querySelector('[data-el="'+name+'"]');
+
+const canvas = ui("canvas"), wires = ui("wires"), rowsEl = ui("rows");
+/* The few handles the document itself needs, made unique per view. */
+rowsEl.id = model.id+"-rows";
+ui("servingToggle").setAttribute("aria-controls", rowsEl.id);
+
+/* Model queries, bound to this level. */
+const tplStages      = templateId=> Model.stages(model,templateId);
+const executionGate  = (id,templateId)=> Model.gate(model,id,templateId);
+const relationDetail = (from,kind,to)=> Model.relationDetail(model,from,kind,to);
+const optionalPlane  = model.planes[0];
+
+/* Every relationship endpoint the current composition draws. */
+const currentDependencies = ()=>
+  Model.dependencies(model, slice.tpl, {planes:slice.planes, off:slice.off[slice.tpl]});
+/* True while a plane carrying serving edges is switched on. */
+const sourcesShown = ()=> model.servesPlanes.some(id=>slice.planes[id]);
+
+function isOff(id){ return slice.off[slice.tpl].has(id); }
 function isOn(id){ return !isOff(id); }
 function lockedFor(id){ return S[id].tier==="core"; }
 
@@ -3115,7 +3353,7 @@ function sourceIdsForConsumers(componentIds){
 }
 
 function templateConsumers(sourceId){
-  const present = new Set(tplStages(state.tpl));
+  const present = new Set(tplStages(slice.tpl));
   return (SERVING_REL[sourceId]||[]).filter(id=>present.has(id));
 }
 
@@ -3124,7 +3362,7 @@ function activeConsumers(sourceId){
 }
 
 function activeSourceIds(){
-  return sourceIdsForConsumers(tplStages(state.tpl).filter(isOn));
+  return sourceIdsForConsumers(tplStages(slice.tpl).filter(isOn));
 }
 
 function sourceIdsFor(componentIds){
@@ -3135,28 +3373,15 @@ function sourceIdsFor(componentIds){
 }
 
 function setOff(id,off){
-  const set = state.off[state.tpl];
+  const set = slice.off[slice.tpl];
   if(off) set.add(id); else set.delete(id);
   // dependents follow their parent down, but are not auto-revived
   Object.keys(REQUIRES).forEach(k=>{ if(REQUIRES[k]===id && off) set.add(k); });
   if(!off && REQUIRES[id]) set.delete(REQUIRES[id]);
 }
 
-/* =======================================================================
-   COMPOSITION MODEL
-   ======================================================================= */
-const PHASES = [
-  {id:"query",  label:"Query processing", groups:["Query inputs","Query processing","Constraint handling"], color:"var(--core-line)"},
-  {id:"retr",   label:"Retrieval",        groups:["Candidate retrieval"],                                    color:"var(--rec-line)"},
-  {id:"merge",  label:"Merge & fuse",     groups:["Candidate generation","Fusion"],                          color:"var(--opt-line)"},
-  {id:"rerank", label:"Rerank",           groups:["Reranking"],                                              color:"var(--warn)"},
-  {id:"final",  label:"Rank & assemble",  groups:["Final ranking","Results"],                                color:"var(--ctrl-line)"},
-  {id:"eval",   label:"Evaluation",       groups:["Evaluation"],                                          color:"var(--wire-train)"}
-];
-const MAX_CX = Object.values(S).reduce((a,s)=>a+(s.cx||0),0);
-
 function composition(){
-  const ids = tplStages(state.tpl).filter(isOn);
+  const ids = tplStages(slice.tpl).filter(isOn);
   const per = {};
   let cxSum=0;
   const modelMap=new Map(), caps=new Set();
@@ -3174,45 +3399,46 @@ function composition(){
   });
   return {per, cx:cxSum,
           models:modelMap.size, modelNames:Array.from(modelMap.values()),
-          caps, count:ids.length, off:tplStages(state.tpl).filter(isOff).length};
+          caps, count:ids.length, off:tplStages(slice.tpl).filter(isOff).length};
 }
 
 function renderComposition(){
   const b = composition();
-  $("#stageCount").textContent = b.count + " on";
-  $("#phaseLegend").innerHTML = PHASES.filter(p=>b.per[p.id]).map(p=>
+  ui("stageCount").textContent = b.count + " on";
+  ui("phaseLegend").innerHTML = PHASES.filter(p=>b.per[p.id]).map(p=>
     '<button data-phase="'+p.id+'" aria-pressed="false" title="Show the components in this phase">'+
     '<i style="background:'+p.color+'"></i>'+p.label+' '+b.per[p.id]+'</button>').join("");
 
   const band = b.cx<=18 ? "Lean" : b.cx<=32 ? "Moderate" : b.cx<=50 ? "Substantial" : "Heavy";
-  $("#cxVal").textContent = band + " · " + b.cx;
-  $("#cxBar").style.width = Math.min(100, b.cx/MAX_CX*100) + "%";
-  $("#cxNote").textContent = "Relative index over enabled components — for comparing variants, not an estimate of effort.";
-  $("#mdlVal").textContent = b.models;
-  $("#mdlNote").textContent = b.models ? b.modelNames.join(", ") + "." : "No learned models in the request path.";
+  ui("cxVal").textContent = band + " · " + b.cx;
+  ui("cxBar").style.width = Math.min(100, b.cx/MAX_CX*100) + "%";
+  ui("cxNote").textContent = "Relative index over enabled components — for comparing variants, not an estimate of effort.";
+  ui("mdlVal").textContent = b.models;
+  ui("mdlNote").textContent = b.models ? b.modelNames.join(", ") + "." : "No learned models in the request path.";
 
-  $("#caps").innerHTML = CAPS.map(c=>
+  ui("caps").innerHTML = CAPS.map(c=>
     '<button class="cap'+(b.caps.has(c.id)?" on":"")+'" data-cap="'+c.id+'" aria-pressed="false">'+
     c.label+'</button>').join("");
 
-  const offEl = $("#offCount");
+  const offEl = ui("offCount");
   offEl.hidden = b.off===0; offEl.textContent = b.off + " off";
 
-  $$("#caps .cap").forEach(el=> el.addEventListener("click", ()=> setFocus("cap", el.dataset.cap)));
-  $$("#phaseLegend button").forEach(el=> el.addEventListener("click", ()=> setFocus("phase", el.dataset.phase)));
+  $$(".cap",ui("caps")).forEach(el=> el.addEventListener("click", ()=> setFocus("cap", el.dataset.cap)));
+  $$("button",ui("phaseLegend")).forEach(el=> el.addEventListener("click", ()=> setFocus("phase", el.dataset.phase)));
   syncFocusUI();
 }
 
-function renderServingToggle(){
-  const button = $("#servingToggle");
-  button.setAttribute("aria-pressed",String(state.showServing));
-  button.setAttribute("aria-label","Show data sources");
+/* One optional plane today, so one control. The panel spec in a later pass
+   turns this into one control per declared plane. */
+function renderPlaneToggle(){
+  const button = ui("servingToggle");
+  button.setAttribute("aria-pressed",String(!!slice.planes[optionalPlane.id]));
+  button.setAttribute("aria-label",optionalPlane.label);
 }
 
 /* =======================================================================
    CANVAS RENDER
    ======================================================================= */
-const isNarrowLayout = () => window.matchMedia("(max-width:700px)").matches;
 const entityName = id => DATA_SOURCES[id]?.name || S[id]?.name || id;
 
 function mobileRelationKey(kind){
@@ -3232,8 +3458,7 @@ function compactDependencyNames(ids){
     labels.push(label);
     matches.forEach(id=>remaining.splice(remaining.indexOf(id),1));
   };
-  extractGroup(LEGS,"retrieval legs",3);
-  extractGroup(GATED_RERANKERS,"gated rerankers",2);
+  model.collapseGroups.forEach(group=>extractGroup(group.members,group.label,group.min));
   labels.push(...remaining.map(entityName));
   return labels.join(" · ");
 }
@@ -3338,10 +3563,10 @@ function renderMobileSelection(id){
   const card=DATA_SOURCES[id]
     ? rowsEl.querySelector('.data-source-node[data-source-id="'+id+'"]')
     : rowsEl.querySelector('.node[data-id="'+id+'"]');
-  if(!card){ state.sel=null; return; }
+  if(!card){ slice.sel=null; return; }
 
   selectEntity(id);
-  const logical=logicalDependencies(state.tpl,{showServing:state.showServing,off:state.off[state.tpl]});
+  const logical=currentDependencies();
   const incoming=logical.filter(edge=>edge.to===id);
   const outgoing=logical.filter(edge=>edge.from===id);
   [...incoming.map(edge=>edge.from),...outgoing.map(edge=>edge.to)].forEach(other=>{
@@ -3362,14 +3587,14 @@ function renderMobileSelection(id){
     '<button type="button" class="mobile-details-btn" data-mobile-details>Open full component details</button>';
   card.insertAdjacentElement("afterend",panel);
   panel.querySelector("[data-mobile-close]").addEventListener("click",()=>{
-    state.sel=null; panel.remove(); selectEntity(null);
+    slice.sel=null; panel.remove(); selectEntity(null);
     $$(".mobile-connected",rowsEl).forEach(el=>el.classList.remove("mobile-connected"));
   });
   panel.querySelector("[data-mobile-details]").addEventListener("click",()=>
     DATA_SOURCES[id] ? openSourceDrawer(id) : openDrawer(id));
   $$('[data-mobile-select]',panel).forEach(button=>button.addEventListener("click",()=>{
-    state.sel=button.dataset.mobileSelect;
-    renderMobileSelection(state.sel);
+    slice.sel=button.dataset.mobileSelect;
+    renderMobileSelection(slice.sel);
     const selected=rowsEl.querySelector('.selected');
     selected?.scrollIntoView({block:"nearest"});
   }));
@@ -3377,7 +3602,7 @@ function renderMobileSelection(id){
 
 function activateEntity(id){
   if(isNarrowLayout()){
-    state.sel=id;
+    slice.sel=id;
     renderMobileSelection(id);
   } else if(DATA_SOURCES[id]) openSourceDrawer(id);
   else openDrawer(id);
@@ -3385,7 +3610,7 @@ function activateEntity(id){
 
 function nodeEl(id, newIds, logical){
   const s = S[id];
-  const gate = executionGate(id,state.tpl);
+  const gate = executionGate(id,slice.tpl);
   const el = document.createElement("button");
   el.className = "node " + (s.control ? "control" : s.tier) +
                  (s.decision ? " decision":"") + (s.io ? " io":"") + (gate ? " gated":"");
@@ -3399,7 +3624,7 @@ function nodeEl(id, newIds, logical){
   }
   if(!isOn(id)) el.classList.add("off");
   if(newIds.has(id)) el.classList.add("isnew");
-  if(state.sel===id) el.classList.add("selected");
+  if(slice.sel===id) el.classList.add("selected");
   const meta =                                       // tier, group, then conditional state
     '<span class="tierchip '+s.tier+'" title="First appears in '+TPL[s.intro].name+'">'+
       TIER_LABEL[s.intro]+'</span>' +
@@ -3430,7 +3655,7 @@ function dataSourceEl(id,logical){
   el.dataset.sourceId = id;
   el.dataset.on = sourceOn ? "1" : "0";
   if(!sourceOn) el.classList.add("off");
-  if(state.sel===id) el.classList.add("selected");
+  if(slice.sel===id) el.classList.add("selected");
   el.setAttribute("aria-label",source.name+", "+TIER_LABEL[source.intro]+", data plane"+
     (sourceOn?"":"; inactive because all served components are disabled")+". Serves "+
     consumers.map(componentId=>S[componentId].name).join(", "));
@@ -3447,18 +3672,18 @@ function dataSourceEl(id,logical){
 }
 
 function renderCanvas(){
-  const t = state.tpl;
-  const logical = logicalDependencies(t,{showServing:state.showServing,off:state.off[t]});
+  const t = slice.tpl;
+  const logical = currentDependencies();
   const prev = t>1 ? new Set(tplStages(t-1)) : new Set();
   const newIds = t>1 ? new Set(tplStages(t).filter(id=>!prev.has(id))) : new Set();
   const nNew = newIds.size;
-  const pill = $("#diffPill");
+  const pill = ui("diffPill");
   if(t>1 && nNew){ pill.hidden=false; pill.textContent = "+ " + nNew + " new vs " + TPL[t-1].name; }
   else pill.hidden = true;
 
   rowsEl.innerHTML = "";
   $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
-  canvas.classList.toggle("with-data-sources",state.showServing);
+  canvas.classList.toggle("with-data-sources",sourcesShown());
   rowsEl.appendChild(mobileDependencyIntro(logical));
 
   TPL[t].rows.forEach((r,i)=>{
@@ -3468,8 +3693,8 @@ function renderCanvas(){
     row.className = "row" + (parallel ? " parallel-row" : "");
     if(parallel) row.dataset.parallelGroup = S[(r.c||[]).find(id=>S[id].parallel)].parallel;
     row.dataset.row = i;
-    const rowSourceIds = state.showServing ? sourceIdsFor(r.c||[]) : [];
-    (state.showServing ? ["d","l","c","r"] : ["l","c","r"]).forEach(k=>{
+    const rowSourceIds = sourcesShown() ? sourceIdsFor(r.c||[]) : [];
+    (sourcesShown() ? ["d","l","c","r"] : ["l","c","r"]).forEach(k=>{
       const cell = document.createElement("div");
       cell.className = "cell " + (k==="d"?"data":k==="l"?"left":k==="c"?"center":"right");
       if(k==="c") cell.dataset.cellRow = i;
@@ -3492,7 +3717,7 @@ function renderCanvas(){
       if(recovery) rowsEl.appendChild(recovery);
     }
   });
-  if(state.sel && isNarrowLayout()) renderMobileSelection(state.sel);
+  if(slice.sel && isNarrowLayout()) renderMobileSelection(slice.sel);
   applyFocus();
   requestAnimationFrame(drawWires);
 }
@@ -3505,35 +3730,6 @@ function rectOf(sel){
   return {x:r.left-cr.left, y:r.top-cr.top, w:r.width, h:r.height,
           cx:r.left-cr.left+r.width/2, cy:r.top-cr.top+r.height/2};
 }
-const PARALLEL_GROUPS = Object.freeze({
-  retrieval:Object.freeze({
-    ingressLabel:"retrieval fan-out",
-    ingressGatedLabel:"conditional legs",
-    egressLabel:"candidate fan-in",
-    padding:Object.freeze({x:22,y:20}),
-    boundary:Object.freeze({
-      title:"Retrieval components",
-      note:"legs run concurrently \u00b7 the group costs its slowest member"
-    }),
-    controlPorts:Object.freeze({
-      routing:"gates legs and depth",
-      degradation:"cuts or skips"
-    })
-  })
-});
-const STAGE_GROUPS = Object.freeze({
-  "selective-rerank-cascade":Object.freeze({
-    label:"selective rerank cascade",
-    members:SELECTIVE_RERANK_CASCADE,
-    padding:Object.freeze({x:22,y:28}),
-    boundary:Object.freeze({
-      title:"Selective rerank cascade",
-      note:"gated passes \u00b7 skipped stages pass candidates through"
-    }),
-    controlPorts:Object.freeze({routing:"selects gated passes"}),
-    controlSides:Object.freeze({routing:"right"})
-  })
-});
 const RENDER_TARGET_TYPES = Object.freeze(["node","group","stage-group","source"]);
 let parallelLayoutCache = new Map();
 
@@ -3723,17 +3919,14 @@ function componentRenderEdges(templateId,logicalEdges){
 }
 
 function edgeList(){
-  const logical = logicalDependencies(state.tpl,{
-    showServing:state.showServing,
-    off:state.off[state.tpl]
-  });
+  const logical = currentDependencies();
   const components = logical.filter(edge=>RELATION_TYPES[edge.kind].componentRelation);
   const direct = logical.filter(edge=>!RELATION_TYPES[edge.kind].componentRelation && edge.kind!=="serves");
   const serving = logical.filter(edge=>edge.kind==="serves");
   const path=direct.filter(edge=>edge.kind==="flow" || edge.kind==="gated");
   const otherDirect=direct.filter(edge=>edge.kind!=="flow" && edge.kind!=="gated");
-  return parallelPathRenderEdges(state.tpl,path).concat(otherDirect.map(edge=>renderEdge(edge)))
-    .concat(componentRenderEdges(state.tpl,components),serving.map(edge=>renderEdge(edge)));
+  return parallelPathRenderEdges(slice.tpl,path).concat(otherDirect.map(edge=>renderEdge(edge)))
+    .concat(componentRenderEdges(slice.tpl,components),serving.map(edge=>renderEdge(edge)));
 }
 
 function renderTargetName(target){
@@ -3746,13 +3939,10 @@ function renderTargetName(target){
   }
   return DATA_SOURCES[target.id] ? DATA_SOURCES[target.id].name : S[target.id].name;
 }
-function escapeAttribute(value){
-  return String(value).replace(/[&"<>]/g,char=>({"&":"&amp;","\"":"&quot;","<":"&lt;",">":"&gt;"})[char]);
-}
 function relationshipAriaLabel(edge){
   const relation=RELATION_TYPES[edge.kind];
   const gateConditions=edge.kind==="gated" ? [...new Set(renderTargetIds(edge.to)
-    .map(id=>executionGate(id,state.tpl)?.label).filter(Boolean))] : [];
+    .map(id=>executionGate(id,slice.tpl)?.label).filter(Boolean))] : [];
   return relation.aria+" from "+renderTargetName(edge.from)+" to "+renderTargetName(edge.to)+
     (edge.label ? "; outcome: "+edge.label : "")+
     (edge.caption ? "; group port: "+edge.caption : "")+
@@ -3854,9 +4044,9 @@ function groupControlGeometry(edge,sourceRect){
    the same collapsed group the fan edges, the boundary and the recovery lane all
    have to agree on. */
 function activeParallelTarget(parallel){
-  const rowIndex=TPL[state.tpl].rows.findIndex(row=>(row.c||[]).some(id=>S[id].parallel===parallel));
+  const rowIndex=TPL[slice.tpl].rows.findIndex(row=>(row.c||[]).some(id=>S[id].parallel===parallel));
   if(rowIndex<0) return null;
-  const members=(TPL[state.tpl].rows[rowIndex].c||[])
+  const members=(TPL[slice.tpl].rows[rowIndex].c||[])
     .filter(id=>S[id].parallel===parallel && isOn(id));
   return members.length<2 ? null : groupRenderTarget("parallel:"+parallel,rowIndex,members);
 }
@@ -3881,7 +4071,7 @@ function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,para
    the same dashed boundary, so a wire that stops at the border is unambiguous. */
 function boundaryLayouts(){
   const layouts=[];
-  if(state.tpl===3){
+  if(slice.tpl===3){
     const cascade=stageGroupLayout(stageGroupRenderTarget("selective-rerank-cascade",GATED_RERANKERS));
     if(cascade) layouts.push({id:"selective-rerank-cascade",layout:cascade});
   }
@@ -4054,7 +4244,7 @@ const FOCUS = {
       return "<b>"+p.label+"</b> — components in this phase:"; }
   },
   gate:{
-    match:(s,id)=> executionGate(s.id,state.tpl)?.label===id,
+    match:(s,id)=> executionGate(s.id,slice.tpl)?.label===id,
     describe:id=>{ const c=GATE_CONDITION[id];
       return "<b>"+c.label.toUpperCase()+"</b> — "+gateSentence(c)+" Stages it gates:"; }
   }
@@ -4062,20 +4252,29 @@ const FOCUS = {
 
 /* Stages the given condition gates in the active template. */
 function gatedStagesFor(label){
-  return tplStages(state.tpl).filter(id=> executionGate(id,state.tpl)?.label===label);
+  return tplStages(slice.tpl).filter(id=> executionGate(id,slice.tpl)?.label===label);
 }
 
 function focusMatches(){
-  if(!state.focus) return [];
-  const {kind,id} = state.focus;
-  return tplStages(state.tpl).filter(sid => FOCUS[kind].match(S[sid], id));
+  if(!slice.focus) return [];
+  const {kind,id} = slice.focus;
+  return tplStages(slice.tpl).filter(sid => FOCUS[kind].match(S[sid], id));
 }
 
 function setFocus(kind, id){
-  const same = state.focus && state.focus.kind===kind && state.focus.id===id;
-  state.focus = same ? null : {kind, id};
+  const same = slice.focus && slice.focus.kind===kind && slice.focus.id===id;
+  slice.focus = same ? null : {kind, id};
   applyFocus();
   syncFocusUI();
+}
+
+/* Focus is a toggle, so clearing it is re-selecting what is already selected. */
+function dismissFocus(){ if(slice.focus) setFocus(slice.focus.kind, slice.focus.id); }
+
+/* Bring a node on screen for a link arriving from another tab. */
+function revealNode(id){
+  const node = canvas.querySelector('.node[data-id="'+id+'"]');
+  if(node) node.scrollIntoView({behavior:"smooth", block:"center"});
 }
 
 function applyFocus(){
@@ -4083,7 +4282,7 @@ function applyFocus(){
   const sourceHits = new Set(sourceIdsForConsumers(Array.from(hits)));
   // nothing matches: leave the diagram alone rather than dimming everything,
   // which reads as a broken page. The focus panel explains why.
-  const dim = state.focus && hits.size > 0;
+  const dim = slice.focus && hits.size > 0;
   $$(".node").forEach(n=>{
     n.classList.remove("hl","dimmed");
     if(!dim) return;
@@ -4097,36 +4296,34 @@ function applyFocus(){
 }
 
 function syncFocusUI(){
-  const f = state.focus;
-  $$("#facets .facet").forEach(el=>
+  const f = slice.focus;
+  $$(".facet",ui("facets")).forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="facet" && f.id===el.dataset.f)));
-  $$("#caps .cap").forEach(el=>
+  $$(".cap",ui("caps")).forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="cap" && f.id===el.dataset.cap)));
-  $$("#phaseLegend button").forEach(el=>
+  $$("button",ui("phaseLegend")).forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="phase" && f.id===el.dataset.phase)));
-  $$("#gateLegend button").forEach(el=>
+  $$("button",ui("gateLegend")).forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="gate" && f.id===el.dataset.gateCondition)));
 
-  const box = $("#focusBox");
+  const box = ui("focusBox");
   if(!f){ box.hidden = true; return; }
   box.hidden = false;
-  $("#focusDesc").innerHTML = FOCUS[f.kind].describe(f.id);
+  ui("focusDesc").innerHTML = FOCUS[f.kind].describe(f.id);
   const hits = focusMatches();
-  $("#focusList").innerHTML = hits.length
+  ui("focusList").innerHTML = hits.length
     ? hits.map(id=>'<button class="ref'+(isOff(id)?" isoff":"")+'" data-goto="'+id+'">'+
         S[id].name + (isOff(id)?" · off":"") + '</button>').join("")
-    : '<p class="fnone">No component in '+TPL[state.tpl].name+' provides this. Switch level, or re-enable a component.</p>';
-  $$("#focusList .ref").forEach(b=> b.addEventListener("click", ()=> openDrawer(b.dataset.goto)));
+    : '<p class="fnone">No component in '+TPL[slice.tpl].name+' provides this. Switch level, or re-enable a component.</p>';
+  $$(".ref",ui("focusList")).forEach(b=> b.addEventListener("click", ()=> openDrawer(b.dataset.goto)));
 }
 
 /* =======================================================================
    DETAIL DRAWER
    ======================================================================= */
-const drawer = $("#drawer"), scrim = $("#scrim");
-const drawerSect = (title,body)=> '<div class="sect"><h4>'+title+'</h4>'+body+'</div>';
 
 function selectEntity(id){
-  state.sel = id;
+  slice.sel = id;
   $$(".node").forEach(n=>n.classList.toggle("selected",n.dataset.id===id));
   $$(".data-source-node").forEach(card=>
     card.classList.toggle("selected",card.dataset.sourceId===id));
@@ -4151,7 +4348,7 @@ function chipTag(goto,html){
 /* One drawer header serves components and data sources, so the gate note is
    set from a single place — a source drawer must not inherit the last card's. */
 function setGateNote(gate){
-  const el = $("#dGate");
+  const el = DRAWER.gate;
   el.hidden = !gate;
   el.textContent = gate ? gateSentence(gate) : "";
   if(gate) el.style.setProperty("--gate-color", gate.color);
@@ -4160,19 +4357,19 @@ function setGateNote(gate){
 function openDrawer(id){
   const s = S[id];
   if(!s) return;
-  const gate = executionGate(id,state.tpl);
+  const gate = executionGate(id,slice.tpl);
   hideHover();
   selectEntity(id);
 
-  $("#dTags").innerHTML =
+  DRAWER.tags.innerHTML =
     '<span class="tag '+s.tier+'">'+s.tier+'</span>' +
     (s.control ? '<span class="tag ctl">control plane</span>' : "") +
     '<span class="tag grp">'+s.group+'</span>';
-  $("#dTitle").textContent = s.name;
-  $("#dPurpose").textContent = s.purpose;
+  DRAWER.title.textContent = s.name;
+  DRAWER.purpose.textContent = s.purpose;
 
   const locked = lockedFor(id), on = isOn(id);
-  $("#dChips").innerHTML =
+  DRAWER.chips.innerHTML =
     '<span class="chip">Introduced in <b>'+TPL[s.intro].name+'</b></span>' +
     (s.cx ? '<span class="chip">Complexity <b>'+s.cx+'/5</b></span>' : "") +
     (s.model ? '<span class="chip">model in path</span>' : "") +
@@ -4185,7 +4382,7 @@ function openDrawer(id){
       (locked ? "core · always on" : (on ? "✓ enabled" : "disabled — enable")) + '</button>';
 
   setGateNote(gate);
-  $$("#dChips [data-goto]").forEach(b=>
+  $$("[data-goto]",DRAWER.chips).forEach(b=>
     b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
 
   const sect = drawerSect;
@@ -4253,15 +4450,16 @@ function openDrawer(id){
   h += sect("Appears in", '<div class="reflist">'+usedIn.map(t=>
         '<button class="ref" data-tpl="'+t+'">'+TPL[t].name+'</button>').join("")+'</div>');
 
-  $("#dBody").innerHTML = h;
-  $$("#dBody .ref[data-goto]").forEach(b=> b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
-  $$("#dBody .ref[data-source]").forEach(b=> b.addEventListener("click",()=> openSourceDrawer(b.dataset.source)));
-  $$("#dBody .ref[data-tpl]").forEach(b=> b.addEventListener("click",()=>{ setTpl(+b.dataset.tpl); openDrawer(id); }));
-  const tg = $("#dToggle");
+  DRAWER.body.innerHTML = h;
+  $$(".ref[data-goto]",DRAWER.body).forEach(b=> b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
+  $$(".ref[data-source]",DRAWER.body).forEach(b=> b.addEventListener("click",()=> openSourceDrawer(b.dataset.source)));
+  $$(".ref[data-tpl]",DRAWER.body).forEach(b=> b.addEventListener("click",()=>{ setTpl(+b.dataset.tpl); openDrawer(id); }));
+  const tg = DRAWER.toggle;
   if(tg && !locked) tg.addEventListener("click", ()=>{ setOff(id, isOn(id)); renderAll(); openDrawer(id); });
 
-  drawer.classList.add("open"); scrim.classList.add("open");
-  drawer.setAttribute("aria-modal","false");
+  drawerOwner = view;
+  DRAWER.root.classList.add("open"); DRAWER.scrim.classList.add("open");
+  DRAWER.root.setAttribute("aria-modal","false");
 }
 
 function openSourceDrawer(id){
@@ -4270,16 +4468,16 @@ function openSourceDrawer(id){
   hideHover();
   selectEntity(id);
 
-  $("#dTags").innerHTML =
+  DRAWER.tags.innerHTML =
     '<span class="tag '+source.tier+'">'+TIER_LABEL[source.intro]+'</span>'+
     '<span class="tag data">data plane</span><span class="tag grp">logical dependency</span>';
-  $("#dTitle").textContent = source.name;
-  $("#dPurpose").textContent = source.purpose;
+  DRAWER.title.textContent = source.name;
+  DRAWER.purpose.textContent = source.purpose;
   setGateNote(null);
 
   const consumers = SERVING_REL[id] || [];
   const active = activeConsumers(id);
-  $("#dChips").innerHTML =
+  DRAWER.chips.innerHTML =
     '<span class="chip">Introduced in <b>'+TPL[source.intro].name+'</b></span>'+
     '<span class="chip">Active consumers <b>'+active.length+'</b></span>'+
     '<span class="chip">Defined consumers <b>'+consumers.length+'</b></span>';
@@ -4287,11 +4485,11 @@ function openSourceDrawer(id){
   const contract = '<div class="iobox"><span class="k">representation  </span>'+source.representation+
     '\n<span class="k">filtering       </span>'+source.filtering+
     '\n<span class="k">updates         </span>'+source.updates+'</div>';
-  const present = new Set(tplStages(state.tpl));
+  const present = new Set(tplStages(slice.tpl));
   const serves = '<p class="relnote">Components that query or hydrate from this logical source.</p>'+
     '<div class="reflist">'+consumers.map(componentId=>{
       const unavailable = !present.has(componentId), off = present.has(componentId) && isOff(componentId);
-      const suffix = unavailable ? " · not in "+TPL[state.tpl].name : off ? " · off" : "";
+      const suffix = unavailable ? " · not in "+TPL[slice.tpl].name : off ? " · off" : "";
       return '<button class="ref'+(unavailable||off?' isoff':'')+'" data-goto="'+componentId+'">'+
         S[componentId].name+suffix+'</button>';
     }).join("")+'</div>';
@@ -4300,7 +4498,7 @@ function openSourceDrawer(id){
   const templates = [1,2,3].filter(t=>
     consumers.some(componentId=>tplStages(t).includes(componentId)));
 
-  $("#dBody").innerHTML =
+  DRAWER.body.innerHTML =
     drawerSect("Serving contract",contract)+
     drawerSect("Implementation boundary",'<p class="relnote">'+source.implementation+'</p>')+
     notes+
@@ -4308,17 +4506,19 @@ function openSourceDrawer(id){
     drawerSect("Appears with",'<div class="reflist">'+templates.map(t=>
       '<button class="ref" data-source-tpl="'+t+'">'+TPL[t].name+'</button>').join("")+'</div>');
 
-  $$("#dBody .ref[data-goto]").forEach(b=>b.addEventListener("click",()=>openDrawer(b.dataset.goto)));
-  $$("#dBody .ref[data-source-tpl]").forEach(b=>b.addEventListener("click",()=>{
+  $$(".ref[data-goto]",DRAWER.body).forEach(b=>b.addEventListener("click",()=>openDrawer(b.dataset.goto)));
+  $$(".ref[data-source-tpl]",DRAWER.body).forEach(b=>b.addEventListener("click",()=>{
     setTpl(+b.dataset.sourceTpl); openSourceDrawer(id);
   }));
-  drawer.classList.add("open"); scrim.classList.add("open");
-  drawer.setAttribute("aria-modal","false");
+  drawerOwner = view;
+  DRAWER.root.classList.add("open"); DRAWER.scrim.classList.add("open");
+  DRAWER.root.setAttribute("aria-modal","false");
 }
 
-function closeDrawer(){
-  drawer.classList.remove("open"); scrim.classList.remove("open");
-  state.sel = null;
+/* The drawer is a document singleton; closing it is handled once, outside.
+   What is left here is this view's own selection state. */
+function clearSelection(){
+  slice.sel = null;
   $$(".node,.data-source-node").forEach(el=>el.classList.remove("selected"));
   $$(".mobile-selection",rowsEl).forEach(panel=>panel.remove());
   $$(".mobile-connected",rowsEl).forEach(el=>el.classList.remove("mobile-connected"));
@@ -4328,13 +4528,8 @@ function closeDrawer(){
    HOVER PREVIEW — a four-field summary of the full drawer. Desktop pointers
    only, and never while the drawer is open so the two cannot compete.
    ======================================================================= */
-const hoverCard = document.createElement("div");
-hoverCard.className = "hovercard";
-hoverCard.hidden = true;
-document.body.appendChild(hoverCard);
 
 let hoverTimer = null, hoverId = null;
-const finePointer = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 /* The relationships worth previewing, in the order the card lists them. The
    drawer renders these in full; here they collapse to names, because the card
@@ -4348,7 +4543,7 @@ const HOVER_RELATIONS = Object.freeze([
 const HOVER_RELATION_LIMIT = 7;   // routing steers twelve stages; the drawer lists them all
 
 function hoverRelations(id){
-  const drawn = new Set(tplStages(state.tpl));
+  const drawn = new Set(tplStages(slice.tpl));
   const rows = HOVER_RELATIONS.map(relation=>{
     const names = (relation.pick(id) || [])
       .filter(x => !relation.scoped || drawn.has(x))
@@ -4396,7 +4591,7 @@ function hideHover(){
 function showHover(el, id){
   const source = DATA_SOURCES[id];
   if(source){
-    if(drawer.classList.contains("open")) return;
+    if(DRAWER.root.classList.contains("open")) return;
     const consumers = activeConsumers(id);
     hoverCard.innerHTML =
       '<div class="hc-title">'+source.name+'</div>'+
@@ -4407,8 +4602,8 @@ function showHover(el, id){
         consumers.map(componentId=>S[componentId].name).join(" · ")+'</li></ul></div>';
   } else {
     const s = S[id];
-    if(!s || drawer.classList.contains("open")) return;
-    const gate = executionGate(id,state.tpl);
+    if(!s || DRAWER.root.classList.contains("open")) return;
+    const gate = executionGate(id,slice.tpl);
     hoverCard.innerHTML =
       '<div class="hc-title">'+s.name+'</div>'+
       '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
@@ -4440,7 +4635,7 @@ function showHover(el, id){
 }
 
 rowsEl.addEventListener("mouseover", e=>{
-  if(!finePointer() || drawer.classList.contains("open")) return;
+  if(!finePointer() || DRAWER.root.classList.contains("open")) return;
   const el = e.target.closest(".node,.data-source-node");
   const id = el && (el.dataset.id || el.dataset.sourceId);
   if(!el || id === hoverId) return;
@@ -4460,14 +4655,14 @@ window.addEventListener("scroll", hideHover, {passive:true});
    COMPONENT LIST
    ======================================================================= */
 function renderCompList(){
-  const ids = tplStages(state.tpl);
+  const ids = tplStages(slice.tpl);
   const groups = [];
   ids.forEach(id=>{ const g=S[id].group; if(!groups.includes(g)) groups.push(g); });
   const dot = t=> t==="core"?"var(--core-line)":t==="recommended"?"var(--rec-line)":"var(--opt-line)";
-  $("#compList").innerHTML = groups.map(g=>{
+  ui("compList").innerHTML = groups.map(g=>{
     const gi = ids.filter(id=>S[id].group===g);
     const on = gi.filter(isOn).length;
-    return '<details data-group="'+g+'"'+(state.collapsedGroups.has(g)?"":" open")+'><summary>'+g+'<span class="count">'+on+"/"+gi.length+'</span></summary>'+
+    return '<details data-group="'+g+'"'+(slice.collapsedGroups.has(g)?"":" open")+'><summary>'+g+'<span class="count">'+on+"/"+gi.length+'</span></summary>'+
       gi.map(id=>{
         const s=S[id], locked=lockedFor(id);
         return '<button class="tog" data-id="'+id+'" data-on="'+(isOn(id)?1:0)+'" data-locked="'+(locked?1:0)+'">'+
@@ -4475,59 +4670,22 @@ function renderCompList(){
           '<span class="nm">'+s.name+'</span></button>';
       }).join("") + '</details>';
   }).join("");
-  $$("#compList details").forEach(group=>{
+  $$("details",ui("compList")).forEach(group=>{
     group.addEventListener("toggle", ()=>{
-      if(group.open) state.collapsedGroups.delete(group.dataset.group);
-      else state.collapsedGroups.add(group.dataset.group);
+      if(group.open) slice.collapsedGroups.delete(group.dataset.group);
+      else slice.collapsedGroups.add(group.dataset.group);
     });
   });
-  $$("#compList .tog").forEach(b=>{
+  $$(".tog",ui("compList")).forEach(b=>{
     b.addEventListener("click", (ev)=>{
       const id = b.dataset.id;
       if(lockedFor(id)) return;
       if(ev.shiftKey){ openDrawer(id); return; }
       setOff(id, isOn(id));
       renderAll();
-      if(state.sel===id) openDrawer(id);
+      if(slice.sel===id) openDrawer(id);
     });
   });
-}
-
-/* =======================================================================
-   BUILD ORDER VIEW
-   ======================================================================= */
-function renderBuild(){
-  /* The divider is keyed to the first Full-surface step rather than a fixed
-     number, so renumbering the list cannot silently drop it. */
-  const firstFull = STEPS.find(s=>s.t===3);
-  $("#steps").innerHTML = STEPS.map(s=>{
-    const chips = s.stages.filter(x=>S[x]).map(x=>
-      '<button class="ref" data-goto="'+x+'">'+S[x].name+'</button>').join("");
-    const html =
-      '<div class="step" data-t="'+s.t+'"><div><span class="num">'+(s.n||"0")+'</span></div><div>'+
-      '<h4>'+s.title+'</h4>'+
-      '<div class="grid">'+
-        '<div><div class="lb">Trigger to start</div>'+s.trigger+'</div>'+
-        '<div><div class="lb">What it buys</div>'+s.buys+'</div>'+
-      '</div>'+
-      '<div class="grid" style="grid-template-columns:1fr"><div><div class="lb">Build</div>'+s.build+'</div></div>'+
-      (chips ? '<div class="chips">'+chips+'</div>' : "") +
-      '</div></div>';
-    return s===firstFull
-      ? '<div class="divider">Steps 1–'+(firstFull.n-1)+' above are Core + recommended — the production target. '+
-        'Everything below is Full surface territory.</div>'+html
-      : html;
-  }).join("");
-  $$("#steps .ref[data-goto]").forEach(b=> b.addEventListener("click",()=>{
-    const id = b.dataset.goto;
-    const t = [1,2,3].find(t=>tplStages(t).includes(id)) || 3;
-    setView("pipe"); setTpl(t);
-    setTimeout(()=>{
-      openDrawer(id);
-      const n = canvas.querySelector('.node[data-id="'+id+'"]');
-      if(n) n.scrollIntoView({behavior:"smooth", block:"center"});
-    },60);
-  }));
 }
 
 /* =======================================================================
@@ -4535,7 +4693,7 @@ function renderBuild(){
    ======================================================================= */
 function renderAll(){
   hideHover(); renderGateLegend(); renderCanvas(); renderComposition();
-  renderCompList(); renderServingToggle();
+  renderCompList(); renderPlaneToggle();
 }
 
 /* One row per condition present in the active template. Conditions the current
@@ -4546,24 +4704,24 @@ function renderGateLegend(){
     .filter(row=>row.ids.length);
   /* A template switch can retire the focused condition. Drop it here rather
      than leaving a pressed row with nothing behind it. */
-  if(state.focus?.kind==="gate" && !rows.some(row=>row.condition.label===state.focus.id)){
-    state.focus = null;
+  if(slice.focus?.kind==="gate" && !rows.some(row=>row.condition.label===slice.focus.id)){
+    slice.focus = null;
   }
-  $("#gateLegendLabel").hidden = !rows.length;
-  $("#gateLegend").hidden = !rows.length;
-  $("#gateLegend").innerHTML = rows.map(({condition,ids})=>
+  ui("gateLegendLabel").hidden = !rows.length;
+  ui("gateLegend").hidden = !rows.length;
+  ui("gateLegend").innerHTML = rows.map(({condition,ids})=>
     '<button data-gate-condition="'+escapeAttribute(condition.label)+'" aria-pressed="false"'+
       ' data-gate-scope="'+condition.decidedAt+'" style="--gate-color:'+condition.color+'">'+
       '<span class="gk-chip">'+condition.label+'</span>'+
       '<span class="gk-count">'+ids.length+'</span>'+
       '<span class="gk-desc">'+condition.sentence+'</span>'+
     '</button>').join("");
-  $$("#gateLegend button").forEach(b=>
+  $$("button",ui("gateLegend")).forEach(b=>
     b.addEventListener("click",()=> setFocus("gate", b.dataset.gateCondition)));
 }
 
 function renderRelationLegend(){
-  $("#relationLegend").innerHTML = Object.entries(RELATION_TYPES)
+  ui("relationLegend").innerHTML = Object.entries(RELATION_TYPES)
     .filter(([,relation])=>relation.legend.visible)
     .map(([kind,relation])=>{
       const markerId="legend-arrow-"+kind;
@@ -4580,69 +4738,40 @@ function renderRelationLegend(){
 }
 
 function setTpl(t){
-  if(state.tpl===t){ renderAll(); return; }
-  state.prevTpl = state.tpl; state.tpl = t;
+  if(slice.tpl===t){ renderAll(); return; }
+  slice.prevTpl = slice.tpl; slice.tpl = t;
   $$(".seg button").forEach(b=> b.setAttribute("aria-pressed", String(+b.dataset.tpl===t)));
   renderAll();
 }
-function setView(v){
-  state.view = v;
-  $("#view-pipe").classList.toggle("on", v==="pipe");
-  $("#view-build").classList.toggle("on", v==="build");
-  $("#view-about").classList.toggle("on", v==="about");
-  $$(".tabs button").forEach(b=> b.setAttribute("aria-selected", String(b.dataset.view===v)));
-  if(v==="pipe") requestAnimationFrame(drawWires);
-}
-
+/* =======================================================================
+   THIS VIEW'S CONTROLS
+   ======================================================================= */
 $$(".seg button").forEach(b=>{
   const t = +b.dataset.tpl, template = TPL[t];
   const tip = document.createElement("span");
-  tip.className = "tpl-tip"; tip.id = "tplTip"+t; tip.setAttribute("role","tooltip");
+  tip.className = "tpl-tip"; tip.id = model.id+"-tplTip"+t; tip.setAttribute("role","tooltip");
   tip.innerHTML = "<b>"+template.tagline+".</b> "+template.desc;
   b.setAttribute("aria-label",template.name);
   b.setAttribute("aria-describedby",tip.id);
   b.appendChild(tip);
   b.addEventListener("click",()=> setTpl(t));
 });
-$$(".tabs button").forEach(b=> b.addEventListener("click",()=> setView(b.dataset.view)));
-$("#resetBtn").addEventListener("click", ()=>{ state.off[state.tpl] = new Set(); renderAll(); });
-$("#servingToggle").addEventListener("click",()=>{
-  state.showServing = !state.showServing;
+ui("resetBtn").addEventListener("click", ()=>{ slice.off[slice.tpl] = new Set(); renderAll(); });
+ui("servingToggle").addEventListener("click", ()=>{
+  slice.planes[optionalPlane.id] = !slice.planes[optionalPlane.id];
   renderAll();
-});
-$("#dClose").addEventListener("click", closeDrawer);
-scrim.addEventListener("click", closeDrawer);
-document.addEventListener("keydown", e=>{
-  if(e.key!=="Escape") return;
-  if(drawer.classList.contains("open")) closeDrawer();
-  else if(state.focus) setFocus(state.focus.kind, state.focus.id);
-});
-
-$("#themeBtn").addEventListener("click", ()=>{
-  const cur = document.documentElement.getAttribute("data-theme");
-  const dark = cur ? cur==="dark"
-    : window.matchMedia("(prefers-color-scheme: dark)").matches;
-  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
-  requestAnimationFrame(drawWires);
 });
 
 /* worked example + facet trace */
-$("#exQuery").textContent = "quiet waterfront cabin with a wood fireplace, sleeps 6, under $300 a night, within 2 hours of the city";
-$("#facets").innerHTML = FACETS.map(f=>
+ui("exQuery").textContent = model.example;
+ui("facets").innerHTML = FACETS.map(f=>
   '<button class="facet" data-f="'+f.id+'" aria-pressed="false" title="'+f.kind+'">'+f.label+'</button>').join(" ");
-$$("#facets .facet").forEach(b=> b.addEventListener("click", ()=> setFocus("facet", b.dataset.f)));
-$("#clearFocus").addEventListener("click", ()=> setFocus(state.focus.kind, state.focus.id));
+$$(".facet",ui("facets")).forEach(b=> b.addEventListener("click", ()=> setFocus("facet", b.dataset.f)));
+ui("clearFocus").addEventListener("click", ()=> dismissFocus());
 
-let rt;
-new ResizeObserver(()=>{ clearTimeout(rt); rt = setTimeout(drawWires, 90); }).observe(canvas);
-let responsiveNarrow=isNarrowLayout();
-window.addEventListener("resize", ()=>{
-  clearTimeout(rt);
-  const narrow=isNarrowLayout();
-  if(narrow!==responsiveNarrow){ responsiveNarrow=narrow; rt=setTimeout(renderAll,90); }
-  else rt=setTimeout(drawWires,90);
-});
-if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=> setTimeout(drawWires,50));
+/* A hidden canvas never resizes, so this only ever fires for the view on screen. */
+let resizeTimer;
+new ResizeObserver(()=>{ clearTimeout(resizeTimer); resizeTimer = setTimeout(drawWires, 90); }).observe(canvas);
 
 /* =======================================================================
    LAYOUT DIAGNOSTICS
@@ -4657,7 +4786,7 @@ const LAYOUT_LAYERS = {header:".hdr", context:".ctxbar", sidebar:".side"};
 
 /* Sidebar labels held to a single line, so an overflow here is a clipped
    name rather than a wrap. */
-const FITTED_LABELS = "#compList .nm, #caps .cap, #focusList .ref";
+const FITTED_LABELS = "[data-el=compList] .nm, [data-el=caps] .cap, [data-el=focusList] .ref";
 
 const layoutBox = el => {
   if(!el) return null;
@@ -4691,8 +4820,8 @@ function layoutReport(scrollY = window.scrollY){
   const layers = Object.fromEntries(Object.entries(LAYOUT_LAYERS)
     .map(([name,selector])=>[name,layoutBox($(selector))]));
   const report = {
-    template:state.tpl, templateName:TPL[state.tpl].name,
-    dataSources:state.showServing, narrow:isNarrowLayout(),
+    template:slice.tpl, templateName:TPL[slice.tpl].name,
+    dataSources:sourcesShown(), narrow:isNarrowLayout(),
     viewport:{width:window.innerWidth, height:window.innerHeight},
     scrollY:Math.round(window.scrollY),
     documentHeight:Math.round(document.documentElement.scrollHeight),
@@ -4702,8 +4831,8 @@ function layoutReport(scrollY = window.scrollY){
       dataSourceNodes:$$(".data-source-node",rowsEl).length,
       rows:$$(".row",rowsEl).length,
       wires:$$("path",wires).length,
-      relationTypes:$$("#relationLegend [data-relation-kind]").length,
-      capabilities:$$("#caps .cap").length
+      relationTypes:$$("[data-relation-kind]",ui("relationLegend")).length,
+      capabilities:$$(".cap",ui("caps")).length
     },
     layers, overlaps:layerOverlaps(layers),
     clippedLabels:clippedLabels()
@@ -4716,32 +4845,139 @@ function layoutReport(scrollY = window.scrollY){
    the window currently has. Wires are drawn synchronously here because
    the render path defers them to the next frame. */
 function layoutSweep(scrollY = 0){
-  const resume = {tpl:state.tpl, showServing:state.showServing, focus:state.focus};
+  const resume = {tpl:slice.tpl, plane:slice.planes[optionalPlane.id], focus:slice.focus};
   const settle = ()=>{ renderAll(); drawWires(); };
   const combinations = [];
-  [1,2,3].forEach(tpl=>[false,true].forEach(showServing=>{
-    Object.assign(state,{tpl,showServing});
+  Object.keys(TPL).map(Number).forEach(tpl=>[false,true].forEach(shown=>{
+    Object.assign(slice,{tpl});
+    slice.planes[optionalPlane.id] = shown;
     settle();
     combinations.push(layoutReport(scrollY));
   }));
-  Object.assign(state,resume);
+  Object.assign(slice,{tpl:resume.tpl, focus:resume.focus});
+  slice.planes[optionalPlane.id] = resume.plane;
   settle();
   return {viewport:{width:window.innerWidth, height:window.innerHeight}, combinations};
 }
 
-window.dependencyDiagnostics = Object.freeze({
-  inventory:(templateId,showServing=false,disabledIds=[])=>
-    logicalDependencies(templateId,{showServing,off:new Set(disabledIds)}),
-  validation:DEPENDENCY_BASELINE_RESULT,
-  modelValidation:RELATIONSHIP_MODEL_RESULT,
-  ladderValidation:BUILD_LADDER_RESULT,
-  layout:layoutReport,
-  layoutSweep
+
+/* =======================================================================
+   THE VIEW
+   ======================================================================= */
+const view = Object.freeze({
+  model, slice,
+  render:renderAll, drawWires, setTpl, openDrawer, revealNode,
+  clearSelection, dismissFocus, layoutReport, layoutSweep
 });
 
 renderRelationLegend();
-renderBuild();
 renderAll();
+return view;
+}
+
+/* =======================================================================
+   VIEWS AND PAGE CHROME — one pipeline view per level that has one, plus
+   the tabs, theme and keyboard handling they all share.
+   ======================================================================= */
+const VIEWS = {
+  logical: createPipelineView(LOGICAL, state.models.logical, $("#view-pipe"))
+};
+/* Which level a tab draws. A tab with no entry here is prose. */
+const VIEW_MODEL = {pipe:"logical"};
+const activeView = ()=> VIEWS[VIEW_MODEL[state.view]] || null;
+
+function setView(v){
+  state.view = v;
+  $$(".view").forEach(section=> section.classList.toggle("on", section.id==="view-"+v));
+  $$(".tabs button").forEach(b=> b.setAttribute("aria-selected", String(b.dataset.view===v)));
+  const view = activeView();
+  if(view) requestAnimationFrame(view.drawWires);
+}
+
+/* =======================================================================
+   BUILD ORDER VIEW
+   ======================================================================= */
+function renderBuild(){
+  const {components:S, steps:STEPS} = LOGICAL;
+  /* The divider is keyed to the first Full-surface step rather than a fixed
+     number, so renumbering the list cannot silently drop it. */
+  const firstFull = STEPS.find(s=>s.t===3);
+  $("#steps").innerHTML = STEPS.map(s=>{
+    const chips = s.stages.filter(x=>S[x]).map(x=>
+      '<button class="ref" data-goto="'+x+'">'+S[x].name+'</button>').join("");
+    const html =
+      '<div class="step" data-t="'+s.t+'"><div><span class="num">'+(s.n||"0")+'</span></div><div>'+
+      '<h4>'+s.title+'</h4>'+
+      '<div class="grid">'+
+        '<div><div class="lb">Trigger to start</div>'+s.trigger+'</div>'+
+        '<div><div class="lb">What it buys</div>'+s.buys+'</div>'+
+      '</div>'+
+      '<div class="grid" style="grid-template-columns:1fr"><div><div class="lb">Build</div>'+s.build+'</div></div>'+
+      (chips ? '<div class="chips">'+chips+'</div>' : "") +
+      '</div></div>';
+    return s===firstFull
+      ? '<div class="divider">Steps 1–'+(firstFull.n-1)+' above are Core + recommended — the production target. '+
+        'Everything below is Full surface territory.</div>'+html
+      : html;
+  }).join("");
+  $$("#steps .ref[data-goto]").forEach(b=> b.addEventListener("click",()=>{
+    const id = b.dataset.goto, view = VIEWS.logical;
+    const t = [1,2,3].find(t=>Model.stages(LOGICAL,t).includes(id)) || 3;
+    setView("pipe"); view.setTpl(t);
+    setTimeout(()=>{ view.openDrawer(id); view.revealNode(id); },60);
+  }));
+}
+
+$$(".tabs button").forEach(b=> b.addEventListener("click",()=> setView(b.dataset.view)));
+$("#dClose").addEventListener("click", closeDrawer);
+DRAWER.scrim.addEventListener("click", closeDrawer);
+document.addEventListener("keydown", e=>{
+  if(e.key!=="Escape") return;
+  if(DRAWER.root.classList.contains("open")) closeDrawer();
+  else activeView()?.dismissFocus();
+});
+
+$("#themeBtn").addEventListener("click", ()=>{
+  const cur = document.documentElement.getAttribute("data-theme");
+  const dark = cur ? cur==="dark"
+    : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+  requestAnimationFrame(()=> activeView()?.drawWires());
+});
+
+/* A width change can cross the narrow-layout boundary, which is a re-render
+   rather than a redraw. Only the view on screen has geometry worth measuring. */
+let pageResizeTimer, responsiveNarrow = isNarrowLayout();
+window.addEventListener("resize", ()=>{
+  clearTimeout(pageResizeTimer);
+  const narrow = isNarrowLayout(), crossed = narrow!==responsiveNarrow;
+  responsiveNarrow = narrow;
+  pageResizeTimer = setTimeout(()=>{
+    const view = activeView();
+    if(view) crossed ? view.render() : view.drawWires();
+  }, 90);
+});
+if(document.fonts && document.fonts.ready){
+  document.fonts.ready.then(()=> setTimeout(()=> activeView()?.drawWires(), 50));
+}
+
+/* =======================================================================
+   DIAGNOSTICS — a stable, geometry-free handle on what the page believes,
+   for the checks that run in a console rather than at load.
+   ======================================================================= */
+window.dependencyDiagnostics = Object.freeze({
+  models:PIPELINE_MODELS,
+  view:id=>VIEWS[id],
+  inventory:(templateId,showServing=false,disabledIds=[])=>
+    Model.dependencies(LOGICAL,templateId,{planes:{serving:showServing},off:new Set(disabledIds)}),
+  validation:LOGICAL.validation.dependencies,
+  modelValidation:LOGICAL.validation.relationships,
+  ladderValidation:LOGICAL.validation.ladder,
+  layout:(...args)=>VIEWS.logical.layoutReport(...args),
+  layoutSweep:(...args)=>VIEWS.logical.layoutSweep(...args)
+});
+
+renderBuild();
 </script>
 </body>
 </html>
