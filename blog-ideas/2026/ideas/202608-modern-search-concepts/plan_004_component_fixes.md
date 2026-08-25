@@ -1,13 +1,13 @@
 # Plan 004 — Component sequence and surface fixes
 
-**Target:** `search-query-pipeline-diagram-tool.html` (4675 lines, post-Phases 1 and 3) — sole file in scope.
-**Status:** Phases 1 and 3 implemented and verified. Phases 2 and 4 not started.
+**Target:** `search-query-pipeline-diagram-tool.html` (4612 lines, post-Phases 1–3) — sole file in scope.
+**Status:** Phases 1, 2 and 3 implemented and verified. Phase 4 not started (blocked on D5).
 **Source:** the four accepted findings from the 25 Aug 2026 sequence review.
 **Decisions:** D1 delete `ds-token` · D2 `latererank` stays [optional]/Full · D3 two eval nodes · D4 `expand` aside on the `rewrite` row · D5 new `Evaluation` phase (**confirm before Phase 4**).
 
-Line numbers throughout are as of the file **before any phase landed**, and
-Phases 1 and 3 have since shifted them by up to +5. Phases 2 and 4 will shift
-them again. Re-grep before starting each phase rather than trusting the numbers
+Line numbers throughout are as of the file **before any phase landed**. Phases
+1–3 have since shifted everything below line 1433 by about −63, and Phase 4 will
+shift it again. Re-grep before starting Phase 4 rather than trusting the numbers
 written here.
 
 ---
@@ -17,7 +17,7 @@ written here.
 | Phase | Change                                                                                            | Fixture? | Size                                     | Risk     | Status      |
 | ----- | ------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------- | -------- | ----------- |
 | **1** | `dedup` before `diversity`; `expand` off the spine into a left aside feeding `lexical` + `sparse` | yes      | 15 sites, 2 templates                    | low      | **done**    |
-| **2** | Remove `Late-interaction retrieval` and `ds-token` entirely                                       | yes      | 20 sites, 9 subsystems                   | **high** | not started |
+| **2** | Remove `Late-interaction retrieval` and `ds-token` entirely                                       | yes      | 24 sites, 10 subsystems                  | **high** | **done**    |
 | **3** | Reword the sufficiency floor as per-leg calibrated floors                                         | no       | 9 sites, prose only                      | lowest   | **done**    |
 | **4** | Add `Experiment assignment` + `Offline evaluation` control nodes                                  | yes      | 2 new components, ~14 sites, 2 templates | medium   | not started |
 
@@ -29,8 +29,8 @@ the tool rendering.
 2. ~~**Phase 3**, out of numerical order: prose-only with zero fixture risk, so
    it lands while the tree is still clean and does not have to be untangled from
    a Phase 2 rollback.~~ Done.
-3. **Phase 2** third — 20 sites, three throwing traps and one reference
-   migration. Run it against an otherwise-quiet tree.
+3. ~~**Phase 2** — 20 sites, three throwing traps and one reference migration.
+   Run it against an otherwise-quiet tree.~~ Done.
 4. **Phase 4** last — additive, and the only phase that structurally touches
    template 2.
 
@@ -39,7 +39,7 @@ merge conflict. Phase 3 has no fixture surface, so it can move anywhere in the
 order if convenient.
 
 **Blocking question:** D5 (grouping for the two Phase 4 nodes, §4.2) needs an
-answer before Phase 4 starts. **Phase 2 is next**, and is unblocked.
+answer before **Phase 4**, the only phase left, can start.
 
 ---
 
@@ -251,7 +251,7 @@ touched, as predicted. The `+14 new vs Core + recommended` pill is unchanged.
 
 ---
 
-## Phase 2 — Remove `Late-interaction retrieval` entirely
+## Phase 2 — Remove `Late-interaction retrieval` entirely — **DONE**
 
 The largest phase. `late` is referenced at 20 sites across nine subsystems, and
 three of them throw if missed. Delete in the order below; the gate reciprocity
@@ -326,20 +326,111 @@ corpus-scale index. This preserves the honest infrastructure signal that
 `ds-token`'s own note carried ("the largest hidden infrastructure commitment
 on the Full surface", 2244) at the scale that actually still applies.
 
-### Phase 2 verification
+### Phase 2 verification — passed
 
-```bash
-grep -n '"late"\|late:\|ds-token\|LATE_MODE_OVERLAP\|altOf' search-query-pipeline-diagram-tool.html
-```
+The grep is clean: zero hits for `ds-token`, `LATE_MODE_OVERLAP`,
+`RETRIEVAL_REPRESENTATION_OVERLAP`, `"late"` and any bare `late:` key. Only
+`altOf` survives, and only as machinery — see discovery 1.
 
-Expect zero hits for `ds-token` and `LATE_MODE_OVERLAP`, zero `altOf` in
-`GATED_EXECUTION`, and no bare `late:` key. `latererank` hits are expected.
+Both validators returned rather than threw, including the per-component disable
+sweep. Measured before and after:
 
-In the browser: the Full retrieval fan-out shows **six** legs; the serving
-overlay shows **six** sources / seven edges; `window.dependencyDiagnostics
-.validation` and `.modelValidation` both resolve; toggling every component off
-one at a time in template 3 produces no orphaned edges (the per-component
-disable sweep at ~2947 already asserts this).
+| Check                          | Before | After |
+| ------------------------------ | ------ | ----- |
+| template 3 hidden edges        | 72     | 68    |
+| template 3 serving sources     | 7      | 6     |
+| template 3 serving edges       | 8      | 7     |
+| `componentRelations`           | 36     | 34    |
+| `gatedStages`                  | 9      | 8     |
+| components in template 3       | 37     | 36    |
+| retrieval legs                 | 7      | 6     |
+| `+N new vs Core + recommended` | +14    | +13   |
+| models in the request path     | 12     | 11    |
+| build & run complexity         | 97     | 92    |
+| build-ladder steps             | 14     | 14    |
+
+`layoutSweep` reports zero overlaps across all six combinations and no new
+clipped labels; edge-label collisions remain zero. The retrieval fan-out renders
+as a clean 3x2 grid. The serving overlay lists six sources with no
+`Token-vector MaxSim index`. Step count is unchanged, so the Full-surface
+divider and the static "Steps 1-7" sentence both still hold, and rung 9 renders
+under its new title. The `latererank` drawer was read end to end: no
+`alternative to` chip, no dangling cross-reference, ColPali present.
+
+All 16 capabilities remain covered. `late` was the sole `intro:3` provider of
+nothing — `multifacet` survives on `multivec` and `latererank`, `paraphrase` on
+`textvec` and `latererank`, and its three worked-example facets are each carried
+by three or more other components.
+
+### Phase 2 discoveries
+
+**1. `altOf` is now dead machinery, and was left in place deliberately.**
+Dropping `latererank`'s 4th `defGate` argument was the last use of the
+gate-alternative mechanism anywhere in the file. What remains unreferenced:
+
+| Site                        | Line      | What it is                                    |
+| --------------------------- | --------- | --------------------------------------------- |
+| `defGate` doc comment       | 2280-2281 | Explains the reciprocity requirement          |
+| `defGate(from,kind,label,altOf)` | 2282, 2287 | The parameter and its frozen field       |
+| `validateRelationshipModel` | 2759-2764 | Six lines that can no longer fire             |
+| Node chip render            | 3289      | `.altchip` — renders zero times               |
+| Drawer chip render          | 4048-4049 | Same                                          |
+
+Not removed: Phase 2's scope is deleting a component, not retiring a general
+mechanism the tool was designed around, and the parameter is optional so the
+dead branches cost nothing at runtime. **Recommended as a separate change** —
+it is self-contained, about 20 lines plus the `.altchip` CSS rule.
+
+**2. `RETRIEVAL_REPRESENTATION_OVERLAP` was inlined rather than kept.** §2.1
+item 20 said keep and reword it. But with `late` gone it dropped to a single
+consumer, so a module-level frozen constant whose whole reason for existing was
+being shared by two components no longer earns its place. The reworded failure
+now sits inline in `multivec.failures`, and both overlap constants are gone.
+The rewording also had to go further than "passage vs late-interaction
+retrieval": the two are no longer competing legs but a leg and a rerank tier, so
+the failure is now *"Passage retrieval and late-interaction rerank both enabled"*
+measured by *"incremental nDCG on multi-facet queries with the rerank tier
+ablated"*.
+
+**3. Two prose sites the inventory missed.**
+
+- `multivec.notes[0]` compared passage retrieval and late interaction as two
+  ways of solving one representation problem. Still true, but they now sit at
+  different stages, so the note gained a clause saying so.
+- `textvec.decisions[…].why` ended on "what passage-level and late-interaction
+  **legs** exist to fix". There is no late-interaction leg any more. Now reads
+  "passage-level retrieval and the late-interaction rerank".
+
+**4. `ds-doc-ann.notes` was checked and deliberately left alone.** It warns that
+"a document-vector index cannot automatically serve passage or token-level
+retrieval". With `ds-token` gone this reads as a reference to something absent —
+but it is generic index-granularity guidance, and `latererank` still needs
+stored token representations, so the warning is still earned.
+
+**5. PLAID dropped, ColPali migrated,** as §2.2 specified. ColPali's blurb was
+reworded from "squarely relevant to a corpus with an image set per document" to
+lead with the mechanism — "the same MaxSim machinery over document *images*" —
+so it reads as a rerank-tier reference rather than a retrieval one.
+
+### Phase 2 applied changes
+
+Twenty-four sites. The plan's inventory of 20 was accurate; the extra four are
+discoveries 2 and 3, plus the two halves of the inlined failure.
+
+Deleted outright: the `late` component definition, `GATED_EXECUTION.late`,
+`LATE_MODE_OVERLAP`, `RETRIEVAL_REPRESENTATION_OVERLAP`, `DATA_SOURCES`
+and `SERVING_REL` entries for `ds-token`, `REFS.late` (including PLAID),
+`EXAMPLES.late`, and the `late` entries in `LEGS`,
+`BASELINE_RETRIEVAL_LEGS`, `BASELINE_GATED_FULL_RETRIEVAL_LEGS`,
+`TPL[3]`'s retrieval row, `BASELINE[3].flow`, `BASELINE[3].serves`, and both
+`latererank` and `multivec` failure lists.
+
+Rewritten: `latererank.purpose`, `.decisions[0].why` and `.notes[1]`,
+`multivec.notes[0]` and its first failure row, `textvec.decisions[…].why`,
+`STEPS[9]` title/stages/build/buys, and the serving-count fixture
+(`expectedSourceCounts[3]` 7 to 6, `expectedServingCounts[3]` 8 to 7).
+
+Net: 18 insertions, 81 deletions — the file is 63 lines shorter.
 
 ---
 
@@ -658,3 +749,14 @@ review, not addressed here:
 - Recovery loop returning to `routing` rather than `prefilter`.
 - Group-tag corrections for `routing`, `degradation`, `sufficiency`, `relax`
   and `zerofallback` (already tracked in `TODO.md`).
+
+### Follow-ups raised by the implementation
+
+Neither existed when the plan was written. Both are self-contained.
+
+1. **Retire the `altOf` gate-alternative mechanism** — dead as of Phase 2, five
+   sites plus a `.altchip` CSS rule (Phase 2 discovery 1).
+2. **Give relation-label placement collision avoidance** — labels sit at a fixed
+   `position:.56` with no left/right awareness, so a leftward annotated relation
+   lands on a node (Phase 1 discovery 1). This currently constrains what
+   Phase 4 can annotate.
