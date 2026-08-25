@@ -1312,7 +1312,8 @@ def({
   notes:[
     "Use inspectable static intent rules at the Core + recommended level. Learned or depth-aware routing is a later optimisation in the same component, not a separate request path.",
     "Per-leg candidate depth is part of the route decision: spend depth on the legs the route expects to decide the answer, rather than firing every leg at the same depth.",
-    "Routing errors may appear as relevance regressions rather than request failures. Log the selected route and activated stages for each query so routing decisions can be diagnosed."
+    "Routing errors may appear as relevance regressions rather than request failures. Log the selected route and activated stages for each query so routing decisions can be diagnosed.",
+    "This component is grouped under Candidate retrieval rather than Query processing because what it decides is which legs fire — it belongs beside the legs it activates, not beside the stages that parse the query. It is in the recommended level rather than Full surface because once more than two legs exist, firing all of them on every query is a cost decision no production pipeline actually makes."
   ],
   failures:[{f:"A leg or gated reranker is never routed to",s:"Looks like a corpus, index or model-quality problem",m:"route distribution; per-stage fire rate"}]
 });
@@ -1394,7 +1395,8 @@ def({
   dials:[{n:"k_t2i",v:"100–200"},{n:"Rollup",v:"max"},{n:"Leg weight",v:"0.5–0.8 of a text-document leg"}],
   notes:[
     "Text-driven image retrieval requires text and image embeddings that are compatible within a shared embedding space. Verify this before designing the retrieval leg around text-to-image similarity.",
-    "This logical leg normally shares its dual-tower model, document-image embeddings and ANN index with Image-to-image vector retrieval. Separate routing and ranking do not require duplicate infrastructure."
+    "This logical leg normally shares its dual-tower model, document-image embeddings and ANN index with Image-to-image vector retrieval. Separate routing and ranking do not require duplicate infrastructure.",
+    "This leg appears at the recommended level while Image-to-image vector retrieval waits for Full surface, even though the two share an index: they do not share a trigger. Visual intent expressed in text is something any text query can carry, so this leg is available to every pipeline. The other one is not."
   ],
   failures:[{f:"Fires on abstract queries",s:"Visually similar, semantically wrong results",m:"per-leg precision@10, abstract vs concrete queries"}],
   example:"<code>wood fireplace</code> is visible in photos and frequently absent from the description. For this text-only query, this is the only leg that can find it."
@@ -1421,7 +1423,8 @@ def({
   dials:[{n:"k_i2i",v:"100–200"},{n:"Rollup",v:"max"},{n:"Leg weight",v:"tune separately from text-to-image"}],
   notes:[
     "Run this leg only when an Image query is present. Its route, candidate depth, deadline, calibration and fusion weight remain independent from Text-to-image vector retrieval.",
-    "The default implementation shares the visual dual-tower model, document-image embeddings and ANN index with Text-to-image vector retrieval; the split is logical, not an instruction to duplicate infrastructure."
+    "The default implementation shares the visual dual-tower model, document-image embeddings and ANN index with Text-to-image vector retrieval; the split is logical, not an instruction to duplicate infrastructure.",
+    "This leg reaches the diagram only at Full surface while Text-to-image vector retrieval is already in the recommended level, even though the two share an index: they do not share a trigger. This leg cannot fire at all without an uploaded image, so recommending it by default would force an Image query onto pipelines that accept none."
   ],
   failures:[
     {f:"Background or photographic style dominates",s:"Results look alike but depict the wrong subject or attributes",m:"precision@10 on labelled image-bearing queries, sliced by query-image type"},
@@ -1514,7 +1517,8 @@ def({
   dials:[{n:"RRF k",v:"60"},{n:"Leg weights",v:"lexical/dense 1.0; text-to-image 0.5–0.8; image-to-image tuned separately"}],
   notes:[
     "When only one retrieval leg is active, or only one survives its deadline, Fusion is an identity operation: preserve that leg's order and continue rather than treating the request as a fusion failure.",
-    "Use equal weights for the Core lexical and dense legs. A fixed conservative text-to-image weight belongs in this stage; image-to-image needs its own calibration. Selecting either weight or strategy per query belongs to Fusion policy."
+    "Use equal weights for the Core lexical and dense legs. A fixed conservative text-to-image weight belongs in this stage; image-to-image needs its own calibration. Selecting either weight or strategy per query belongs to Fusion policy.",
+    "This stage is in Core because two legs with incomparable score scales have no defined ordering until something combines their ranks. A hybrid pipeline with no explicit fusion rule does not have one relevance ordering — it has two, and whichever the code happens to read first wins by accident."
   ],
   failures:[
     {f:"RRF flattens a signal that is strong in only one leg",s:"Exact-match queries no longer rank 1",m:"exact-match probe suite as a hard gate"},
@@ -1549,7 +1553,10 @@ def({
   }],
   contract:{in:"fused top ~200–400", out:"re-scored top ~100–200"},
   dials:[{n:"Input depth",v:"200–400"},{n:"Output depth",v:"100–200"}],
-  notes:["Treat this as a measured narrowing step, not a default cascade tier. Keep it only when it materially reduces cross-encoder work without erasing relevant candidates."],
+  notes:[
+    "Treat this as a measured narrowing step, not a default cascade tier. Keep it only when it materially reduces cross-encoder work without erasing relevant candidates.",
+    "It appears only at Full surface because it earns a place solely when cross-encoder depth is the binding constraint on the funnel. Making it part of the recommended level would add a stage that most pipelines measure and then remove."
+  ],
   failures:[{f:"Reorders almost nothing",s:"Pure added work",m:"rank churn between stages"}]
 });
 
@@ -1661,7 +1668,8 @@ def({
   }],
   contract:{in:"diversified ranking", out:"final ranking with business_score and applied_rules[] recorded against delivered positions"},
   notes:["Hard eligibility, authorization, compliance and legal-suppression rules should be applied during candidate filtering, with final defence-in-depth validation. Use this stage for soft business preferences and auditable ordering rules.",
-    "This stage runs last in final ranking for one reason: an audit trail is only worth keeping if it describes the delivered order. A boost applied before diversity capping or deduplication can be silently undone by them, leaving applied_rules[] claiming a promotion the page does not show."],
+    "This stage runs last in final ranking for one reason: an audit trail is only worth keeping if it describes the delivered order. A boost applied before diversity capping or deduplication can be silently undone by them, leaving applied_rules[] claiming a promotion the page does not show.",
+    "It is not in Core because Core is the smallest genuinely hybrid retrieval path, and business preference is an organisational requirement rather than a retrieval one. A pipeline that promotes nothing still returns a coherent ordering; a hybrid pipeline that cannot fuse its legs does not."],
   failures:[{f:"Business boosts swamp relevance",s:"Promoted but irrelevant results at the top",m:"nDCG@10 before and after business ranking"},
     {f:"Boosts reintroduce what diversity and dedup removed",s:"Promoted near-duplicates or same-host results climb back into the top-10 after capping",m:"per-attribute distribution of the top-10 before and after business ranking"}]
 });
@@ -1729,7 +1737,10 @@ def({
     why:"Splitting the stage puts the cheap exact-hash collapse at union, where it shrinks every expensive stage below it, and the costly near-duplicate pass here, where it produces the distinct set that Diversity then arranges."
   }],
   contract:{in:"ranked candidates", out:"deduplicated ranking + collapsed_group[] for the UI"},
-  notes:["Do not collapse documents that are textually or visually similar but differ in access rights, availability, price, locale or another user-visible property. Define duplicate identity in product terms before choosing the representative."],
+  notes:[
+    "Do not collapse documents that are textually or visually similar but differ in access rights, availability, price, locale or another user-visible property. Define duplicate identity in product terms before choosing the representative.",
+    "This stage is not in Core because Candidate union already merges by doc_id, so the Core path cannot emit the same document twice. What is collapsed here is <em>near</em>-duplicates — distinct documents with near-identical content — which is a page-quality improvement rather than a correctness fix."
+  ],
   failures:[{f:"Over-collapsing",s:"Genuinely distinct documents disappear",m:"manual audit of collapsed groups; complaint rate"}]
 });
 
@@ -1831,7 +1842,10 @@ def({
   }],
   contract:{in:"labelled queries + a pinned pipeline configuration + debiased judgements from the event log", out:"versioned nDCG, recall and probe-suite pass or fail per configuration"},
   dials:[{n:"Labelled set",v:"200–500 queries, graded"},{n:"Probe suite",v:"~30 known rank-1 answers",note:"Run it as a hard CI gate, not a dashboard."},{n:"Pooling depth",v:"top 50 per leg"}],
-  notes:["Pool judgements across every retrieval leg. A labelled set built from one leg's results measures that leg's ranking and silently scores every other leg's unique finds as irrelevant."],
+  notes:[
+    "Pool judgements across every retrieval leg. A labelled set built from one leg's results measures that leg's ranking and silently scores every other leg's unique finds as irrelevant.",
+    "The tier on this component says when it appears in the request-path diagram, and the harness is not on the request path — that is the only reason it is not Core. When you should <em>build</em> it is a different question, and the build ladder answers that one at its first rung."
+  ],
   failures:[
     {f:"Metrics pooled, never sliced",s:"Aggregate nDCG stays flat while a query class regresses badly",m:"nDCG@10 by query class, plus the probe suite"},
     {f:"The evaluation set drifts with the index",s:"Scores move between runs with no code change",m:"re-run a pinned configuration; the numbers must be identical"}],

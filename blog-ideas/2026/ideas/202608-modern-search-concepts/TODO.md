@@ -4,6 +4,7 @@ Note: this list is for humans, not for AI agents.
 
 ## Minor fixes
 
+- Should RFF consider Distribution-Based Score Fusion (DBSF) as alternative?
 - Add GA
 - Add link from Text query to Query expansion?
 - Remove Conditional pill from hoverover since it's redundant.

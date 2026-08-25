@@ -6,6 +6,13 @@ https://claude.ai/chat/c3bc1980-cd77-4d70-89a4-8014c9e5d175
 
 Core/Optional/Recommended classification of components in a modern hybrid search query pipeline.
 
+This list is the **input** the diagram tool was built from, not its output.
+`search-query-pipeline-diagram-tool.html` is the source of truth: where the two disagree,
+the tool is right and this file is stale. Seven entries below were reclassified or moved
+during plans 001–004 and are marked `— was …`; each one is justified in the corresponding
+component drawer in the tool, on its own merits. The classification as first written is
+preserved verbatim in `1-search-query-pipeline-components-list-original.md`.
+
 - Query inputs
   - Text query [core]
   - Image query [optional]
@@ -15,7 +22,6 @@ Core/Optional/Recommended classification of components in a modern hybrid search
   - Query rewriting [recommended]
   - Query expansion [optional]
   - Session/context-aware search [optional]
-  - Retrieval routing / dynamic retrieval [optional]
 - Constraint handling
   - Metadata pre-filter [core]
   - Constraint confidence estimation [optional]
@@ -27,10 +33,12 @@ Core/Optional/Recommended classification of components in a modern hybrid search
   - Retry retrieval [optional]
   - Zero-result fallback / recovery [recommended]
 - Candidate retrieval
+  - Retrieval routing / dynamic retrieval [recommended] — was [optional], under Query processing
   - Lexical & metadata retrieval [core]
   - Learned sparse retrieval [optional]
   - Text vector retrieval [core]
-  - Image vector retrieval [recommended]
+  - Text-to-image vector retrieval [recommended] — was one entry, Image vector retrieval [recommended]
+  - Image-to-image vector retrieval [optional] — was one entry, Image vector retrieval [recommended]
   - Multi-vector / passage-level retrieval [optional]
   - Late-interaction retrieval [optional]
 - Candidate generation
@@ -38,23 +46,23 @@ Core/Optional/Recommended classification of components in a modern hybrid search
   - Candidate pruning [recommended]
   - Candidate budget allocation [optional]
 - Fusion
-  - Fusion [recommended]
+  - Fusion [core] — was [recommended]
   - Reciprocal Rank Fusion [recommended]
   - Weighted score fusion [optional]
   - Query-dependent fusion [optional]
   - Learned fusion [optional]
   - Modality-weighted fusion [optional]
 - Reranking
-  - Semantic rerank [recommended]
+  - Semantic rerank [optional] — was [recommended]
   - Cross-encoder rerank [recommended]
   - VLM rerank [optional]
   - Learning-to-Rank [optional]
 - Final ranking
-  - Business ranking [core]
+  - Business ranking [recommended] — was [core]
   - Freshness / temporal ranking [recommended]
   - Personalisation [optional]
   - Diversity [recommended]
-  - Deduplication [core]
+  - Deduplication [recommended] — was [core]
 - Results
   - Results assembly [core]
 - Feedback and evaluation
@@ -63,6 +71,6 @@ Core/Optional/Recommended classification of components in a modern hybrid search
   - Save / enquiry feedback [recommended]
   - Query reformulation signals [optional]
   - Hard-negative mining [optional]
-  - Offline evaluation [core]
+  - Offline evaluation [recommended] — was [core]
   - Relevance feedback [optional]
   - Online experimentation / A/B testing [recommended]

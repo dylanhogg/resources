@@ -2,8 +2,8 @@
 
 **Target:** `search-query-pipeline-diagram-tool.html` (4687 lines at `001e29e`) — plus two
 companion docs in Phase 5.
-**Status:** **Phases 1–2 landed** — written 25 Aug 2026, after the post-004 gap review.
-Phases 3–5 pending.
+**Status:** **Phases 1–3 landed** — written 25 Aug 2026, after the post-004 gap review.
+Phases 4–5 pending.
 **Source:** the gap review over the file as it stands after plan 004 landed all four phases.
 **Decisions:** D1 scope is ordering + consistency only · D2 authorization stays prose ·
 D3 Business ranking moves last · D4 evaluation stays [recommended], the ladder is what changes.
@@ -23,7 +23,7 @@ Line numbers cited below are as at `001e29e`. Re-grep before acting on any of th
 | ----- | ------------------------------------------------------------------------------ | -------- | -------------------------- | ---------- | -------- |
 | **1** | Move `business` to the end of final ranking, after `diversity`                 | **yes**  | 11 sites, 2 templates      | medium     | **done** |
 | **2** | Fix the build ladder and give it a validator                                   | no       | 8 sites + 1 new validator  | low-medium | **done** |
-| **3** | Justify the seven tier divergences from the source classification              | no       | 7 sites, prose only        | lowest     | pending  |
+| **3** | Justify the seven tier divergences from the source classification              | no       | 8 sites + 1 doc, prose only | lowest     | **done** |
 | **4** | Retire `altOf`; fix the `expand`/HyDE contradiction; state the annotation rule | no       | 6 sites + 1 CSS rule       | low        | pending  |
 | **5** | Regenerate the surface doc, and stop it going stale again                      | no       | 2 docs (+ optional export) | low        | pending  |
 
@@ -417,11 +417,17 @@ built from. Seven entries now disagree with it:
 Every one of these is a deliberate improvement made during plans 001–004. None of them is
 recorded anywhere. A reader holding both documents just sees two files that disagree.
 
+**Seven divergences, eight components.** The Image vector retrieval row is one source
+entry against two tool components, and a reader opens one drawer at a time — someone who
+opens only `imageimagevec` would find no explanation of why its sibling is a tier above it.
+So half one landed **eight** notes, not seven: one on each side of the split, each written
+from that leg's own point of view. The status table row is updated to say 8 sites.
+
 ### 3.2 The fix, in two halves
 
 **Half one — justify each tier in the tool, on its own merits.** The note should never
 mention the source list; a reader of the diagram has not seen it. Add one `notes` entry
-to each of the seven:
+to each of the seven (eight — see §3.1):
 
 - **Fusion → core.** Two legs with incomparable score scales have no defined ordering
   until something combines their ranks. A hybrid pipeline without an explicit fusion rule
@@ -452,11 +458,58 @@ recording that the tool is the source of truth and the list is the input it was 
 Do **not** delete the list's original classification wholesale — it is a record of where
 the design started.
 
-### 3.3 Verification
+**How the record was kept — applied.** The classification as first written is preserved
+verbatim in a sibling file, `1-search-query-pipeline-components-list-original.md`, which
+was already staged before this phase started. That frees the working list to be edited in
+place. Each of the seven changed lines still carries a visible `— was …` marker, so a
+reader can see the divergences without diffing two files, and the paragraph under the
+heading points at both the tool and the preserved original. `Image vector retrieval`
+became two lines, and `Retrieval routing / dynamic retrieval` moved from Query processing
+to the top of Candidate retrieval — the group change is the one divergence a tier marker
+alone could not express, so its marker records the old group too.
 
-Prose only; no counts move. Re-read the seven drawers end to end and confirm the sidebar
-tier chips are unchanged. The point of this phase is that the tiers do **not** change —
-only their justification is added.
+### 3.3 Verification — **run, all sites applied**
+
+Prose only; no counts move. The point of this phase is that the tiers do **not** change —
+only their justification is added, so every assertion below is an _unchanged_ assertion.
+
+| Check                                    | Expected                              | Result                              |
+| ---------------------------------------- | ------------------------------------- | ----------------------------------- |
+| Page loads (all three validators pass)   | no throw                              | **unchanged** — diagnostics present |
+| `validation` hidden edges, t1/t2/t3      | 9 / 34 / 72                           | **unchanged**                       |
+| `validation` shown edges, t1/t2/t3       | 12 / 38 / 79                           | **unchanged**                       |
+| `validation` source nodes / serving edges | 3,4,6 / 3,4,7                         | **unchanged**                       |
+| `modelValidation`                        | 38 relations, 5 annotated, 9 types    | **unchanged**                       |
+| `ladderValidation`                       | `{steps:16, componentsBuilt:37}`      | **unchanged**                       |
+| Node counts, t1/t2/t3                    | 9 / 25 / 38                           | **unchanged**                       |
+| `tier`, `intro`, `group` on the eight    | untouched                             | **unchanged** — `git diff` matches no such line |
+| Drawer tier chips on the eight           | rec, rec, opt, core, opt, rec, rec, rec | **unchanged**                     |
+| Notes arrays on the eight                | each grew by exactly one, appended last | **as intended**                   |
+| `<em>` inside two notes                  | renders italic, not literal markup    | **confirmed by screenshot**         |
+
+`git diff` for the tool is confined to eight `notes` arrays: **22 insertions, 8
+deletions**, and no line matching `tier:`, `intro:` or `group:` appears on either side of
+it. That last check is the phase's real gate — it is what proves the justification was
+added without the thing being justified moving underneath it.
+
+#### The vocabulary the notes had to be written against
+
+The tool names each tier **three different ways**, and a note that picks the wrong one
+contradicts the chip sitting six pixels above it:
+
+| Surface                              | Renders from       | Words                                    |
+| ------------------------------------ | ------------------ | ---------------------------------------- |
+| Component drawer chip                | `source.tier`      | core / recommended / **optional**        |
+| Sidebar chip and data-source drawer  | `TIER_LABEL[intro]` | core / recommended / **full**            |
+| Drawer "Introduced in" line          | template name      | Core / **Core + recommended** / Full surface |
+
+`TIER_LABEL` is keyed on `intro`, not on `tier` — a detail worth knowing before Phase 5
+regenerates the surface doc from either field. The two are perfectly correlated across all
+38 components (9 core/1, 16 recommended/2, 13 optional/3), so nothing is broken by it; but
+the tier-3 label differs by surface, which is why the notes describe tiers by **what the
+tier does** — "appears only at Full surface", "in the recommended level", "is in Core" —
+rather than asserting a single tier word that only two of the three surfaces would agree
+with.
 
 ---
 
@@ -591,9 +644,9 @@ One commit per phase, each rendering:
 
 | Commit | Contents                                                                                                                     |
 | ------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| 1      | Phase 1 — templates, fixture, `STEPS[6]`, `business` prose — **applied, not yet committed**                                  |
+| 1      | Phase 1 — templates, fixture, `STEPS[6]`, `business` prose — **committed as `e755a96`**                                      |
 | 2      | Phase 2 — rung 0, the `fusionpolicy` duplicate, the 13/14/15 split, `validateBuildLadder()` — **applied, not yet committed** |
-| 3      | Phase 3 — seven tier notes, plus the source-list reconciliation                                                              |
+| 3      | Phase 3 — eight tier notes, plus the source-list reconciliation — **applied, not yet committed** |
 | 4      | Phase 4 — `altOf` deletion, `expand` prose, `FEEDBACK_PLANE_SOURCES`                                                         |
 | 5      | Phase 5 — regenerated surface doc (+ `surfaceOutline()` if taken)                                                            |
 
