@@ -1652,16 +1652,18 @@ def({
 def({
   id:"business", name:"Business ranking", group:"Final ranking", tier:"recommended", intro:2,
   sub:"quality tiers, promotions, soft policy", cx:2,
-  purpose:"Apply soft, auditable preferences the business owns — quality tiers, capped promotions and other non-mandatory boosts — after relevance ranking.",
+  purpose:"Apply soft, auditable preferences the business owns — quality tiers, capped promotions and other non-mandatory boosts — as the last stage that changes the order, so the recorded rules describe the page the user actually sees.",
   decisions:[{
     q:"Rules or model?",
     opts:["Hand-written rules","Folded into LTR features","Hard rules outside, soft signals inside"],
     def:"Hard rules outside the model, soft preferences as features",
     why:"You need to be able to explain and audit why a document was suppressed. A learned score cannot answer that question in a compliance review."
   }],
-  contract:{in:"ranked candidates", out:"re-ordered with business_score and applied_rules[] recorded"},
-  notes:["Hard eligibility, authorization, compliance and legal-suppression rules should be applied during candidate filtering, with final defence-in-depth validation. Use this stage for soft business preferences and auditable ordering rules."],
-  failures:[{f:"Business boosts swamp relevance",s:"Promoted but irrelevant results at the top",m:"nDCG@10 before and after business ranking"}]
+  contract:{in:"diversified ranking", out:"final ranking with business_score and applied_rules[] recorded against delivered positions"},
+  notes:["Hard eligibility, authorization, compliance and legal-suppression rules should be applied during candidate filtering, with final defence-in-depth validation. Use this stage for soft business preferences and auditable ordering rules.",
+    "This stage runs last in final ranking for one reason: an audit trail is only worth keeping if it describes the delivered order. A boost applied before diversity capping or deduplication can be silently undone by them, leaving applied_rules[] claiming a promotion the page does not show."],
+  failures:[{f:"Business boosts swamp relevance",s:"Promoted but irrelevant results at the top",m:"nDCG@10 before and after business ranking"},
+    {f:"Boosts reintroduce what diversity and dedup removed",s:"Promoted near-duplicates or same-host results climb back into the top-10 after capping",m:"per-attribute distribution of the top-10 before and after business ranking"}]
 });
 
 def({
@@ -2147,10 +2149,10 @@ const TPL = {
       {l:["relax","zerofallback"], c:["prune"]},
       {c:["fusion"]},
       {c:["crossenc"]},
-      {c:["business"]},
       {c:["freshness"]},
       {c:["dedup"]},
       {c:["diversity"]},
+      {c:["business"]},
       {c:["assembly"], r:["behavioural"]},
       {r:["offlineeval"]}
     ],
@@ -2176,11 +2178,11 @@ const TPL = {
       {c:["crossenc"]},
       {c:["vlmrerank"]},
       {c:["ltr"]},
-      {c:["business"]},
       {c:["freshness"]},
       {c:["personalisation"]},
       {c:["dedup"]},
       {c:["diversity"]},
+      {c:["business"]},
       {c:["assembly"], r:["behavioural"]},
       {r:["offlineeval"]}
     ],
@@ -2560,11 +2562,11 @@ const DEPENDENCY_BASELINE = {
       ["sufficiency","prune","sufficient"],
       ["prune","fusion"],
       ["fusion","crossenc"],
-      ["crossenc","business"],
-      ["business","freshness"],
+      ["crossenc","freshness"],
       ["freshness","dedup"],
       ["dedup","diversity"],
-      ["diversity","assembly"]
+      ["diversity","business"],
+      ["business","assembly"]
     )),
     gated:baselinePairs(["prefilter","textimagevec"]),
     branch:BASELINE_RECOVERY.branch,
@@ -2601,12 +2603,12 @@ const DEPENDENCY_BASELINE = {
       ["sufficiency","prune","sufficient"],
       ["prune","fusion"],
       ["latererank","crossenc"],
-      ["ltr","business"],
-      ["business","freshness"],
+      ["ltr","freshness"],
       ["freshness","personalisation"],
       ["personalisation","dedup"],
       ["dedup","diversity"],
-      ["diversity","assembly"]
+      ["diversity","business"],
+      ["business","assembly"]
     )),
     gated:baselinePairs(
       ["prefilter",BASELINE_GATED_FULL_RETRIEVAL_LEGS],
@@ -2990,8 +2992,8 @@ const STEPS = [
    build:"Add down-weighted text-to-image ANN with max rollup, then use inspectable intent rules to fire it only for queries with visual meaning.",
    trigger:"Users search for attributes only visible in images.",
    buys:"Unlocks an indexed modality without paying for it on abstract or strictly navigational queries."},
-  {n:6, t:2, title:"Auditable final-ranking controls", stages:["business","freshness","dedup","diversity"],
-   build:"Apply capped soft business preferences, intent-aware recency, near-duplicate collapse, and per-attribute diversity after relevance ranking.",
+  {n:6, t:2, title:"Auditable final-ranking controls", stages:["freshness","dedup","diversity","business"],
+   build:"Apply intent-aware recency, near-duplicate collapse and per-attribute diversity after relevance ranking, then capped soft business preferences last, so the audit trail records the delivered order.",
    trigger:"The top-10 is repetitive or stale, duplicates crowd the page, or explicit business preferences need an auditable home.",
    buys:"More useful result pages without moving mandatory policy out of Core filtering."},
   {n:7, t:2, title:"Query rewriting", stages:["rewrite"],
