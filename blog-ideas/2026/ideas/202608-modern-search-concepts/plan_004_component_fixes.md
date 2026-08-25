@@ -1,25 +1,25 @@
 # Plan 004 — Component sequence and surface fixes
 
-**Target:** `search-query-pipeline-diagram-tool.html` (4612 lines, post-Phases 1–3) — sole file in scope.
-**Status:** Phases 1, 2 and 3 implemented and verified. Phase 4 not started (blocked on D5).
+**Target:** `search-query-pipeline-diagram-tool.html` (4687 lines, all phases applied) — sole file in scope.
+**Status:** **complete** — all four phases implemented and verified.
 **Source:** the four accepted findings from the 25 Aug 2026 sequence review.
-**Decisions:** D1 delete `ds-token` · D2 `latererank` stays [optional]/Full · D3 two eval nodes · D4 `expand` aside on the `rewrite` row · D5 new `Evaluation` phase (**confirm before Phase 4**).
+**Decisions:** D1 delete `ds-token` · D2 `latererank` stays [optional]/Full · D3 two eval nodes · D4 `expand` aside on the `rewrite` row · D5 **confirmed** — sixth `PHASES` entry, with `behavioural` moved into it.
 
-Line numbers throughout are as of the file **before any phase landed**. Phases
-1–3 have since shifted everything below line 1433 by about −63, and Phase 4 will
-shift it again. Re-grep before starting Phase 4 rather than trusting the numbers
-written here.
+All four phases have landed, so the line numbers cited throughout are historical
+— they refer to the file **before any phase was applied** and are kept only so
+the reasoning stays checkable against the commits. Re-grep before acting on any
+of them.
 
 ---
 
 ## Phase and status summary
 
-| Phase | Change                                                                                            | Fixture? | Size                                     | Risk     | Status      |
-| ----- | ------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------- | -------- | ----------- |
-| **1** | `dedup` before `diversity`; `expand` off the spine into a left aside feeding `lexical` + `sparse` | yes      | 15 sites, 2 templates                    | low      | **done**    |
-| **2** | Remove `Late-interaction retrieval` and `ds-token` entirely                                       | yes      | 24 sites, 10 subsystems                  | **high** | **done**    |
-| **3** | Reword the sufficiency floor as per-leg calibrated floors                                         | no       | 9 sites, prose only                      | lowest   | **done**    |
-| **4** | Add `Experiment assignment` + `Offline evaluation` control nodes                                  | yes      | 2 new components, ~14 sites, 2 templates | medium   | not started |
+| Phase | Change                                                                                            | Fixture? | Size                                    | Risk     | Status   |
+| ----- | ------------------------------------------------------------------------------------------------- | -------- | --------------------------------------- | -------- | -------- |
+| **1** | `dedup` before `diversity`; `expand` off the spine into a left aside feeding `lexical` + `sparse` | yes      | 15 sites, 2 templates                   | low      | **done** |
+| **2** | Remove `Late-interaction retrieval` and `ds-token` entirely                                       | yes      | 24 sites, 10 subsystems                 | **high** | **done** |
+| **3** | Reword the sufficiency floor as per-leg calibrated floors                                         | no       | 9 sites, prose only                     | lowest   | **done** |
+| **4** | Add `Experiment assignment` + `Offline evaluation` control nodes, and an `Evaluation` phase       | yes      | 2 new components, 18 sites, 2 templates | medium   | **done** |
 
 **Implementation order: 1 → 3 → 2 → 4.** One commit per phase; each must leave
 the tool rendering.
@@ -31,15 +31,16 @@ the tool rendering.
    a Phase 2 rollback.~~ Done.
 3. ~~**Phase 2** — 20 sites, three throwing traps and one reference migration.
    Run it against an otherwise-quiet tree.~~ Done.
-4. **Phase 4** last — additive, and the only phase that structurally touches
-   template 2.
+4. ~~**Phase 4** — additive, and the only phase that structurally touches
+   template 2.~~ Done.
 
 Phases 2 and 4 both edit `BASELINE[3]`; separating them avoids a fixture
 merge conflict. Phase 3 has no fixture surface, so it can move anywhere in the
 order if convenient.
 
-**Blocking question:** D5 (grouping for the two Phase 4 nodes, §4.2) needs an
-answer before **Phase 4**, the only phase left, can start.
+**No open questions and nothing outstanding.** D5 was confirmed on 25 Aug 2026
+in favour of the sixth `PHASES` entry (§4.2). The two follow-ups the
+implementation raised are recorded in §6; neither blocks anything.
 
 ---
 
@@ -159,16 +160,16 @@ harmlessly, 2402) — the mandatory-detail rule applies only to relations out of
 
 Loaded at 1500x1000 in a browser. Both validators returned rather than threw.
 
-| Check                              | Before          | After           |
-| ---------------------------------- | --------------- | --------------- |
-| `validation` template 3 edges      | 71 hidden       | 72 hidden       |
-| `modelValidation.componentRelations` | 34            | 36              |
-| `modelValidation.annotatedRelations` | 4             | 4 (unchanged)   |
-| `TPL[3].rows` length               | 22              | 21              |
-| template 3 node count              | 37              | 37 (unchanged)  |
-| `layoutSweep` overlaps             | 0 in all 6 combinations | 0 in all 6 |
-| `layoutSweep` clipped labels       | 2 (template 3)  | 2, the same two |
-| edge-label / node collisions       | 0               | 0               |
+| Check                                | Before                  | After           |
+| ------------------------------------ | ----------------------- | --------------- |
+| `validation` template 3 edges        | 71 hidden               | 72 hidden       |
+| `modelValidation.componentRelations` | 34                      | 36              |
+| `modelValidation.annotatedRelations` | 4                       | 4 (unchanged)   |
+| `TPL[3].rows` length                 | 22                      | 21              |
+| template 3 node count                | 37                      | 37 (unchanged)  |
+| `layoutSweep` overlaps               | 0 in all 6 combinations | 0 in all 6      |
+| `layoutSweep` clipped labels         | 2 (template 3)          | 2, the same two |
+| edge-label / node collisions         | 0                       | 0               |
 
 The two clipped labels — `Image-to-image vector retrieval` and
 `Multi-vector / passage retrieval` — are pre-existing at `HEAD`, confirmed by
@@ -186,7 +187,7 @@ Four things the plan did not anticipate. All are now applied.
 
 **1. The `RELATION_DETAILS` entry had to be dropped — it collided with a node.**
 §1.2 proposed an optional detail entry for the `expand` feed. Added, it rendered
-an edge label at `position:.56` along the wire, which for a *leftward* side route
+an edge label at `position:.56` along the wire, which for a _leftward_ side route
 lands past the group port and directly on top of the `Lexical & metadata
 retrieval` node title — an 82x17px opaque box over 48px of the heading. The four
 existing relation labels all sit on rightward wires and are clear, so the
@@ -196,7 +197,7 @@ Rather than special-case label placement, the entries were removed. Three
 reasons, in order of weight:
 
 - `RELATION_DETAILS` today contains **exactly** the four relations the validator
-  *requires* to be annotated — those out of `assembly` and `behavioural`. It is,
+  _requires_ to be annotated — those out of `assembly` and `behavioural`. It is,
   in practice, the feedback-plane annotation table. Query-path entries break that
   correspondence for no structural gain.
 - `expand.contract.out` already publishes `{ variants[], weights[] }`, which is
@@ -230,21 +231,21 @@ data beside the spine — query variants forward, impression telemetry back".
 
 Fifteen sites, five more than the plan's estimate of ten:
 
-| Site                                 | Change                                                     |
-| ------------------------------------ | ---------------------------------------------------------- |
-| `TPL[2].rows`, `TPL[3].rows`         | `dedup` before `diversity`                                 |
-| `TPL[3].rows`                        | `{l:["expand"], c:["rewrite"]}`, one row shorter           |
-| `REL`                                | `expand: { feeds:["lexical","sparse"] }`                   |
-| `BASELINE[2].flow`                   | three pairs rewritten                                      |
-| `BASELINE[3].flow`                   | three pairs rewritten; `expand` pairs replaced by `rewrite → prefilter` |
-| `BASELINE[3].feeds`                  | `["expand",["lexical","sparse"]]`                          |
-| `STEPS[6].stages`, `STEPS[6].build`  | reordered to match                                         |
-| `dedup.decisions[0].why`             | rewritten — no longer circular                             |
-| `union.decisions[1].why`             | rewritten — discovery 3                                    |
-| `diversity.contract.in`              | `ranked candidates` → `deduplicated ranking`               |
-| `diversity.failures`                 | second row: diversifying over near-duplicates              |
-| Relationships legend prose           | discovery 4                                                |
-| `TEMPLATES` banner comment           | two lines stating the aside invariant, which Phase 4 also relies on |
+| Site                                | Change                                                                  |
+| ----------------------------------- | ----------------------------------------------------------------------- |
+| `TPL[2].rows`, `TPL[3].rows`        | `dedup` before `diversity`                                              |
+| `TPL[3].rows`                       | `{l:["expand"], c:["rewrite"]}`, one row shorter                        |
+| `REL`                               | `expand: { feeds:["lexical","sparse"] }`                                |
+| `BASELINE[2].flow`                  | three pairs rewritten                                                   |
+| `BASELINE[3].flow`                  | three pairs rewritten; `expand` pairs replaced by `rewrite → prefilter` |
+| `BASELINE[3].feeds`                 | `["expand",["lexical","sparse"]]`                                       |
+| `STEPS[6].stages`, `STEPS[6].build` | reordered to match                                                      |
+| `dedup.decisions[0].why`            | rewritten — no longer circular                                          |
+| `union.decisions[1].why`            | rewritten — discovery 3                                                 |
+| `diversity.contract.in`             | `ranked candidates` → `deduplicated ranking`                            |
+| `diversity.failures`                | second row: diversifying over near-duplicates                           |
+| Relationships legend prose          | discovery 4                                                             |
+| `TEMPLATES` banner comment          | two lines stating the aside invariant, which Phase 4 also relies on     |
 
 `EXAMPLES`, `REFS`, `DIALS`, `CAPS`, `REQUIRES` and `GATED_EXECUTION` were not
 touched, as predicted. The `+14 new vs Core + recommended` pill is unchanged.
@@ -368,13 +369,13 @@ by three or more other components.
 Dropping `latererank`'s 4th `defGate` argument was the last use of the
 gate-alternative mechanism anywhere in the file. What remains unreferenced:
 
-| Site                        | Line      | What it is                                    |
-| --------------------------- | --------- | --------------------------------------------- |
-| `defGate` doc comment       | 2280-2281 | Explains the reciprocity requirement          |
-| `defGate(from,kind,label,altOf)` | 2282, 2287 | The parameter and its frozen field       |
-| `validateRelationshipModel` | 2759-2764 | Six lines that can no longer fire             |
-| Node chip render            | 3289      | `.altchip` — renders zero times               |
-| Drawer chip render          | 4048-4049 | Same                                          |
+| Site                             | Line       | What it is                           |
+| -------------------------------- | ---------- | ------------------------------------ |
+| `defGate` doc comment            | 2280-2281  | Explains the reciprocity requirement |
+| `defGate(from,kind,label,altOf)` | 2282, 2287 | The parameter and its frozen field   |
+| `validateRelationshipModel`      | 2759-2764  | Six lines that can no longer fire    |
+| Node chip render                 | 3289       | `.altchip` — renders zero times      |
+| Drawer chip render               | 4048-4049  | Same                                 |
 
 Not removed: Phase 2's scope is deleting a component, not retiring a general
 mechanism the tool was designed around, and the parameter is optional so the
@@ -388,9 +389,9 @@ being shared by two components no longer earns its place. The reworded failure
 now sits inline in `multivec.failures`, and both overlap constants are gone.
 The rewording also had to go further than "passage vs late-interaction
 retrieval": the two are no longer competing legs but a leg and a rerank tier, so
-the failure is now *"Passage retrieval and late-interaction rerank both enabled"*
-measured by *"incremental nDCG on multi-facet queries with the rerank tier
-ablated"*.
+the failure is now _"Passage retrieval and late-interaction rerank both enabled"_
+measured by _"incremental nDCG on multi-facet queries with the rerank tier
+ablated"_.
 
 **3. Two prose sites the inventory missed.**
 
@@ -409,7 +410,7 @@ stored token representations, so the warning is still earned.
 
 **5. PLAID dropped, ColPali migrated,** as §2.2 specified. ColPali's blurb was
 reworded from "squarely relevant to a corpus with an image set per document" to
-lead with the mechanism — "the same MaxSim machinery over document *images*" —
+lead with the mechanism — "the same MaxSim machinery over document _images_" —
 so it reads as a rerank-tier reference rather than a retrieval one.
 
 ### Phase 2 applied changes
@@ -520,23 +521,23 @@ quality-floor sufficiency check". Updated to match the node.
 
 Nine sites, three more than the plan's estimate of six:
 
-| Site                            | Change                                                             |
-| ------------------------------- | ------------------------------------------------------------------ |
-| `sufficiency.sub`               | `enough candidates above per-leg calibrated floors?`               |
-| `sufficiency.purpose`           | `…cleared per-leg calibrated floors`                               |
-| `sufficiency.decisions[0].why`  | the shared-floors reason the check precedes pruning — discovery 1  |
-| `sufficiency.decisions[1]`      | opts, `def` and `why`; `why` gains why the floors must be per-leg  |
-| `sufficiency.dials`             | `Score floor` → `Per-leg floors`, from that leg's own distribution |
-| `sufficiency.notes[0]`          | rewritten — discovery 2                                            |
-| `prune.sub`                     | `score floor` → `calibrated floors`, so both node faces share the phrase |
-| `prune.decisions[0].opts`       | `Per-leg calibrated score floors` → `Per-leg calibrated floors`    |
-| `STEPS[4].build`                | discovery 3                                                        |
+| Site                           | Change                                                                   |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| `sufficiency.sub`              | `enough candidates above per-leg calibrated floors?`                     |
+| `sufficiency.purpose`          | `…cleared per-leg calibrated floors`                                     |
+| `sufficiency.decisions[0].why` | the shared-floors reason the check precedes pruning — discovery 1        |
+| `sufficiency.decisions[1]`     | opts, `def` and `why`; `why` gains why the floors must be per-leg        |
+| `sufficiency.dials`            | `Score floor` → `Per-leg floors`, from that leg's own distribution       |
+| `sufficiency.notes[0]`         | rewritten — discovery 2                                                  |
+| `prune.sub`                    | `score floor` → `calibrated floors`, so both node faces share the phrase |
+| `prune.decisions[0].opts`      | `Per-leg calibrated score floors` → `Per-leg calibrated floors`          |
+| `STEPS[4].build`               | discovery 3                                                              |
 
 No fixture, template, `REL` or `REFS` change, as predicted.
 
 ---
 
-## Phase 4 — Add a minimal evaluation and experimentation plane (D3)
+## Phase 4 — Add a minimal evaluation and experimentation plane (D3) — **DONE**
 
 ### 4.1 Why two nodes
 
@@ -560,33 +561,66 @@ maintains everywhere else:
   set, deterministic replay, the rank-1 probe suite, and the debiased
   judgements that `behavioural` produces.
 
-### 4.2 D5 — grouping (**confirm before implementing**)
+### 4.2 D5 — grouping (**confirmed 25 Aug 2026**)
 
 The two nodes do not fit the existing groups: `experiment` sits physically at
 the top of the diagram, `offlineeval` at the bottom, and forcing both into
 `"Results"` reproduces exactly the group/position mismatch flagged elsewhere in
 the review.
 
-**Recommendation:** add a sixth entry to `PHASES` (3082–3088):
+**Decision: add a sixth entry to `PHASES` (now 3024-3030), and move
+`behavioural` into it.**
 
 ```js
 {id:"eval", label:"Evaluation", groups:["Evaluation"], color:"var(--wire-train)"}
 ```
 
-and give `experiment`, `offlineeval` **and `behavioural`** `group:"Evaluation"`.
-Moving `behavioural` out of `"Results"` is what makes the phase coherent — the
-event log is the evaluation plane's data source, not a results-assembly
-concern — but it changes the "Stages by phase" legend for template 2 as well as
-3, which is a visible change to a template this plan otherwise does not touch.
+`experiment`, `offlineeval` **and `behavioural`** all take `group:"Evaluation"`.
+The event log is the evaluation plane's data source, not a results-assembly
+concern, and a three-member phase is coherent where a two-member one would have
+left `behavioural` stranded in `"Results"`.
 
-**If that is unwanted:** leave `behavioural` in `"Results"`, put both new nodes
-in `"Evaluation"`, and accept a two-member phase. Everything else in Phase 4 is
-unaffected either way.
+Six facts checked against the post-Phase-3 file before committing to this:
+
+1. **The `PHASES` entry is required, not cosmetic.** `composition()` (3047)
+   does `const ph = PHASES.find(...); if(ph) ...` — a group no phase claims is
+   silently skipped. Without the sixth entry the two nodes would simply be
+   absent from the "Stages by phase" legend, with no error to tell you.
+2. **Nothing in code keys on `group:"Results"`.** The only load-bearing group
+   string is `"Reranking"` (2772, 2804). `"Results"` appears solely inside
+   `PHASES`, so moving `behavioural` out cannot throw.
+3. **`"Results"` drops to one member** (`assembly`). The `final` phase count
+   goes 7 to 6 in template 3 and 6 to 5 in template 2; `Evaluation` shows 3 in
+   both.
+4. **`var(--wire-train)` is defined in all three colour blocks** (light 17-25,
+   `prefers-color-scheme` 38-46, `[data-theme]` 57-65) as teal `#0f766e` /
+   `#2dd4bf`. It is distinct from the five phase colours in use — blue, green,
+   purple, amber, slate — and semantically apt, since it is the colour of the
+   `trains` wire the evaluation plane rides on.
+5. **Legend order follows `PHASES` order**, so appending the entry puts
+   `Evaluation` last in the legend, after `Rank & assemble`. Correct.
+6. **`FOCUS.phase` (3916) needs no change** — clicking the new legend button
+   filters on `p.groups.includes(s.group)` and will work as soon as the entry
+   exists.
+
+**One visible consequence, accepted.** The COMPONENTS sidebar orders its group
+headings by first appearance in `tplStages` (4331), not by `PHASES`. Because
+`experiment` sits on the `normalise` row, the `Evaluation` heading will appear
+**third** in the sidebar — after `Query inputs` and `Query processing`, before
+`Constraint handling` — even though two of its three members live at the bottom
+of the diagram. Moving `experiment` to a later row would fix the ordering but
+would misplace the node, so the heading position is the lesser cost. If it
+reads badly in practice, the fix is to order the sidebar by `PHASES` rather
+than by row, which is a separate change.
+
+This changes template 2's phase legend as well as template 3's — the one
+structural edit this plan makes to a template outside the Full surface.
 
 ### 4.3 Component definitions
 
 Both are `control:true`, matching `session`, `confidence`, `routing`,
-`fusionpolicy`, `degradation` and `behavioural`. Tiers:
+`fusionpolicy`, `degradation` and `behavioural`, and both take
+`group:"Evaluation"` per D5. Tiers:
 
 | Component     | tier          | intro | Rationale                                                                                                                                                                                                                             |
 | ------------- | ------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -683,6 +717,8 @@ in the request path.
 
 | Site                  | Change                                                           |
 | --------------------- | ---------------------------------------------------------------- |
+| `PHASES` (3024-3030)  | Append the `eval` entry (D5, §4.2)                               |
+| `behavioural.group`   | `"Results"` → `"Evaluation"` (D5)                                |
 | `BASELINE[2].steers`  | Add `["experiment","routing"]`                                   |
 | `BASELINE[2].feeds`   | Add `["experiment","assembly"]`, `["behavioural","offlineeval"]` |
 | `BASELINE[3].steers`  | Add `["experiment",["routing","fusionpolicy"]]`                  |
@@ -709,14 +745,134 @@ In the browser: `validation` and `modelValidation` both resolve; templates 2
 and 3 each show two new dashed control nodes; the `+N new vs Core` pill on
 template 3 is unchanged (both nodes are `intro:2`); template 2's pill increases
 by 2; clicking `Offline evaluation` opens a drawer whose "Fed by" section names
-`Behavioural event log` with the transmission detail; the Stages-by-phase
-legend renders the new phase (D5).
+`Behavioural event log` with the transmission detail.
+
+**D5 checks specifically:** the Stages-by-phase legend renders a sixth
+`Evaluation` button, last in the row, in teal; it reads `3` in both templates 2
+and 3; `Rank & assemble` drops to `6` in template 3 and `5` in template 2;
+clicking `Evaluation` focuses exactly `experiment`, `offlineeval` and
+`behavioural`; and the COMPONENTS sidebar shows an `Evaluation` heading in third
+position, which is expected (§4.2).
 
 **Also check the two new node faces by hand.** `clippedLabels()` measures only
 `#compList .nm, #caps .cap, #focusList .ref` — node `sub` text is not in
 `FITTED_LABELS`, so the layout sweep will not catch an overflowing node
 (Phase 3 verification). Measure `scrollWidth - clientWidth` on each new node's
 `.sb` and `.nm` at 1500px and at 375px.
+
+### Phase 4 verification — passed
+
+Both validators returned rather than threw. Every predicted number landed:
+
+| Check                            | Before  | After   | Predicted? |
+| -------------------------------- | ------- | ------- | ---------- |
+| template 2 hidden edges          | 31      | 34      | +3         |
+| template 3 hidden edges          | 68      | 72      | +4         |
+| `componentRelations`             | 34      | 38      | +4         |
+| `annotatedRelations`             | 4       | 5       | +1         |
+| serving sources / edges          | 6 / 7   | 6 / 7   | unchanged  |
+| template 2 nodes                 | 23      | 25      | +2         |
+| template 3 nodes                 | 36      | 38      | +2         |
+| template 1                       | 9 nodes | 9 nodes | untouched  |
+| `+N new vs Core` (template 2)    | +14     | +16     | +2         |
+| `+N new vs Core + rec` (tmpl. 3) | +13     | +13     | unchanged  |
+| build-ladder rungs               | 14      | 14      | unchanged  |
+
+**D5 checks, all as §4.2 predicted.** The legend renders six buttons with
+`Evaluation` last, swatch `rgb(15, 118, 110)` — `--wire-train` teal — reading
+`3` in both templates 2 and 3. `Rank & assemble` drops to `6` in template 3 and
+`5` in template 2. Clicking `Evaluation` focuses exactly `Experiment
+assignment`, `Behavioural event log` and `Offline evaluation`. The COMPONENTS
+sidebar shows `Evaluation` third, and `Results` last with one member.
+
+Node faces measured by hand: both new nodes have zero `sub` and `nm` overflow at
+1500px and at 375px, and the page has no horizontal scroll at either width.
+Edge-label collisions are zero in all three templates, and `layoutSweep` reports
+zero overlaps across all six combinations with no new clipped labels.
+
+Both drawers were read end to end. `Offline evaluation` shows its `FED BY`
+section naming `Behavioural event log` with the full transmission detail, and
+`Behavioural event log` shows the reciprocal `FEEDS` entry.
+
+### Phase 4 discoveries
+
+**1. The mandatory label did collide — and the cause was the wire route, not the
+label.** §4.4 warned that `behavioural|feeds|offlineeval` has no escape from the
+Phase 1 label-placement problem. It collided at 1162px², worse than Phase 1's
+816px². But the root cause turned out to be narrower and more fixable than the
+generic label problem: **`route:"side"` had no case for two cards in the same
+column.** With `offlineeval` directly under `behavioural`, the route computed
+`sx = a.x+a.w` and `tx = b.x`, producing an S-curve that swung out right, came
+back left past the target, and re-entered from the far side — crossing itself,
+with the label stranded on top of the node.
+
+The fix mirrors machinery the file already had: `route:"source"` distinguishes a
+lateral target from one above or below and routes vertically in the second case.
+`route:"side"` now does the same:
+
+```js
+const stacked = Math.abs(a.cx - b.cx) < 8;
+```
+
+**First attempt was wrong and worth recording.** The obvious test — do the two
+rects overlap horizontally — also matched `expand → lexical` and
+`q-image → imageimagevec`, because a 250px-wide left-cell card overlaps the
+_padded retrieval group box_, which is far wider than any single node. Both feed
+wires silently became vertical. Comparing centres rather than widths is the
+correct test: a narrow card overlaps a wide group box without sharing its
+column.
+
+**2. Two cards in one control cell are 11px apart — too close for a labelled
+wire.** With the routing fixed, `behavioural → offlineeval` became an 11px
+vertical stub, and a 17px-tall label cannot sit in an 11px gap; it collided with
+_both_ cards. §4.5's plan to put both ids in the assembly row's right cell was
+therefore unworkable for an annotated edge.
+
+`offlineeval` moved to its own row instead — `{r:["offlineeval"]}`, with no `l`
+or `c`. This is safe by construction: `logicalDependencies` filters rows to
+those with a non-empty `row.c` before building the flow chain, so a control-only
+row creates no spine edge and no gap in the spine. The wire is now a clean 34px
+vertical drop with the label in the gap, and the empty centre cell renders as
+nothing rather than as a hole.
+
+**3. `experiment|feeds|assembly` was left unannotated.** §4.4 flagged it as
+optional and warned to check where the label lands. Its wire runs the full
+height of the diagram from the top-right control column down to `assembly`, so
+a label at `position:.56` would land in the middle of the retrieval fan-out.
+Left out, consistent with the Phase 1 decision that `RELATION_DETAILS` is the
+feedback-plane annotation table — it now holds exactly the five relations out of
+`assembly` and `behavioural`, four of them validator-enforced.
+
+**4. The Phase 1 follow-up is narrower than it looked.** With the stacked-route
+fix in, no relation label collides anywhere in any template. The remaining
+label-placement weakness — fixed `position:.56`, no collision avoidance — is now
+only reachable by a _long_ leftward annotated relation, not by any wire the tool
+currently draws. §6's follow-up 2 stays open, but it is no longer blocking
+anything.
+
+### Phase 4 applied changes
+
+Eighteen sites, one more than the plan's estimate of 17 — the extra is the
+`drawWires` routing fix (discovery 1).
+
+| Site                              | Change                                                         |
+| --------------------------------- | -------------------------------------------------------------- |
+| `PHASES`                          | Sixth entry, `eval` / `Evaluation` / `--wire-train`            |
+| `behavioural.group`               | `"Results"` → `"Evaluation"`                                   |
+| `def({id:"experiment"})`          | New — 2 decisions, dials, note, 2 failures, example            |
+| `def({id:"offlineeval"})`         | New — 2 decisions, 3 dials, note, 2 failures, example          |
+| `REL.experiment`                  | `steers:["routing","fusionpolicy"], feeds:["assembly"]`        |
+| `REL.behavioural`                 | `feeds:["offlineeval"]` added                                  |
+| `RELATION_DETAILS`                | `behavioural\|feeds\|offlineeval` (mandatory)                  |
+| `TPL[2]`, `TPL[3]` normalise rows | `r:["experiment"]`                                             |
+| `TPL[2]`, `TPL[3]` new rows       | `{r:["offlineeval"]}` (discovery 2)                            |
+| `BASELINE[2].steers` / `.feeds`   | 1 steer, 2 feeds                                               |
+| `BASELINE[3].steers` / `.feeds`   | 1 steer pair, 2 feeds                                          |
+| `STEPS[0]`                        | `stages:[]` → `["offlineeval","experiment"]`; `build` extended |
+| `drawWires` `route:"side"`        | Stacked-column case (discovery 1)                              |
+
+Serving counts unchanged, as predicted — neither node has a `serves` relation.
+Net: 91 insertions, 16 deletions.
 
 ---
 
@@ -757,6 +913,7 @@ Neither existed when the plan was written. Both are self-contained.
 1. **Retire the `altOf` gate-alternative mechanism** — dead as of Phase 2, five
    sites plus a `.altchip` CSS rule (Phase 2 discovery 1).
 2. **Give relation-label placement collision avoidance** — labels sit at a fixed
-   `position:.56` with no left/right awareness, so a leftward annotated relation
-   lands on a node (Phase 1 discovery 1). This currently constrains what
-   Phase 4 can annotate.
+   `position:.56` with no left/right awareness (Phase 1 discovery 1). Phase 4's
+   stacked-column routing fix removed every case the tool actually hits, so
+   nothing collides today; the weakness is now only reachable by a long leftward
+   annotated relation (Phase 4 discovery 4). Lowest priority of the two.

@@ -1771,7 +1771,7 @@ def({
 });
 
 def({
-  id:"behavioural", name:"Behavioural event log", group:"Results", tier:"recommended", control:true, intro:2,
+  id:"behavioural", name:"Behavioural event log", group:"Evaluation", tier:"recommended", control:true, intro:2,
   sub:"impressions joined to clicks, saves and reformulations", cx:3, caps:["learning"],
   purpose:"The telemetry sink and offline learning source: join position-aware impression context from Results assembly with client-side clicks, saves, enquiries and reformulations. It is not in the ranking request path.",
   decisions:[{
@@ -1786,6 +1786,54 @@ def({
     "Mine hard negatives carefully: an unlabelled relevant document mined as a hard negative actively teaches the retriever the wrong thing."
   ],
   failures:[{f:"Position bias untreated",s:"Models that reproduce the current ranking",m:"interleaving experiments; debiased estimators"}]
+});
+
+def({
+  id:"experiment", name:"Experiment assignment", group:"Evaluation", tier:"recommended", control:true, intro:2,
+  sub:"variant assigned and stamped on the request", cx:2,
+  purpose:"Assign this request to a variant and stamp the identifiers onto it, so every configuration choice the pipeline makes and every impression it logs can be attributed to the change being tested.",
+  decisions:[{
+    q:"What is the unit of assignment?",
+    opts:["Query","Session","User"],
+    def:"User",
+    why:"Query-level assignment splits one session across variants, so every session-scoped metric — reformulation rate, time to first click — measures a blend rather than a variant. User-level assignment costs sensitivity and buys numbers you can interpret."
+  },{
+    q:"Is the variant logged or inferred?",
+    opts:["Logged with the impression","Inferred from configuration at analysis time"],
+    def:"Logged with the impression",
+    why:"Configuration drifts, and a variant reconstructed after the fact is a guess. An unlogged assignment makes every result in the experiment unattributable, which is worse than not running it."
+  }],
+  contract:{in:"request + assignment policy", out:"{ experiment_ids[], variant_config }"},
+  dials:[{n:"Assignment unit",v:"user"},{n:"Ramp",v:"1% → 5% → 50%",note:"Hold each step long enough to cover a weekly cycle."}],
+  notes:["Results assembly already emits experiment_ids[] in its impression context. This is the stage that puts them there; without it the field is in the schema and empty in practice."],
+  failures:[
+    {f:"Assignment never logged",s:"Experiment results cannot be attributed to a variant",m:"share of impressions carrying a resolvable experiment id"},
+    {f:"Query-level assignment under session metrics",s:"Session metrics move without any variant having caused it",m:"variant balance within sessions"}],
+  example:"A change to the fusion weights is a variant. Without an assignment stamped on the request, the only way to evaluate it is to ship it to everyone and compare against last week."
+});
+
+def({
+  id:"offlineeval", name:"Offline evaluation", group:"Evaluation", tier:"recommended", control:true, intro:2,
+  sub:"labelled set, deterministic replay, probe suite", cx:3, caps:["learning"],
+  purpose:"The measurement surface every other decision on this diagram is argued from: a graded labelled set, deterministic replay of a fixed query set against a pinned configuration, and a probe suite of known rank-1 answers. It is not in the request path.",
+  decisions:[{
+    q:"Judgements from annotators or from behaviour?",
+    opts:["Annotated labelled set","Debiased behavioural judgements","Both"],
+    def:"A labelled set first; add debiased behavioural judgements once volume allows",
+    why:"Behavioural judgements are plentiful and free, but they only cover what the current ranking already showed. A labelled set is the only thing that measures what you are missing, which is exactly what a retrieval change is meant to fix."
+  },{
+    q:"Is replay deterministic?",
+    opts:["Yes — pinned models and configuration","No — replay against live services"],
+    def:"Deterministic",
+    why:"A replay you cannot repeat cannot attribute a metric change to your change. This is what makes an LLM in the hot path expensive beyond its latency."
+  }],
+  contract:{in:"labelled queries + a pinned pipeline configuration + debiased judgements from the event log", out:"versioned nDCG, recall and probe-suite pass or fail per configuration"},
+  dials:[{n:"Labelled set",v:"200–500 queries, graded"},{n:"Probe suite",v:"~30 known rank-1 answers",note:"Run it as a hard CI gate, not a dashboard."},{n:"Pooling depth",v:"top 50 per leg"}],
+  notes:["Pool judgements across every retrieval leg. A labelled set built from one leg's results measures that leg's ranking and silently scores every other leg's unique finds as irrelevant."],
+  failures:[
+    {f:"Metrics pooled, never sliced",s:"Aggregate nDCG stays flat while a query class regresses badly",m:"nDCG@10 by query class, plus the probe suite"},
+    {f:"The evaluation set drifts with the index",s:"Scores move between runs with no code change",m:"re-run a pinned configuration; the numbers must be identical"}],
+  example:"The six-facet query belongs in the labelled set with graded judgements for every listing any leg retrieves. Judge only the lexical results and adding the image legs will look like a regression, because their unique finds are all unjudged."
 });
 
 
@@ -2089,7 +2137,7 @@ const TPL = {
     desc:"The <b>default answer</b>. Adds rewriting, static routing, cross-modal text-to-image retrieval, bounded recovery, candidate pruning, cross-encoder reranking, operational deadlines, auditable final-ranking controls, and feedback instrumentation. Architect against this one.",
     rows:[
       {c:["q-text"]},
-      {c:["normalise"]},
+      {c:["normalise"], r:["experiment"]},
       {c:["understand"]},
       {c:["rewrite"]},
       {c:["prefilter"], r:["routing"]},
@@ -2103,7 +2151,8 @@ const TPL = {
       {c:["freshness"]},
       {c:["dedup"]},
       {c:["diversity"]},
-      {c:["assembly"], r:["behavioural"]}
+      {c:["assembly"], r:["behavioural"]},
+      {r:["offlineeval"]}
     ],
     extra:BRANCHES
   },
@@ -2113,7 +2162,7 @@ const TPL = {
     desc:"Everything on the menu. <b>Do not read this as “execute every box”</b> — a simple navigational query should fire two legs and skip the VLM; image-to-image retrieval should fire only when an image is supplied. The dashed control plane decides which parts run.",
     rows:[
       {l:["q-image"], c:["q-text"], r:["session"]},
-      {c:["normalise"]},
+      {c:["normalise"], r:["experiment"]},
       {c:["understand"], r:["confidence"]},
       {l:["expand"], c:["rewrite"]},
       {c:["prefilter"], r:["routing"]},
@@ -2132,7 +2181,8 @@ const TPL = {
       {c:["personalisation"]},
       {c:["dedup"]},
       {c:["diversity"]},
-      {c:["assembly"], r:["behavioural"]}
+      {c:["assembly"], r:["behavioural"]},
+      {r:["offlineeval"]}
     ],
     extra:BRANCHES  /* control, data and training wires are generated from REL — see relEdges() */
   }
@@ -2326,7 +2376,8 @@ const REL = {
   degradation:  { steers:LEGS.concat(["latererank","crossenc","vlmrerank"]) },
   fusionpolicy: { steers:["fusion"] },
   assembly:     { feeds:["behavioural"] },
-  behavioural:  { trains:["fusionpolicy","ltr"], updates:["personalisation"] }
+  experiment:   { steers:["routing","fusionpolicy"], feeds:["assembly"] },
+  behavioural:  { trains:["fusionpolicy","ltr"], updates:["personalisation"], feeds:["offlineeval"] }
 };
 
 const RELATION_DETAILS = Object.freeze({
@@ -2341,6 +2392,9 @@ const RELATION_DETAILS = Object.freeze({
   }),
   "behavioural|updates|personalisation":Object.freeze({
     label:"profile events", payload:"clicks, saves, enquiries and stated preferences", cadence:"asynchronous profile update"
+  }),
+  "behavioural|feeds|offlineeval":Object.freeze({
+    label:"debiased judgements", payload:"versioned query-document judgements with position-aware features", cadence:"offline, on the evaluation cycle"
   })
 });
 function relationDetail(from,kind,to){
@@ -2516,10 +2570,15 @@ const DEPENDENCY_BASELINE = {
     branch:BASELINE_RECOVERY.branch,
     loop:BASELINE_RECOVERY.loop,
     steers:baselinePairs(
+      ["experiment","routing"],
       ["routing",["lexical","textvec","textimagevec"]],
       ["degradation",["lexical","textvec","textimagevec","crossenc"]]
     ),
-    feeds:baselinePairs(["assembly","behavioural"]),
+    feeds:baselinePairs(
+      ["experiment","assembly"],
+      ["assembly","behavioural"],
+      ["behavioural","offlineeval"]
+    ),
     serves:baselinePairs(
       ["ds-text","lexical"],
       ["ds-doc-ann","textvec"],
@@ -2559,6 +2618,7 @@ const DEPENDENCY_BASELINE = {
     branch:BASELINE_RECOVERY.branch,
     loop:BASELINE_RECOVERY.loop,
     steers:baselinePairs(
+      ["experiment",["routing","fusionpolicy"]],
       ["q-image","routing"],
       ["session",["understand","rewrite","routing","personalisation"]],
       ["confidence",["prefilter","relax"]],
@@ -2567,9 +2627,11 @@ const DEPENDENCY_BASELINE = {
       ["fusionpolicy","fusion"]
     ),
     feeds:baselinePairs(
+      ["experiment","assembly"],
       ["q-image","imageimagevec"],
       ["expand",["lexical","sparse"]],
-      ["assembly","behavioural"]
+      ["assembly","behavioural"],
+      ["behavioural","offlineeval"]
     ),
     trains:baselinePairs(
       ["behavioural",["fusionpolicy","ltr"]]
@@ -2904,8 +2966,8 @@ const REQUIRES = { relax:"sufficiency", zerofallback:"sufficiency", imageimageve
    ======================================================================= */
 
 const STEPS = [
-  {n:0, t:0, title:"Evaluation harness", stages:[],
-   build:"A labelled set of 200–500 queries with graded relevance, pooled across legs so recall is measurable rather than assumed. Deterministic replay. A probe suite of ~30 queries with known rank-1 answers.",
+  {n:0, t:0, title:"Evaluation harness", stages:["offlineeval","experiment"],
+   build:"A labelled set of 200–500 queries with graded relevance, pooled across legs so recall is measurable rather than assumed. Deterministic replay. A probe suite of ~30 queries with known rank-1 answers. Variant assignment stamped on the request, so a change can be measured against a control rather than against last week.",
    trigger:"Before anything else.",
    buys:"Every later decision becomes measurable instead of arguable. Without it, all the tradeoffs below are opinions."},
   {n:1, t:1, title:"Core spine, fixed RRF, filters pushed down", stages:["normalise","understand","prefilter","lexical","textvec","union","fusion","assembly"],
@@ -3026,7 +3088,8 @@ const PHASES = [
   {id:"retr",   label:"Retrieval",        groups:["Candidate retrieval"],                                    color:"var(--rec-line)"},
   {id:"merge",  label:"Merge & fuse",     groups:["Candidate generation","Fusion"],                          color:"var(--opt-line)"},
   {id:"rerank", label:"Rerank",           groups:["Reranking"],                                              color:"var(--warn)"},
-  {id:"final",  label:"Rank & assemble",  groups:["Final ranking","Results"],                                color:"var(--ctrl-line)"}
+  {id:"final",  label:"Rank & assemble",  groups:["Final ranking","Results"],                                color:"var(--ctrl-line)"},
+  {id:"eval",   label:"Evaluation",       groups:["Evaluation"],                                          color:"var(--wire-train)"}
 ];
 const MAX_CX = Object.values(S).reduce((a,s)=>a+(s.cx||0),0);
 
@@ -3848,11 +3911,23 @@ function drawWires(){
         d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
       }
     } else if(relation.route==="side"){
-      const fromLeft = a.cx > b.cx;
-      const sx = fromLeft ? a.x : a.x+a.w, sy = a.cy;
-      const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
-      const k = Math.max(30, Math.abs(tx-sx)*relation.curve) * (fromLeft?-1:1);
-      d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
+      // Two cards sharing a column have no side to run along. Leave one and
+      // enter the other vertically, the way a serving source does. Compare
+      // centres, not widths: a narrow card overlaps a wide group box without
+      // sharing its column.
+      const stacked = Math.abs(a.cx-b.cx) < 8;
+      if(stacked){
+        const above = a.cy < b.cy;
+        const sx=a.cx, sy=above?a.y+a.h:a.y, tx=b.cx, ty=above?b.y:b.y+b.h;
+        const dy=Math.max(14,Math.abs(ty-sy)*relation.curve)*(above?1:-1);
+        d = "M"+sx+","+sy+" C"+sx+","+(sy+dy)+" "+tx+","+(ty-dy)+" "+tx+","+ty;
+      } else {
+        const fromLeft = a.cx > b.cx;
+        const sx = fromLeft ? a.x : a.x+a.w, sy = a.cy;
+        const tx = fromLeft ? b.x+b.w : b.x, ty = b.cy;
+        const k = Math.max(30, Math.abs(tx-sx)*relation.curve) * (fromLeft?-1:1);
+        d = "M"+sx+","+sy+" C"+(sx+k)+","+sy+" "+(tx-k)+","+ty+" "+tx+","+ty;
+      }
     } else if(relation.route==="branch" && b.cx < a.cx - 24){
       const sx=a.x, sy=a.cy, tx=b.x+b.w, ty=b.cy;
       const dx=Math.max(24,(sx-tx)*.45);
