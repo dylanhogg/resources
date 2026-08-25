@@ -5,6 +5,7 @@ Note: this list is for humans, not for AI agents.
 ## Minor fixes
 
 - Should RFF consider Distribution-Based Score Fusion (DBSF) as alternative?
+- Review Query Expansion - what does it feed exactly? Anything missing? Is it really required?
 - Add GA
 - Add link from Text query to Query expansion?
 - Remove Conditional pill from hoverover since it's redundant.
@@ -17,9 +18,9 @@ Note: this list is for humans, not for AI agents.
 
 ## Features
 
-- wip - needs a redo: Review "What you are choosing" section in RHS popout. List all existing values across all components in a table with added column "clarity" and "validity" (clarity: clear, unclear, confusing; validity: valid, invalid, questionable). Add a column for "suggested change" if clarity or validity is not good.
+- Add a new tab between "Buid order" and "About" that addresses physical implemetations (one on open search, other on qdrant)
 
-- Review business ranking position - should it be later?
+- wip - needs a redo: Review "What you are choosing" section in RHS popout. List all existing values across all components in a table with added column "clarity" and "validity" (clarity: clear, unclear, confusing; validity: valid, invalid, questionable). Add a column for "suggested change" if clarity or validity is not good.
 
 - Review the group tags (Query processing, Constraint handling, etc)
 

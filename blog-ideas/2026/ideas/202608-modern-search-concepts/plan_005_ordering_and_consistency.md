@@ -2,8 +2,8 @@
 
 **Target:** `search-query-pipeline-diagram-tool.html` (4687 lines at `001e29e`) — plus two
 companion docs in Phase 5.
-**Status:** **Phases 1–3 landed** — written 25 Aug 2026, after the post-004 gap review.
-Phases 4–5 pending.
+**Status:** **Phases 1–4 landed; Phase 5 won't do** — written 25 Aug 2026, after the
+post-004 gap review. **The plan is closed.**
 **Source:** the gap review over the file as it stands after plan 004 landed all four phases.
 **Decisions:** D1 scope is ordering + consistency only · D2 authorization stays prose ·
 D3 Business ranking moves last · D4 evaluation stays [recommended], the ladder is what changes.
@@ -19,22 +19,23 @@ Line numbers cited below are as at `001e29e`. Re-grep before acting on any of th
 
 ## Phase and status summary
 
-| Phase | Change                                                                         | Fixture? | Size                       | Risk       | Status   |
-| ----- | ------------------------------------------------------------------------------ | -------- | -------------------------- | ---------- | -------- |
-| **1** | Move `business` to the end of final ranking, after `diversity`                 | **yes**  | 11 sites, 2 templates      | medium     | **done** |
-| **2** | Fix the build ladder and give it a validator                                   | no       | 8 sites + 1 new validator  | low-medium | **done** |
+| Phase | Change                                                                         | Fixture? | Size                        | Risk       | Status   |
+| ----- | ------------------------------------------------------------------------------ | -------- | --------------------------- | ---------- | -------- |
+| **1** | Move `business` to the end of final ranking, after `diversity`                 | **yes**  | 11 sites, 2 templates       | medium     | **done** |
+| **2** | Fix the build ladder and give it a validator                                   | no       | 8 sites + 1 new validator   | low-medium | **done** |
 | **3** | Justify the seven tier divergences from the source classification              | no       | 8 sites + 1 doc, prose only | lowest     | **done** |
-| **4** | Retire `altOf`; fix the `expand`/HyDE contradiction; state the annotation rule | no       | 6 sites + 1 CSS rule       | low        | pending  |
-| **5** | Regenerate the surface doc, and stop it going stale again                      | no       | 2 docs (+ optional export) | low        | pending  |
+| **4** | Retire `altOf`; fix the `expand`/HyDE contradiction; state the annotation rule | no       | 8 sites incl. 1 CSS rule    | low        | **done** |
+| **5** | Regenerate the surface doc, and stop it going stale again                      | no       | 2 docs (+ optional export)  | low        | **won't do** |
 
-**Implementation order: 1 → 2 → 3 → 4 → 5.** One commit per phase; each must leave the
-tool rendering.
+**Implementation order: 1 → 2 → 3 → 4.** One commit per phase; each must leave the tool
+rendering. Phase 5 was not taken — see §5 below.
 
 Phases 1–4 are genuinely independent — they touch disjoint sites, and none of them
-depends on another's output. The numeric order is therefore just convenience, with two
+depends on another's output. The numeric order was therefore just convenience, with two
 real constraints:
 
 - **Phase 5 must be last.** It is a snapshot of everything the other four change.
+  Moot now that it is not being done.
 - **Phase 4's `altOf` retirement is fully self-contained** and can be lifted out and
   landed on its own at any point, including before Phase 1, if you want the dead code
   gone sooner. It is the only piece of this plan that deletes rather than corrects.
@@ -473,19 +474,19 @@ alone could not express, so its marker records the old group too.
 Prose only; no counts move. The point of this phase is that the tiers do **not** change —
 only their justification is added, so every assertion below is an _unchanged_ assertion.
 
-| Check                                    | Expected                              | Result                              |
-| ---------------------------------------- | ------------------------------------- | ----------------------------------- |
-| Page loads (all three validators pass)   | no throw                              | **unchanged** — diagnostics present |
-| `validation` hidden edges, t1/t2/t3      | 9 / 34 / 72                           | **unchanged**                       |
-| `validation` shown edges, t1/t2/t3       | 12 / 38 / 79                           | **unchanged**                       |
-| `validation` source nodes / serving edges | 3,4,6 / 3,4,7                         | **unchanged**                       |
-| `modelValidation`                        | 38 relations, 5 annotated, 9 types    | **unchanged**                       |
-| `ladderValidation`                       | `{steps:16, componentsBuilt:37}`      | **unchanged**                       |
-| Node counts, t1/t2/t3                    | 9 / 25 / 38                           | **unchanged**                       |
-| `tier`, `intro`, `group` on the eight    | untouched                             | **unchanged** — `git diff` matches no such line |
-| Drawer tier chips on the eight           | rec, rec, opt, core, opt, rec, rec, rec | **unchanged**                     |
-| Notes arrays on the eight                | each grew by exactly one, appended last | **as intended**                   |
-| `<em>` inside two notes                  | renders italic, not literal markup    | **confirmed by screenshot**         |
+| Check                                     | Expected                                | Result                                          |
+| ----------------------------------------- | --------------------------------------- | ----------------------------------------------- |
+| Page loads (all three validators pass)    | no throw                                | **unchanged** — diagnostics present             |
+| `validation` hidden edges, t1/t2/t3       | 9 / 34 / 72                             | **unchanged**                                   |
+| `validation` shown edges, t1/t2/t3        | 12 / 38 / 79                            | **unchanged**                                   |
+| `validation` source nodes / serving edges | 3,4,6 / 3,4,7                           | **unchanged**                                   |
+| `modelValidation`                         | 38 relations, 5 annotated, 9 types      | **unchanged**                                   |
+| `ladderValidation`                        | `{steps:16, componentsBuilt:37}`        | **unchanged**                                   |
+| Node counts, t1/t2/t3                     | 9 / 25 / 38                             | **unchanged**                                   |
+| `tier`, `intro`, `group` on the eight     | untouched                               | **unchanged** — `git diff` matches no such line |
+| Drawer tier chips on the eight            | rec, rec, opt, core, opt, rec, rec, rec | **unchanged**                                   |
+| Notes arrays on the eight                 | each grew by exactly one, appended last | **as intended**                                 |
+| `<em>` inside two notes                   | renders italic, not literal markup      | **confirmed by screenshot**                     |
 
 `git diff` for the tool is confined to eight `notes` arrays: **22 insertions, 8
 deletions**, and no line matching `tier:`, `intro:` or `group:` appears on either side of
@@ -497,11 +498,11 @@ added without the thing being justified moving underneath it.
 The tool names each tier **three different ways**, and a note that picks the wrong one
 contradicts the chip sitting six pixels above it:
 
-| Surface                              | Renders from       | Words                                    |
-| ------------------------------------ | ------------------ | ---------------------------------------- |
-| Component drawer chip                | `source.tier`      | core / recommended / **optional**        |
-| Sidebar chip and data-source drawer  | `TIER_LABEL[intro]` | core / recommended / **full**            |
-| Drawer "Introduced in" line          | template name      | Core / **Core + recommended** / Full surface |
+| Surface                             | Renders from        | Words                                        |
+| ----------------------------------- | ------------------- | -------------------------------------------- |
+| Component drawer chip               | `source.tier`       | core / recommended / **optional**            |
+| Sidebar chip and data-source drawer | `TIER_LABEL[intro]` | core / recommended / **full**                |
+| Drawer "Introduced in" line         | template name       | Core / **Core + recommended** / Full surface |
 
 `TIER_LABEL` is keyed on `intro`, not on `tier` — a detail worth knowing before Phase 5
 regenerates the surface doc from either field. The two are perfectly correlated across all
@@ -520,19 +521,32 @@ with.
 Plan 004 Phase 2 deleted `Late-interaction retrieval`, which was the only pair the
 `altOf` mechanism ever described. It has been carried since as dead machinery. Six sites:
 
-| Site                                            | Line      | Action                                              |
-| ----------------------------------------------- | --------- | --------------------------------------------------- |
-| `.node .altchip` CSS rule                       | 347–350   | Delete                                              |
-| `defGate()` signature and doc comment           | 2329–2337 | Drop the fourth parameter and the two comment lines |
-| `validateRelationshipModel()` reciprocity check | 2821–2826 | Delete the whole `if(gate.altOf)` block             |
-| Node-face chip render                           | 3352      | Delete the trailing ternary                         |
-| Drawer chip render                              | 4123–4124 | Delete the trailing ternary                         |
+| Site                                            | Line      | Action                                              | Result   |
+| ----------------------------------------------- | --------- | --------------------------------------------------- | -------- |
+| `.node .altchip` CSS rule                       | 347–350   | Delete                                              | −4 lines |
+| `defGate()` signature and doc comment           | 2329–2337 | Drop the fourth parameter and the two comment lines | −2 lines |
+| `defGate()` return object                       | 2353      | Drop `altOf` from the frozen shape                  | 0 lines  |
+| `validateRelationshipModel()` reciprocity check | 2821–2826 | Delete the whole `if(gate.altOf)` block             | −9 lines |
+| Node-face chip render                           | 3352      | Delete the trailing ternary                         | −1 line  |
+| Drawer chip render                              | 4123–4124 | Delete the trailing ternary                         | −2 lines |
 
-No `GATED_EXECUTION` entry passes a fourth argument any more, so this is a pure deletion —
-about 20 lines plus the CSS rule. Nothing else reads `altOf`.
+**The plan listed five sites; there are six.** The `defGate()` return at 2353 spreads
+`altOf` into the frozen gate object. Leaving it would have kept an `altOf:undefined` key on
+all eight gates — invisible on the page, but still the mechanism, and this phase's whole
+claim is that the mechanism is gone.
 
-This is the only destructive edit in plan 005 and it is entirely self-contained. Land it
-separately if you prefer.
+No `GATED_EXECUTION` entry passed a fourth argument, so this was a pure deletion: **18
+lines removed, nothing added.** Confirmed after the fact — `grep -c 'altOf\|altchip'`
+returns **0**, and `Object.values(GATED_EXECUTION).map(g => "altOf" in g)` on the live page
+returns eight `false`.
+
+**Two helpers were checked for becoming dead by this deletion, and neither did.**
+`requireComponent` lost one call site but still has ten; `chipTag` lost one of its two and
+still has one. Nothing else needed removing.
+
+The `.node[data-gate-scope="deployment"] .gatechip` rule sits immediately above the deleted
+`.altchip` block and also sets a dashed border. It is untouched, and the dashed
+`OPTIONAL PASS` chip on Semantic rerank was checked in the rendered page to confirm it.
 
 ### 4.2 `expand` advertises HyDE and then routes away from it
 
@@ -551,6 +565,21 @@ prose**, not the wiring: either drop HyDE from `sub` and mention it in the decis
 decision's `why` explaining that HyDE is the one expansion family that must target the
 dense legs, which is exactly why it is not the default. The second is more useful — it
 turns an inconsistency into the sharpest point on the card.
+
+**Taken: the second.** `sub`, `purpose` and `REL.expand` are all unchanged; one line of
+`why` grew. It now reads:
+
+> Dense retrieval already generalises over vocabulary. Expanding into it mostly adds
+> drift. HyDE is the family this default rules out rather than routes: a hypothetical
+> answer document exists in order to be embedded, so it has nowhere to go but the dense
+> leg — the one leg that needed the help least. Take it only when the dense leg is
+> measurably failing on queries whose answers use vocabulary the question never does.
+
+The card now reads consistently in both directions: `sub` and `purpose` name HyDE as a
+member of the family, the `opts` on this decision still offer "Dense only", and the `why`
+says what choosing it costs. `STEPS[14]` from Phase 2 already described expansion as
+"routed into the lexical and learned-sparse legs rather than into dense", so the build
+ladder and the drawer now agree.
 
 ### 4.3 The annotation rule is implicit
 
@@ -581,20 +610,72 @@ const FEEDBACK_PLANE_SOURCES = Object.freeze(["assembly", "behavioural"]);
 
 No behaviour changes — `annotatedRelations` stays at 5.
 
-### 4.4 Verification
+**Applied, with the comment at both ends as specified.** The constant and its comment sit
+immediately above `RELATION_DETAILS`, so a reader adding an entry meets the rule before the
+data; the enforcement site carries a two-line back-reference to it.
 
-| Check                               | Expected                                  |
-| ----------------------------------- | ----------------------------------------- |
-| All validators                      | pass                                      |
-| `grep -c altOf`                     | **0**                                     |
-| `grep -c altchip`                   | **0**                                     |
-| `annotatedRelations`                | **5 — unchanged**                         |
-| Gate chips on all eight gated nodes | still render; no node loses its gate chip |
-| `expand` drawer                     | reads consistently top to bottom          |
+**One line beyond the plan.** Lifting the two names into a constant introduces a failure
+mode the hardcoded comparison did not have in the same way: if the constant ever names a
+component that does not exist, the `filter` silently matches nothing and the rule stops
+enforcing rather than throwing. One line closes it:
+
+```js
+FEEDBACK_PLANE_SOURCES.forEach(id=>requireComponent(id,"feedback plane source"));
+```
+
+Without it the constant would be the only component-naming structure in the file that is
+not validated against `S`.
+
+### 4.4 Verification — **run, all sites applied**
+
+| Check                               | Expected                                  | Result                                      |
+| ----------------------------------- | ----------------------------------------- | ------------------------------------------- |
+| All validators                      | pass                                      | **pass** — page renders, diagnostics present |
+| `grep -c altOf`                     | **0**                                     | **0**                                       |
+| `grep -c altchip`                   | **0**                                     | **0**                                       |
+| `"altOf" in gate`, all eight gates  | `false`                                   | eight `false`                               |
+| `annotatedRelations`                | **5 — unchanged**                         | **5**                                       |
+| `componentRelations`                | 38 — unchanged                            | **38**                                      |
+| `gatedStages`                       | 8 — unchanged                             | **8**                                       |
+| Hidden / shown edges, t1·t2·t3      | 9·34·72 / 12·38·79                        | **unchanged**                               |
+| Nodes and rows, t1·t2·t3            | 9·25·38 / 8·17·22                         | **unchanged**                               |
+| Layout sweep, six combinations      | zero overlaps, zero clipped labels        | **0 / 0**                                   |
+| Gate chips on all eight gated nodes | still render; no node loses its gate chip | **all eight**, in order, zero `.altchip`    |
+| Deployment-scope dashed chip        | still dashed after the CSS deletion       | **confirmed by screenshot**                 |
+| Drawer gate tag, both scopes        | renders for request and deployment gates  | `Gate visual intent · per request` / `Gate optional pass · deployment choice` |
+| `expand` drawer                     | reads consistently top to bottom          | **consistent** — see §4.2                   |
+
+**The annotation rule selects the same set it did before.** Rebuilt from `REL` on the live
+page, `FEEDBACK_PLANE_SOURCES` matches exactly five relations and every one is annotated:
+`assembly|feeds|behavioural`, `behavioural|trains|fusionpolicy`, `behavioural|trains|ltr`,
+`behavioural|updates|personalisation`, `behavioural|feeds|offlineeval`. And `experiment`'s
+three relations — `steers|routing`, `steers|fusionpolicy`, `feeds|assembly` — are all
+unannotated and all allowed, which is the case §4.3 exists to explain.
+
+Phase 4 in total: **18 insertions, 24 deletions**, net −6 lines, across eight hunks.
 
 ---
 
 ## Phase 5 — Regenerate the surface doc, and stop it going stale
+
+> **WON'T DO — decided 25 Aug 2026, after Phase 4 landed.**
+>
+> Regenerating `search-query-pipeline-diagram-tool-surface.md` by hand is the fallback in
+> §5.2, and it is the option this phase would actually have taken today — the
+> `surfaceOutline()` export is the better answer and it is not written yet. Hand-rewriting
+> a doc that has gone stale after three consecutive plans buys one accurate snapshot and
+> re-arms the same problem, so the phase is **closed unstarted** rather than done cheaply.
+>
+> **An export pipeline function will be written at a later stage**, and the surface doc
+> regenerated from it then. That is the recommended half of §5.2, deferred rather than
+> declined.
+>
+> **What this leaves standing:** the surface doc is stale in the six ways §5.1 lists, plus
+> whatever Phases 1–4 have added to that list since (Phase 1's business-ranking move, and
+> Phase 4's removal of the "alternative placement of" line). It still carries its own "not
+> the source of truth, a point in time extraction" disclaimer, which remains accurate and
+> is now the only thing signalling the drift. §5.1 and §5.2 are kept below **as the input
+> spec for that future export function**, not as pending work.
 
 ### 5.1 How stale it is
 
@@ -636,6 +717,19 @@ Either way the doc must be regenerated **after** phases 1–4, since all four ch
 Phase 1 moves business ranking, Phase 2 does not appear in it, Phase 3 changes no tiers,
 and Phase 4 removes the "alternative placement of" line that `altOf` used to render.
 
+**Decided: the recommended half, deferred.** Neither option was taken now. When
+`surfaceOutline(templateId)` is written it should expose itself on
+`window.dependencyDiagnostics` alongside the existing keys — which Phases 2 and 3 grew from
+five to six (`inventory`, `validation`, `modelValidation`, `ladderValidation`, `layout`,
+`layoutSweep`). Two findings from those phases are worth carrying into it:
+
+- **`TIER_LABEL` is keyed on `intro`, not `tier`** (§3.3). The two agree across all 38
+  components, but they render different words for tier 3 — "full" against "optional". An
+  outline generator has to pick one deliberately.
+- **`STEPS` is read at exactly one render site** and now has `validateBuildLadder()`
+  guarding it. If the outline is ever extended to cover the build ladder, that validator
+  is the thing that keeps the two in step.
+
 ---
 
 ## 5. Commit boundaries
@@ -645,10 +739,10 @@ One commit per phase, each rendering:
 | Commit | Contents                                                                                                                     |
 | ------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | 1      | Phase 1 — templates, fixture, `STEPS[6]`, `business` prose — **committed as `e755a96`**                                      |
-| 2      | Phase 2 — rung 0, the `fusionpolicy` duplicate, the 13/14/15 split, `validateBuildLadder()` — **applied, not yet committed** |
-| 3      | Phase 3 — eight tier notes, plus the source-list reconciliation — **applied, not yet committed** |
-| 4      | Phase 4 — `altOf` deletion, `expand` prose, `FEEDBACK_PLANE_SOURCES`                                                         |
-| 5      | Phase 5 — regenerated surface doc (+ `surfaceOutline()` if taken)                                                            |
+| 2      | Phase 2 — rung 0, the `fusionpolicy` duplicate, the 13/14/15 split, `validateBuildLadder()` — **committed as `19f51fc`**     |
+| 3      | Phase 3 — eight tier notes, plus the source-list reconciliation — **committed as `2380045`**                                 |
+| 4      | Phase 4 — `altOf` deletion, `expand` prose, `FEEDBACK_PLANE_SOURCES` — **applied, not yet committed**                        |
+| 5      | ~~Phase 5 — regenerated surface doc~~ — **won't do**; `surfaceOutline()` deferred to its own change              |
 
 Phase 2's validator and its rung-0 fix cannot be split — the validator throws on the
 current data.

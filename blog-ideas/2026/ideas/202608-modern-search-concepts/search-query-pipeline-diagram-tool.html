@@ -344,10 +344,6 @@ a{color:var(--accent)}
 /* A deployment gate is standing configuration, not a per-query decision.
    Muted and dashed so the two kinds separate before the label is read. */
 .node[data-gate-scope="deployment"] .gatechip{border-style:dashed;font-weight:650}
-.node .altchip{
-  font-size:9px;font-weight:650;letter-spacing:.025em;text-transform:uppercase;
-  border:1px dashed currentColor;color:var(--text-3);border-radius:20px;padding:1px 6px
-}
 .node.core{background:var(--core-bg);border-color:var(--core-line);color:var(--core-text)}
 .node.core .sb{color:var(--core-text);opacity:.72}
 .node.recommended{background:var(--rec-bg);border-color:var(--rec-line);color:var(--rec-text)}
@@ -1167,7 +1163,7 @@ def({
     q:"Expand into which legs?",
     opts:["All legs","Lexical only","Dense only"],
     def:"Lexical and learned-sparse legs",
-    why:"Dense retrieval already generalises over vocabulary. Expanding into it mostly adds drift."
+    why:"Dense retrieval already generalises over vocabulary. Expanding into it mostly adds drift. HyDE is the family this default rules out rather than routes: a hypothetical answer document exists in order to be embedded, so it has nowhere to go but the dense leg — the one leg that needed the help least. Take it only when the dense leg is measurably failing on queries whose answers use vocabulary the question never does."
   }],
   contract:{in:"rewritten query", out:"{ variants[], weights[] }"},
   dials:[{n:"Variants",v:"2–4",note:"More variants multiply retrieval cost linearly."},{n:"PRF depth",v:"top 10 docs"}],
@@ -2342,15 +2338,13 @@ const CONDITIONAL_NOTE =
 
 /* Resolve each entry against the registry once, at definition time, so no
    render site has to know the registry shape and an entry naming an unknown
-   kind or condition fails here rather than printing `undefined` onto a card.
-   `altOf` names the stage this one is an alternative placement of; validation
-   requires that naming to be reciprocal. */
-function defGate(from,kind,label,altOf){
+   kind or condition fails here rather than printing `undefined` onto a card. */
+function defGate(from,kind,label){
   const spec = GATE_KINDS[kind];
   if(!spec) throw new Error("Unknown gate kind: "+kind);
   const sentence = spec.conditions[label];
   if(!sentence) throw new Error("Condition not declared by gate kind "+kind+": "+label);
-  return Object.freeze({from,kind,label,sentence,altOf,
+  return Object.freeze({from,kind,label,sentence,
     decidedAt:spec.decidedAt, decidedBy:spec.decidedBy, color:spec.color});
 }
 
@@ -2395,6 +2389,15 @@ const REL = {
   experiment:   { steers:["routing","fusionpolicy"], feeds:["assembly"] },
   behavioural:  { trains:["fusionpolicy","ltr"], updates:["personalisation"], feeds:["offlineeval"] }
 };
+
+/* The feedback plane is the only plane whose wires must declare what they carry:
+   these relations move data the reader cannot infer from the component cards.
+   Control-plane relations (steers) are deliberately unannotated — the drawer
+   already names what each control decides, and a label on every steering wire
+   would bury the diagram. `experiment` sits on both planes and is annotated on
+   neither: its feed to assembly runs the full height of the diagram, so a label
+   would land in the retrieval fan-out. */
+const FEEDBACK_PLANE_SOURCES = Object.freeze(["assembly", "behavioural"]);
 
 const RELATION_DETAILS = Object.freeze({
   "assembly|feeds|behavioural":Object.freeze({
@@ -2832,15 +2835,6 @@ function validateRelationshipModel(){
     if(gate.decidedBy && !(REL[gate.decidedBy]?.steers||[]).includes(id)){
       throw new Error("Gate decider does not steer its gated component: "+id);
     }
-    /* An alternative placement is a claim about a pair. Requiring both halves
-       keeps one card from advertising a swap the other never offers. */
-    if(gate.altOf){
-      requireComponent(gate.altOf,"gate alternative");
-      if(gate.altOf===id) throw new Error("Gate names itself as its alternative: "+id);
-      if(GATED_EXECUTION[gate.altOf]?.altOf!==id){
-        throw new Error("Gate alternative is not reciprocal: "+id+" \u2194 "+gate.altOf);
-      }
-    }
   });
   if(new Set(SELECTIVE_RERANK_CASCADE).size!==SELECTIVE_RERANK_CASCADE.length){
     throw new Error("Duplicate component in selective rerank cascade");
@@ -2892,12 +2886,15 @@ function validateRelationshipModel(){
       throw new Error("Incomplete relationship detail: "+key);
     }
   });
-  componentRelations.filter(({from})=>from==="assembly" || from==="behavioural")
+  /* Every relation leaving the feedback plane must carry a complete detail; every
+     other plane is annotated by exception. See FEEDBACK_PLANE_SOURCES for why. */
+  componentRelations.filter(({from})=>FEEDBACK_PLANE_SOURCES.includes(from))
     .forEach(({from,to,kind})=>{
       if(!relationDetail(from,kind,to)){
         throw new Error("Feedback relationship lacks transmission detail: "+[from,kind,to].join("|"));
       }
     });
+  FEEDBACK_PLANE_SOURCES.forEach(id=>requireComponent(id,"feedback plane source"));
 
   templateIds.forEach(templateId=>(TPL[templateId].extra||[]).forEach(([from,to,,kind])=>{
     requireComponent(from,"template "+templateId+" extra source");
@@ -3411,8 +3408,7 @@ function nodeEl(id, newIds, logical){
     (gate ? '<span class="gatechip" title="'+escapeAttribute(gateSentence(gate))+'">'+
       gate.label+'</span>' : "")+
     (s.conditional ? '<span class="condchip" title="'+escapeAttribute(CONDITIONAL_NOTE)+
-      '">conditional</span>' : "")+
-    (gate?.altOf ? '<span class="altchip">alternative to '+S[gate.altOf].name+'</span>' : "");
+      '">conditional</span>' : "");
   el.innerHTML =
     '<div class="nm">'+s.name+'</div>' +
     (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
@@ -4183,8 +4179,6 @@ function openDrawer(id){
        nowhere is exactly the point. */
     (gate ? chipTag(gate.decidedBy,
       'Gate <b class="tagval">'+gate.label+'</b> \u00b7 '+GATE_SCOPE_LABEL[gate.decidedAt]) : "") +
-    (gate?.altOf ? chipTag(gate.altOf,
-      'Alternative to <b>'+S[gate.altOf].name+'</b>') : "") +
     '<button class="enable-btn" id="dToggle" data-on="'+(on?1:0)+'"'+(locked?" disabled title=\"Core components cannot be switched off\"":"")+'>'+
       (locked ? "core · always on" : (on ? "✓ enabled" : "disabled — enable")) + '</button>';
 
