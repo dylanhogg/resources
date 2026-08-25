@@ -2,8 +2,9 @@
 
 **Target:** `search-query-pipeline-diagram-tool.html` — plus
 `search-query-pipeline-diagram-tool-architecture.md` and the About tab in Phase 6.
-**Status:** **Phase 1 done** (`bda600e`, 25 Aug 2026). **Phase 2 done** (uncommitted,
-26 Aug 2026) — the registry is in and the tool is still output-identical. Phases 3–6 outstanding.
+**Status:** **Phase 1 done** (`bda600e`, 25 Aug 2026). **Phase 2 done** (`df838ad`, 26 Aug 2026).
+**Phase 3 done** (uncommitted, 26 Aug 2026) — the physical model is registered, validated and
+still undrawn, and the logical view is byte-identical. Phases 4–6 outstanding.
 Written 25 Aug 2026.
 **Scope:** a fourth tab, **Physical architecture**, sitting between _Build order_ and _About_,
 rendering the AWS + OpenSearch + Qdrant realisation of the same three levels.
@@ -13,9 +14,9 @@ D5 configured numbers only, never measured ones · D6 physical inherits the logi
 D7 cross-view fidelity is a validator, not a convention · D8 no physical build order in pass one.
 
 Line numbers below are as at `777849e`, **before Phase 1**, and are long stale — the file is
-6734 lines. Re-grep before acting on any of them. Phases 1 and 2 each end with a
-"where the built shape departs from this plan" table (§1.7, §2.7) recording what changed and
-what each change means for the phases that follow; read those before starting Phase 3.
+7575 lines. Re-grep before acting on any of them. Phases 1, 2 and 3 each end with a
+"where the built shape departs from this plan" table (§1.7, §2.7, §3.9) recording what changed
+and what each change means for the phases that follow; read those before starting Phase 4.
 
 ---
 
@@ -135,24 +136,26 @@ keeps reading the logical model. Revisit once the physical inventory settles.
 | Phase | Change                                                               | Output changes? | Fixture?               | Size             | Risk     | Status |
 | ----- | -------------------------------------------------------------------- | --------------- | ---------------------- | ---------------- | -------- | ------ |
 | **1** | Extract the pipeline-model type; a view per level                    | **no**          | reshaped, same content | +666 / −433      | **high** | **done** `bda600e` |
-| **2** | Physical component registry, data plane, consistency plane, panels   | **no**          | n/a — data only        | +1751            | medium   | **done** (uncommitted) |
-| **3** | Physical templates, relations, gates, baseline, two invariants       | new tab correct | new                    | ~350 lines       | medium   | todo   |
+| **2** | Physical component registry, data plane, consistency plane, panels   | **no**          | n/a — data only        | +1751            | medium   | **done** `df838ad` |
+| **3** | Physical templates, relations, gates, baseline, two invariants       | **no**          | new, generated         | +912 / −78       | medium   | **done** (uncommitted) |
 | **4** | Tab, LHS options panel, RHS panel spec, hover card, cross-view links | new tab usable  | no                     | ~450 lines + CSS | medium   | todo   |
 | **5** | "Follow one request" stepper — the query dataflow narrative          | new             | no                     | ~200 lines       | low      | todo   |
 | **6** | About tab, architecture doc, TODO reconciliation                     | prose           | no                     | 3 files          | lowest   | todo   |
 
-**Order: 1 → 2 → 3 → 4 → 5 → 6.** One commit per phase. Phases 1 and 2 both left the tool
-pixel-identical — Phase 2 adds registries and no render path, so the "new tab renders" cell
-above was wrong and has been corrected. Phase 3 leaves the physical model registered and
-validated but still undrawn; Phase 4 is where the tab appears and becomes usable.
+**Order: 1 → 2 → 3 → 4 → 5 → 6.** One commit per phase. Phases 1, 2 and 3 all left the tool
+pixel-identical — the physical model has no view until Phase 4, so the "new tab correct" cell
+above was wrong for Phase 3 too and has been corrected. Phase 3 leaves the physical model
+registered, validated and still undrawn; Phase 4 is where the tab appears and becomes usable.
 
 Phase 1 was the only phase that could break the existing view, and the only one with a free
 correctness oracle. It is done and verified (§1.6). From Phase 2 on, the existing view is
 protected by the same oracle for free — **any change to the logical render path must still
 reproduce the logical view's render signature at 1280×900**, and a Phase 2–5 change that moves
-it is a bug in the shared layer, not a physical-view decision. Phase 2 re-measured it with the
-probe written out in §2.6; that probe reads `231160:887ea613` and is the one to reuse from
-here, since it is cheap to re-run against the previous commit and needs no stored number.
+it is a bug in the shared layer, not a physical-view decision. Phase 3 exercised it hardest so
+far — it changed `Model.dependencies`, `defModel`, both shared validators, the gate
+constructor, the relation registry and two render sites — and the logical markup came back
+byte-identical. The probe is written out in §3.8; run it against the previous commit rather
+than against a stored number, because the number depends on the probe.
 
 ---
 
@@ -759,9 +762,17 @@ Three smaller notes for later phases:
 
 ---
 
-## Phase 3 — Templates, relationships, gates and the validator wall
+## Phase 3 — Templates, relationships, gates and the validator wall — **DONE** (uncommitted)
+
+> §3.1–3.6 are the design as planned. §3.7–3.9 record what actually landed, and §3.9 is the
+> one to read before Phase 4: four of the row placements below moved and three of the
+> declarations were wrong, and in every case the reason is a fact about the built system rather
+> than a matter of taste.
 
 ### 3.1 The three physical templates
+
+> **The row tables below are superseded — read §3.9 first.** The shape held; four placements
+> did not. Most consequentially, the encoders are not a second parallel band.
 
 Same rule as the logical view: **only the centre spine generates flow edges**; a component in
 `l` or `r` sits on the row where it is produced and reaches consumers through `relations`.
@@ -836,6 +847,12 @@ diagram, and it gets a `RELATION_DETAILS` entry saying so.
 
 ### 3.2 Relationships
 
+> **Built, with two additions the validators forced:** `px-router` also steers `px-expand`
+> (which carries a `route` gate, and a gate's decider must steer what it gates), and each
+> encoder `feeds` the engine it actually serves, which is what made the asides work (§3.9 #1).
+> `px-waf` and `px-bedrock-qu` gained relationships so they are not drawn floating. `observes`
+> shipped as specified, held to five edges rather than hidden behind a toggle.
+
 ```js
 relations:{
   "px-image":     {feeds:["px-embed-image"], steers:["px-router"]},
@@ -883,6 +900,12 @@ exact fit for a derived index being written from a log, and no new kind needed.
 
 ### 3.3 Gates
 
+> **Built.** `decidedBy` moved out of `GATE_KINDS` into `model.gateOwner`, consumed by
+> `gatesDecidedBy(owners)` — a factory returning a level's own `defGate` with the same
+> signature, so no logical call site changed and definition-time resolution is preserved.
+> `px-embed-image` is gated on `"image query"`, not `"visual intent"` (§3.9 #6). The paragraph
+> below about `px-os-search` and `px-qdrant-search` staying ungated is as built.
+
 ```js
 gates:{
   "px-embed-image":  defGate(3,"intent","visual intent"),
@@ -926,6 +949,13 @@ in each node's `departure` text.
 > arrives rather than being built, which is the same reason it is exempt from the build
 > ladder. Do not maintain a second exemption list.
 
+> **Built.** As `PHYSICAL_INVARIANTS[0]`, in three rules and 34 lines. Rule 6 needed one
+> qualification the plan did not anticipate: it must skip a component that carries a
+> `departure`, because a written departure is the licence to differ. `px-predicate` compiles
+> constraint confidence into a field on every predicate node, so it arrives at Core while the
+> logical pass it replaces arrives at Full — and that is correct, not a regression. Rule 8
+> needed a scope: only the runtimes the orchestrator calls. See §3.7.
+
 New, and the most valuable thing in this phase:
 
 ```js
@@ -959,6 +989,14 @@ capability the logical view has not introduced yet.
 > number would be a claim rather than walking every string, and drop or narrow the
 > `\blatenc` branch before the `\$\d` one.
 
+> **Built** as `PHYSICAL_INVARIANTS[1]`, with the regex rewritten around the real rule: a
+> measurement is **a number with a unit of performance or money attached to it**. Percentile and
+> latency vocabulary is fine and necessary — the panels argue about tail latency constantly —
+> so `\blatenc` and the bare `\bthroughput\b` are gone and `\bp\d{2}\b` now requires a digit
+> within twenty characters. Exempt fields are `dials`, `budget`, `substrate`, `example` and
+> `byLevel`. It clears the twenty legitimate uses of "QPS grows", "p99 by endpoint" and
+> "under $300" in the built inventory, and catches `4 ms`, `$1,200 a month` and `p99 of 180`.
+
 ```js
 const MEASURED_CLAIM =
   /\bp\d{2}\b|\b\d+\s?ms\b|\bmilliseconds?\b|\blatenc|\bthroughput\b|\bQPS is\b|\$\d/i;
@@ -973,6 +1011,11 @@ Expect one legitimate collision — the worked-example query contains `$300`. Sc
 branch to exclude `example`, or drop it and rely on review.
 
 ### 3.6 Baseline and counts
+
+> **Built exactly as described here, and the invariant was preferred.** `emitBaseline` exists
+> for both models; the logical one is edge-for-edge identical to the fixture written by hand,
+> which is what makes the generated physical one trustworthy. `validateDependencyBaseline`
+> skips a null fixture, so a model can be registered before its fixture is generated.
 
 `physical.baseline` follows `DEPENDENCY_BASELINE`'s exact shape (2556) — per template, per
 kind, arrays of `[from, to, label?]`. It is hand-maintained and it will throw on the first
@@ -999,6 +1042,146 @@ consistency). Either assert all 4 or declare that `consistency` only ever adds `
 of enumerating. **Prefer the invariant** — it is the same trick the existing baseline uses
 for the serving layer ("showing sources adds _only_ `serves` edges") and it keeps the fixture
 from doubling.
+
+
+### 3.7 What was built
+
+The shared layer moved four times, and each move is the same shape: something that was a
+constant for one level became a property of a model.
+
+| Was | Is | Why it had to move |
+| --- | --- | --- |
+| `GATE_KINDS[kind].decidedBy` | `model.gateOwner`, consumed by `gatesDecidedBy(owners)` which returns a level's own `defGate` | `routing` is a logical id. `defGate`'s definition-time resolution is preserved exactly; the logical call sites are untouched because the factory returns the same three-argument function. |
+| `GATE_CONDITIONS` / `GATE_CONDITION` module globals | `model.gateConditions` / `model.gateCondition`, derived by `defModel` | They carry the decider, so they are per level. The gate legend's "Decided by Retrieval routing." sentence survives unchanged. |
+| `if(model.servesPlanes.some(...))` admits every serving edge | each source declares its `plane`; `Model.dependencies` admits a source when its plane is on **and** `templateId >= source.intro` | Two planes, and one store that arrives after a component already on the path. Identical behaviour for a level with one plane, because there the derived `intro` is by definition the earliest consumer's. |
+| — | `model.planeRelations`, its reverse index, and its own validation | The write path connects stores to stores. Those endpoints belong to no component and cannot be switched off with one, so they are admitted by their planes and by nothing else. |
+
+`RELATION_TYPES` gained one kind, `observes`, and with it one new field: `abstraction`. A kind
+that names levels is drawn only by those levels — checked by the shared validator, filtered out
+of the legend, and filtered out of the SVG `<defs>` so the logical view does not carry a marker
+it can never use. That last filter is why the logical render signature did not move.
+
+**What the physical level itself declares.** Three templates (9, 15 and 20 rows), 16 relation
+sources, 3 plane relations, 9 gates, 10 relation details, a 5-source serving map, two planes,
+and a 162-edge dependency baseline. `PX_REQUIRES` names the two parent dependencies
+(`px-recovery` needs `px-sufficiency`, `px-embed-image` needs `px-image`). `steps` stays null,
+which is D8, and makes `validateBuildLadder` a no-op.
+
+**The validator wall came out at two invariants and 61 lines**, because `defPhysical` already
+did the per-record work in Phase 2. Every rule was tested by breaking it:
+
+| Rule | Where | What it catches |
+| --- | --- | --- |
+| Totality of the realisation map | `PHYSICAL_INVARIANTS[0]` | a logical component or source with no physical home. Reads the exemption from `LOGICAL.ladderExempt` rather than keeping a second list. |
+| The level never regresses | `PHYSICAL_INVARIANTS[0]` | a physical component arriving before the logical capability it realises — **unless a departure is written**, which is the licence to differ. |
+| Every remote call declares a budget | `PHYSICAL_INVARIANTS[0]` | a call that can be slow and does not say what happens when it is. Scoped to the runtimes the orchestrator calls: in-process work cannot time out, and the edge band sits upstream of the process that owns the deadline. |
+| No measured claims | `PHYSICAL_INVARIANTS[1]` | a millisecond figure, a percentile with a value on it, a throughput number or a money amount, in any field except `dials`, `budget`, `substrate`, `example` and `byLevel`. |
+| Plane relationship endpoints are sources | `validateRelationshipModel` | an edge that belongs in `relations` where the request path can disable it. |
+| A source is connected to something | `validateRelationshipModel` | a store drawn floating. Serving a component is the usual way in; being written by another source is the other. |
+| A relation kind is drawn at this level | `validateRelationshipModel` | `observes` appearing in the logical model. |
+| A source's declared level is not earlier than its earliest consumer | `defModel` | a store claiming to arrive before anything asks it for data. |
+| A source with no consumers declares its own level | `defModel` | the write path, which has no serving consumer to derive from — the `Math.min()`-over-nothing trap flagged in §2.7. |
+
+**The baseline was generated, then read.** `dependencyDiagnostics.emitBaseline(modelId)` prints
+`dependencies()` for every template with all planes on, already formatted as a fixture literal.
+The logical level is the proof that the generator is trustworthy: its output is edge-for-edge
+identical to the fixture that was written by hand. The plane count does not multiply the
+fixture, because the "switching a plane on adds plane edges and nothing else" invariant is
+asserted directly — `assertDependencySet(requestPath, hidden, …)` — which covers all four
+combinations of the two planes with one fixture per template.
+
+**Three data corrections** landed with it, each one forced by a rule rather than chosen:
+`pxi-source`, `pxi-log` and `pxi-indexer` moved to core/level 1, because two engines exist from
+Core and something has to write both of them in one order from Core; `px-hydrate` gained a
+`byLevel` sub, because `pxd-ddb` is Full-only and until it exists the volatile fields sit in the
+index's own `_source`; and the three encoders lost `parallel:"encoding"` — see §3.9 #1.
+
+### 3.8 Acceptance — met
+
+**The logical view is byte-identical.** Same probe on the pre-Phase-2 build and on this one,
+both pinned to 1280×900 after navigation:
+
+```js
+// three levels × the data-source plane on and off, wires and rows markup concatenated
+[1, 2, 3].forEach((t) =>
+  [false, true].forEach((plane) => {
+    V.slice.planes.serving = plane;
+    V.setTpl(t);
+    V.render();
+    V.drawWires(); // rAF-deferred — call it synchronously before sampling
+    out += wiresEl.outerHTML + rowsEl.outerHTML;
+  }),
+);
+```
+
+`232295:1f56bc5e` on both. The viewport must be pinned on both sides and re-pinned after every
+navigation, or the comparison means nothing. Also checked by hand on the built file: zero
+console errors; the logical relation legend still lists nine kinds and not `observes`; the SVG
+`<defs>` still carries eight markers and not `ah-observe`; the gate legend still reads
+"Decided by Retrieval routing."; the fusion drawer still opens.
+
+**The physical level passes its own wall.**
+
+```
+relationships  {relationTypes:10, componentRelations:52, annotatedRelations:10,
+                servingRelations:12, planeRelations:4, gatedStages:9, reverseIndexes:3}
+dependencies   1:{hidden 11, shown 18, planeNodes 5, planeEdges 7}
+               2:{hidden 41, shown 51, planeNodes 7, planeEdges 10}
+               3:{hidden 73, shown 89, planeNodes 8, planeEdges 16}
+ladder         null   (steps:null — D8)
+```
+
+Thirteen deliberate breakages were introduced one at a time and every one threw at load, naming
+the offending id. The measured-claim rule was tested with all three of its branches — `4 ms`,
+`$1,200 a month`, `p99 of 180` — and left the twenty legitimate uses of "QPS grows", "p99 by
+endpoint" and "under $300" alone.
+
+**Measured on the built templates**, for Phase 4 to use rather than re-derive:
+
+| | Core | Recommended | Full |
+| --- | --- | --- | --- |
+| Components drawn | 11 | 26 | 38 |
+| Rows | 9 | 15 | 20 |
+| Components with `hop` | 7 | 10 | 17 |
+| GPU endpoints | 1 | 2 | 4 |
+| Operational burden (Σ`cx`) | 32 | 70 | 108 |
+| Plane nodes / edges | 5 / 7 | 7 / 10 | 8 / 16 |
+
+### 3.9 Where the built shape departs from this plan, and what it means downstream
+
+| # | Planned | Built | Consequence |
+| --- | --- | --- | --- |
+| 1 | Row 7 is a second `parallel` group and "all three reuse existing geometry — **no new layout code in this plan**" (§3.1) | The encoders are **left asides beside the engines**, not a centre band. `parallel:"encoding"` removed from the three records; `PX_PARALLEL_GROUPS` declares `retrieval` only | Two adjacent parallel bands do not work, for two independent reasons. **Honesty:** a 3→2 spine transition claims six flows and four of them are false — the sparse encoder does not feed Qdrant and the text tower does not feed OpenSearch. **Geometry:** `parallelPathRenderEdges` collapses the same six edges twice, once as the encoding band's `outgoing` and once as the retrieval band's `incoming`, drawing five wires for six edges. As asides, each encoder `feeds` the engine it actually serves and every flow edge in the fixture is true. |
+| 2 | `px-rescore-late` sits in the cascade at row 12 (§3.1) | It sits as a left aside on the retrieval row, feeding `px-fuse` | Its own Phase 2 panel says it runs *before* fusion, inside the Qdrant call. The plan's row table predates that finding. It carries a `RELATION_DETAILS` entry saying what the edge carries and why it arrives early, and `PX_RERANK_CASCADE` is therefore four members, not five. |
+| 3 | `px-hydrate` is a left aside on the assembly row (§3.1 row 18), but a spine node in the Core chain | Spine at every level | The two halves of §3.1 disagreed. Spine is the half that matches Core, needs no extra relation, and is what a hop on the critical path should look like. |
+| 4 | `px-waf` sits at row 0 opposite `px-client` (§3.1) | It sits opposite `px-edge` and steers it | It rides the distribution — that is what `ridesCall:"px-edge"` already said in Phase 2. An aside with no relationship would have been drawn floating. |
+| 5 | `px-router` steers nine components (§3.2) | Ten — `px-expand` was missing | `px-expand` carries a `route` gate, and the shared validator requires a gate's named decider to actually steer what it gates. The rule caught it at load. |
+| 6 | `px-embed-image` is gated on `"visual intent"` (§3.3) | `"image query"` | It realises `imageimagevec`, whose logical gate is `image query`, and its own panel says it is gated on an input most requests do not have. `visual intent` belongs to `px-vlm`. |
+| 7 | Core's tagline is "Two engines, one process, six hops" (§3.1) | "Two engines, one process" | The hop *metric* is Phase 4's (§4.2) and it is not a raw count — the plan itself says a parallel group counts once at its widest member, and the client is the origin rather than a hop the system makes. The raw counts are in §3.8; the tagline stays out of it until the metric is defined. |
+
+Four smaller notes for Phase 4:
+
+- **`boundaryLayouts()` hardcodes the logical level.** It names `"selective-rerank-cascade"` and
+  `GATED_RERANKERS` directly and iterates `PARALLEL_GROUPS` from the destructuring preamble.
+  It must iterate `model.stageGroups` for the physical `"physical-rerank-cascade"` to draw.
+- **`layoutSweep` still crosses templates with the first plane only** (§1.7). With two planes it
+  either extends to the cross product or says in the diagnostics why it does not.
+- **Concern coverage is 12 of 12 at every level**, so the panel §4.2 describes ("the uncovered
+  ones at Core are the argument for Recommended") has no argument to make as measured. Every
+  concern is *raised* at Core because the components that have it exist there; whether it is
+  *addressed* is a different question and a different field. Decide which one the panel counts
+  before building it.
+- **A gate on an aside shows as a chip, not as a dashed wire.** Gates only change the kind of a
+  spine edge, so `px-embed-image`, `px-embed-sparse`, `px-expand` and `px-rescore-late` carry
+  their gates on the card alone. The gate legend still finds them; the diagram is quieter about
+  them than the logical one is.
+
+One item for the Phase 6 review pass: **`px-expand` is `runtime:"inproc"` and therefore
+`hop:false`, while its own purpose text says it "costs a second OpenSearch round trip on every
+request where it fires".** One of the two is wrong. The precedent set by `px-hydrate` — an
+in-process stage whose runtime records the call it makes — says the runtime should be `engine`,
+which would make Full's raw hop count 18. It was left alone here because correcting Phase 2 data
+is not Phase 3's job and the number is not yet load-bearing.
 
 ---
 
@@ -1046,7 +1229,7 @@ toggles by declaring them.
 
 | Metric                           | Computation                                                                                                  | Why it earns the space                                                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| Network hops in the request path | count of enabled components with **`component.hop`** (not `RUNTIME[runtime].hop` — see §2.7), counting a parallel group once at its widest member | The headline number. Measured on the built inventory: Core **6**, Recommended **9**, Full **14**. Watching it move as you toggle components is the whole argument of the tab. |
+| Network hops in the request path | count of enabled components with **`component.hop`** (not `RUNTIME[runtime].hop` — see §2.7), counting a parallel group once at its widest member | The headline number, and **it still needs defining**. The raw count on the built templates is 7 / 10 / 17 (§3.8); the two adjustments this row asks for — collapse the retrieval band, and do not count the client, which is the origin rather than a hop the system makes — bring Core to 5. Settle the definition first, then write it into Core's tagline, which deliberately carries no number yet. |
 | Distinct deployment units        | needs a canonical key first — `substrate.service` is a display string and five components name two or three services (§2.7 #4) | What you actually have to run, patch and page on.                                                                       |
 | GPU endpoints in the path        | `runtime === "gpu"` count                                                                                    | The cost and cold-start axis, and the physical echo of "models in the request path".                                    |
 | Operational burden               | sum of `cx`, banded like the logical one                                                                     | With an explicit note that `cx` means something different here (§2.1) so the two indexes are not compared.              |
@@ -1070,6 +1253,11 @@ const CONCERNS = [
   { id: "rollback", label: "Reversible deploys" },
 ];
 ```
+
+> **Measured after Phase 3: all twelve are covered at Core**, so "the uncovered ones at Core
+> are the argument for Recommended" has no argument to make as `caps` is currently written. A
+> concern is *raised* at Core because the components that have it exist there; whether it is
+> *addressed* is a different question. Decide which one the panel counts before building it.
 
 Twelve concerns, and every one of them is a thing the logical view is right not to model and
 the physical view is wrong to omit. `px-fuse` covers `identity`; `px-predicate` covers
@@ -1349,15 +1537,15 @@ better argument for the tab than any prose.
 | Risk                                                                                     | Likelihood | Mitigation                                                                                                                                                                                                           |
 | ---------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ~~Phase 1 changes rendered output subtly~~ — **retired**                                 | —          | Did not happen. Verified byte-identical (§1.6). The snapshot stays useful: it now guards the shared render path against Phases 2–5.                                                                                  |
-| A Phase 3–5 change to the shared render path breaks the logical view                     | medium     | Re-run the §2.6 probe against the previous commit before each commit, both pinned to 1280×900. It held through Phase 2. A move means the change belongs inside the physical model, not in the shared layer.          |
+| A Phase 4–5 change to the shared render path breaks the logical view                     | medium     | Re-run the §3.8 probe against the previous commit before each commit, both pinned to 1280×900. It held through Phase 3, which changed `Model.dependencies`, both shared validators, the gate constructor and two render sites. A move means the change belongs inside the physical model, not in the shared layer. |
 | The physical view's two planes do not work because the toggle is still singular          | high       | Known and recorded (§1.7 row 4, §4.2). It is the first task of Phase 4 and it is small — the declarations, the state slice and `Model.dependencies` are already plane-driven.                                        |
-| The physical baseline fixture becomes a maintenance tax                                  | high       | Generate it with `emitBaseline` and review; assert the consistency plane as an invariant rather than enumerating it (§3.6).                                                                                          |
-| Two parallel groups plus a stage group in one template exceeds what the geometry handles | medium     | Rows 7, 8 and 11–15 use only existing mechanisms, but they have never coexisted. Build P3's rows _first_, before writing any panel prose, so a layout problem surfaces while the data is still cheap to move.        |
+| ~~The physical baseline fixture becomes a maintenance tax~~ — **retired**                | —          | `emitBaseline(modelId)` shipped in Phase 3 and is proven against the hand-written logical fixture. The plane cross-product is asserted as an invariant, not enumerated, so there is one fixture per template. Regenerating after a structural change is one console call and a read. |
+| ~~Two parallel groups plus a stage group in one template~~ — **found, and avoided**      | —          | It does not work: `parallelPathRenderEdges` collapses a band-to-band transition twice (§3.9 #1). The encoders became asides, which was the more honest shape anyway. **What remains** is the stage group: `boundaryLayouts()` still hardcodes `"selective-rerank-cascade"` and `GATED_RERANKERS`, so the physical cascade will not draw until Phase 4 makes it read `model.stageGroups`. |
 | The retrieval band collapsing 6 logical legs into 2 nodes reads as a loss of fidelity    | medium     | It is the point, and it is defended in `departure` and in the branch tables — but if reviewers reject it, splitting the two nodes back into per-leg nodes is a template-and-baseline change only, not a code change. |
-| Panel prose drifts from AWS and engine reality                                           | **high**   | **Now live** — 46 records of it landed in Phase 2, unsourced. Every `substrate`, `dials` and `gotchas` entry needs a citation in `REFS` under the same id, resolved and title-checked, as the existing REFS banner requires. Do this before Phase 6, not during it. |
-| The hop count is wrong because it is read off `runtime`                                  | **retired**| Found and fixed in Phase 2 by `ridesCall` (§2.7 #1). The number is now `component.hop`, and it is 6 / 9 / 14. |
-| The tab is simply too dense                                                              | medium     | The plane toggles and the level selector are the pressure valve. Physical Core is 13 nodes — smaller than logical Core+recommended. Land it, look at Core, and cut from Full if Full is unreadable. Checkpoint 3 (Appendix D) is the moment for this call.        |
-| `observes` wires bury the canvas                                                         | low        | Ship it behind a plane toggle if the first render is noisy (§3.2).                                                                                                                                                   |
+| Panel prose drifts from AWS and engine reality                                           | **high**   | **Now live** — 46 records of it landed in Phase 2, unsourced, and Phase 3 already found one internal contradiction in it (`px-expand`, §3.9). Every `substrate`, `dials` and `gotchas` entry needs a citation in `REFS` under the same id, resolved and title-checked, as the existing REFS banner requires. Do this before Phase 6, not during it. |
+| The hop count is wrong because it is read off `runtime`                                  | **retired**| Found and fixed in Phase 2 by `ridesCall` (§2.7 #1). The number is `component.hop`. Raw per-template counts are 7 / 10 / 17 (§3.8); the headline metric is not the raw count, and defining it is Phase 4's first job in §4.2. |
+| The tab is simply too dense                                                              | medium     | The plane toggles and the level selector are the pressure valve. Physical Core is 11 nodes over 9 rows; Full is 38 over 20. Land it, look at Core, and cut from Full if Full is unreadable. Checkpoint 3 (Appendix D) is the moment for this call. |
+| `observes` wires bury the canvas                                                         | low        | Held to five edges — the orchestrator and the four remote calls the trace exists to attribute — and drawn faintest of every kind. If it is still noisy, the list is data and shrinks without touching code. |
 
 ---
 

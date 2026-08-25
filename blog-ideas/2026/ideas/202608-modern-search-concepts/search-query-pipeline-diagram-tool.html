@@ -20,6 +20,7 @@
   --ctrl-bg:#e8ecf2; --ctrl-line:#64748b; --ctrl-text:#27303f;
   --wire:#6f7d92; --wire-gate:#2563b8; --wire-loop:#b85f36; --wire-ctrl:#667085;
   --gate-request:var(--wire-gate); --gate-config:#7a8496;
+  --wire-observe:#7b8794;
   --wire-feed:#7c3aed; --wire-train:#0f766e; --wire-update:#be185d; --wire-data:#53657d;
   --data-bg:#f7f9fc; --data-line:#7b8798; --data-text:#344054;
   --rt-edge:#64748b; --rt-inproc:#2563eb; --rt-service:#0f766e; --rt-gpu:#b45309;
@@ -43,6 +44,7 @@
       --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
       --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
       --gate-config:#93a0b5;
+      --wire-observe:#8b96a8;
       --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
       --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
       --rt-edge:#93a0b5; --rt-inproc:#6ea0ff; --rt-service:#2dd4bf; --rt-gpu:#e0a94a;
@@ -64,6 +66,7 @@
   --ctrl-bg:#1e2532; --ctrl-line:#7c8798; --ctrl-text:#c3ccda;
   --wire:#8290a6; --wire-gate:#60a5fa; --wire-loop:#d08b65; --wire-ctrl:#93a0b5;
   --gate-config:#93a0b5;
+  --wire-observe:#8b96a8;
   --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
   --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
   --rt-edge:#93a0b5; --rt-inproc:#6ea0ff; --rt-service:#2dd4bf; --rt-gpu:#e0a94a;
@@ -1053,8 +1056,9 @@ const Model = {
   },
 
   /* Every relationship endpoint the given level draws, independent of geometry.
-     `planes` is the set of optional overlays that are switched on; a plane
-     declaring `serves:true` is what admits the serving edges. */
+     `planes` is the set of optional overlays that are switched on; each source
+     belongs to one, and a plane declaring `serves:true` is what admits the
+     serving edges from the sources it reveals. */
   dependencies(model,templateId,{planes={},off=new Set()}={}){
     const template = model.templates[templateId];
     if(!template) throw new Error("Unknown pipeline template: "+templateId);
@@ -1088,13 +1092,34 @@ const Model = {
       }));
     });
 
-    if(model.servesPlanes.some(id=>planes[id])){
-      Object.entries(model.serving).forEach(([sourceId,consumers])=>
-        consumers.forEach(to=>{ if(active(to)) add(sourceId,to,"serves"); }));
-    }
+    /* A source is drawn once its plane is on and the level has reached it —
+       a store that only exists to hold what a later template introduces has
+       nothing to serve before then. */
+    const shown = sourceId=>{
+      const source = model.dataSources[sourceId];
+      return !!source && !!planes[source.plane] && templateId>=source.intro;
+    };
+    Object.entries(model.serving).forEach(([sourceId,consumers])=>{
+      if(!shown(sourceId)) return;
+      consumers.forEach(to=>{ if(active(to)) add(sourceId,to,"serves"); });
+    });
+    /* Relationships between sources themselves — a write path feeding the
+       stores it derives. They belong to no component, so they are admitted by
+       their endpoints' planes and by nothing else. */
+    Object.entries(model.planeRelations).forEach(([from,relations])=>{
+      if(!shown(from)) return;
+      COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
+        if(shown(to)) add(from,to,kind);
+      }));
+    });
     return dependencies;
   }
 };
+
+/* True of any endpoint that belongs to a plane rather than to the request
+   path. Switching a plane on may add these edges and must add nothing else —
+   the invariant that keeps the baseline fixture from doubling per plane. */
+const planeEdge = (model,edge)=> !!(model.dataSources[edge.from] || model.dataSources[edge.to]);
 
 /* A component id that must exist, named with the place that claimed it, so a
    typo fails at load rather than printing `undefined` onto a card. */
@@ -1115,7 +1140,11 @@ function validateModel(model){
    reaches a renderer half-built. Validation runs here for the same reason:
    a level that cannot pass its own rules must not become reachable. */
 function defModel(spec){
-  const model = Object.assign({planes:[], steps:null}, spec);
+  const model = Object.assign({planes:[], planeRelations:{}, steps:null}, spec);
+
+  model.gateConditions = gateConditionsFor(model.gateOwner);
+  model.gateCondition = Object.freeze(Object.fromEntries(
+    model.gateConditions.map(condition=>[condition.label,condition])));
 
   model.reverseRelations = {};
   Object.keys(model.relations).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
@@ -1129,13 +1158,40 @@ function defModel(spec){
     (model.reverseServing[componentId] = model.reverseServing[componentId] || []).push(sourceId);
   }));
 
+  model.reversePlaneRelations = {};
+  Object.keys(model.planeRelations).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
+    (model.planeRelations[from][kind]||[]).forEach(to=>{
+      (model.reversePlaneRelations[to] = model.reversePlaneRelations[to] || {});
+      (model.reversePlaneRelations[to][kind] = model.reversePlaneRelations[to][kind] || []).push(from);
+    })));
+
   /* A source is introduced by its earliest consumer: nothing can be drawn
-     before something asks it for data. */
+     before something asks it for data. A source may declare a later level of
+     its own, for the case where the capability it adds arrives after the
+     component that will use it — at Core the volatile fields live in the
+     index's own _source, and only later move to a store of their own. It may
+     not declare an earlier one, because there would be nothing to draw.
+     A source no component queries at all — a write-path node — has only what
+     it declares, and must declare it. */
+  const defaultPlane = (model.planes.find(plane=>plane.serves)||{}).id;
   Object.keys(model.dataSources).forEach(sourceId=>{
-    const intro = Math.min(...(model.serving[sourceId]||[])
-      .map(componentId=>model.components[componentId].intro));
-    Object.assign(model.dataSources[sourceId],
-      {intro, tier: intro===1 ? "core" : intro===2 ? "recommended" : "optional"});
+    const source = model.dataSources[sourceId];
+    const consumers = model.serving[sourceId]||[];
+    const earliest = consumers.length
+      ? Math.min(...consumers.map(componentId=>model.components[componentId].intro))
+      : null;
+    if(earliest===null && !source.intro){
+      throw new Error("Source has no consumer to be introduced by and declares no level: "+sourceId);
+    }
+    if(earliest!==null && source.intro && source.intro<earliest){
+      throw new Error("Source is introduced before anything asks it for data: "+sourceId);
+    }
+    const intro = Math.max(source.intro||0, earliest===null ? 0 : earliest);
+    Object.assign(source,{
+      plane: source.plane || defaultPlane,
+      intro,
+      tier: intro===1 ? "core" : intro===2 ? "recommended" : "optional"
+    });
   });
 
   model.maxCx = Object.values(model.components).reduce((a,s)=>a+(s.cx||0),0);
@@ -2437,20 +2493,20 @@ const LEGS = ["lexical","sparse","textvec","textimagevec","imageimagevec","multi
 const GATE_SCOPE_LABEL = Object.freeze({request:"per request", deployment:"deployment choice"});
 const GATE_KINDS = Object.freeze({
   route: Object.freeze({
-    decidedAt:"request", decidedBy:"routing", color:"var(--gate-request)",
+    decidedAt:"request", color:"var(--gate-request)",
     conditions:Object.freeze({
       "route selected":"Runs on some queries and not others, depending on what the query needs."
     })
   }),
   intent: Object.freeze({
-    decidedAt:"request", decidedBy:"routing", color:"var(--gate-request)",
+    decidedAt:"request", color:"var(--gate-request)",
     conditions:Object.freeze({
       "visual intent":"Runs only when the query is judged to need visual evidence.",
       "image query":"Runs only when the request supplies an image to match against."
     })
   }),
   config: Object.freeze({
-    decidedAt:"deployment", decidedBy:null, color:"var(--gate-config)",
+    decidedAt:"deployment", color:"var(--gate-config)",
     conditions:Object.freeze({
       "optional pass":"A cascade tier kept only when the corpus or available training data justifies it \u2014 a deployment choice rather than a per-query decision. Skipped, it passes candidates through."
     })
@@ -2463,25 +2519,45 @@ const GATE_KINDS = Object.freeze({
 const CONDITIONAL_NOTE =
   "Cost varies with how much work this stage does on the requests where it runs.";
 
-/* Resolve each entry against the registry once, at definition time, so no
-   render site has to know the registry shape and an entry naming an unknown
-   kind or condition fails here rather than printing `undefined` onto a card. */
-function defGate(from,kind,label){
-  const spec = GATE_KINDS[kind];
-  if(!spec) throw new Error("Unknown gate kind: "+kind);
-  const sentence = spec.conditions[label];
-  if(!sentence) throw new Error("Condition not declared by gate kind "+kind+": "+label);
-  return Object.freeze({from,kind,label,sentence,
-    decidedAt:spec.decidedAt, decidedBy:spec.decidedBy, color:spec.color});
+/* What a gate means is shared vocabulary; *who* decides it is not. The logical
+   level routes with `routing`, the physical one with `px-router`, and a
+   deployment gate has no owner at either. A level therefore names its owners
+   once and gets back its own gate constructor.
+
+   That constructor resolves each entry against the registry at definition
+   time, so no render site has to know the registry shape and an entry naming
+   an unknown kind or condition fails here rather than printing `undefined`
+   onto a card. */
+function gatesDecidedBy(owners){
+  Object.keys(owners).forEach(kind=>{
+    if(!GATE_KINDS[kind]) throw new Error("Gate owner names an unknown kind: "+kind);
+  });
+  Object.keys(GATE_KINDS).forEach(kind=>{
+    if(!(kind in owners)) throw new Error("Gate kind has no declared owner: "+kind);
+  });
+  return function defGate(from,kind,label){
+    const spec = GATE_KINDS[kind];
+    if(!spec) throw new Error("Unknown gate kind: "+kind);
+    const sentence = spec.conditions[label];
+    if(!sentence) throw new Error("Condition not declared by gate kind "+kind+": "+label);
+    return Object.freeze({from,kind,label,sentence,
+      decidedAt:spec.decidedAt, decidedBy:owners[kind], color:spec.color});
+  };
 }
 
-const GATE_CONDITIONS = Object.freeze(Object.entries(GATE_KINDS).flatMap(([kind,spec])=>
-  Object.entries(spec.conditions).map(([label,sentence])=>Object.freeze({
-    label, sentence, kind, decidedAt:spec.decidedAt, decidedBy:spec.decidedBy, color:spec.color
-  }))
-));
-const GATE_CONDITION = Object.freeze(Object.fromEntries(
-  GATE_CONDITIONS.map(condition=>[condition.label,condition])));
+/* Every condition any gate kind declares, resolved for one level. defModel
+   derives it per model, because the decider named in each entry is the one
+   thing about a condition that is not shared vocabulary. */
+function gateConditionsFor(owners){
+  return Object.freeze(Object.entries(GATE_KINDS).flatMap(([kind,spec])=>
+    Object.entries(spec.conditions).map(([label,sentence])=>Object.freeze({
+      label, sentence, kind, decidedAt:spec.decidedAt, decidedBy:owners[kind], color:spec.color
+    }))
+  ));
+}
+
+const LOGICAL_GATE_OWNER = Object.freeze({route:"routing", intent:"routing", config:null});
+const defGate = gatesDecidedBy(LOGICAL_GATE_OWNER);
 
 const GATED_EXECUTION = Object.freeze({
   textimagevec:  defGate(2,"intent","visual intent"),
@@ -2611,12 +2687,33 @@ const RELATION_TYPES = Object.freeze({
     color:"var(--wire-data)", dash:"1 5", linecap:"round", marker:"data", opacity:.82, width:1.5,
     route:"source", componentRelation:false,
     legend:{visible:true,label:"serves — external data"}
+  },
+  /* Telemetry, and the only kind restricted to one level: tracing is a
+     property of a deployment, so the logical view is right to have no word
+     for it. Drawn faintest of everything here on purpose — instrumentation
+     touches every hop, and a diagram buried under its own tracing is exactly
+     the failure this kind is meant to describe rather than commit. */
+  observes:{
+    fwd:"Observes", rev:"Observed by",
+    description:"Trace and metric collection. Carries no request data and can fail without failing the request.",
+    aria:"Telemetry collection",
+    color:"var(--wire-observe)", dash:"2 6", linecap:"round", marker:"observe", opacity:.55, width:1.2,
+    route:"side", curve:.5, componentRelation:true, abstraction:["physical"],
+    legend:{visible:true,label:"observes — telemetry"}
   }
 });
 
 const COMPONENT_RELATION_KINDS = Object.freeze(
   Object.entries(RELATION_TYPES).filter(([,relation])=>relation.componentRelation).map(([kind])=>kind)
 );
+
+/* A kind with no `abstraction` is shared vocabulary every level may draw; one
+   that names levels belongs to those levels alone, and the others must not
+   show it in a legend or carry its marker in their defs. */
+function relationApplies(kind,abstraction){
+  const levels = RELATION_TYPES[kind].abstraction;
+  return !levels || levels.includes(abstraction);
+}
 
 /* =======================================================================
    DEPENDENCY BASELINE — logical endpoints, independent of SVG geometry.
@@ -2782,11 +2879,30 @@ function dependencyKey({from,to,kind,label=""}){
   return [kind,from,to,label].join("|");
 }
 
-function expectedDependencies(model,templateId,servesShown){
+function expectedDependencies(model,templateId,planesShown){
   const fixture = model.baseline[templateId];
-  return DEPENDENCY_KINDS.flatMap(kind=>
-    kind==="serves" && !servesShown ? [] :
-    (fixture[kind]||[]).map(([from,to,label=""])=>({from,to,kind,label})));
+  return DEPENDENCY_KINDS
+    .flatMap(kind=>(fixture[kind]||[]).map(([from,to,label=""])=>({from,to,kind,label})))
+    .filter(edge=>planesShown || !planeEdge(model,edge));
+}
+
+/* The fixture, printed from the model that would be checked against it. The
+   fixture's value is that a human confirmed every edge once — generating it
+   and reading it buys that at a fraction of the cost of typing it, and the
+   logical level is the proof that the generator agrees with a fixture written
+   by hand. Every plane is switched on: the fixture describes the fullest
+   diagram, and the plane visibility invariant covers the rest. */
+function emitBaseline(model){
+  const allPlanes = {planes:Object.fromEntries(model.planes.map(plane=>[plane.id,true]))};
+  const template = templateId=>{
+    const byKind = {};
+    Model.dependencies(model,templateId,allPlanes).forEach(({from,to,kind,label})=>
+      (byKind[kind] = byKind[kind] || []).push(label ? [from,to,label] : [from,to]));
+    const kinds = DEPENDENCY_KINDS.filter(kind=>byKind[kind]).map(kind=>
+      "    "+kind+":[\n"+byKind[kind].map(pair=>"      "+JSON.stringify(pair)).join(",\n")+"\n    ]");
+    return "  "+templateId+":{\n"+kinds.join(",\n")+"\n  }";
+  };
+  return "{\n"+Object.keys(model.templates).map(Number).map(template).join(",\n")+"\n}";
 }
 
 function assertDependencySet(actual,expected,context){
@@ -2808,28 +2924,36 @@ function assertDependencySet(actual,expected,context){
 
 function validateDependencyBaseline(model){
   const {serving:SERVING_REL, expectedCounts} = model;
+  /* A level may be registered before its fixture has been generated; see
+     dependencyDiagnostics.emitBaseline, which is how one is written. */
+  if(!model.baseline) return null;
   const tplStages   = templateId=>Model.stages(model,templateId);
   const dependencies = (templateId,opts)=>Model.dependencies(model,templateId,opts);
-  /* Every serving plane on at once: the fixture describes the fullest diagram. */
-  const sourcesShown = {planes:Object.fromEntries(model.servesPlanes.map(id=>[id,true]))};
+  /* Every plane on at once: the fixture describes the fullest diagram. */
+  const sourcesShown = {planes:Object.fromEntries(model.planes.map(plane=>[plane.id,true]))};
   const summary = {};
 
   Object.keys(model.templates).map(Number).forEach(templateId=>{
     const templateStages = tplStages(templateId);
     const hidden = dependencies(templateId);
     const shown = dependencies(templateId,sourcesShown);
-    const serving = shown.filter(edge=>edge.kind==="serves");
-    const nonServing = shown.filter(edge=>edge.kind!=="serves");
-    const sourceCount = new Set(serving.map(edge=>edge.from)).size;
+    const planeEdges = shown.filter(edge=>planeEdge(model,edge));
+    const requestPath = shown.filter(edge=>!planeEdge(model,edge));
+    const planeNodes = new Set(planeEdges.flatMap(edge=>
+      [edge.from,edge.to].filter(id=>model.dataSources[id])));
 
-    assertDependencySet(hidden,expectedDependencies(model,templateId,false),"template "+templateId+", sources hidden");
-    assertDependencySet(shown,expectedDependencies(model,templateId,true),"template "+templateId+", sources shown");
-    assertDependencySet(nonServing,hidden,"template "+templateId+", source visibility invariant");
+    assertDependencySet(hidden,expectedDependencies(model,templateId,false),"template "+templateId+", planes hidden");
+    assertDependencySet(shown,expectedDependencies(model,templateId,true),"template "+templateId+", planes shown");
+    /* Switching a plane on adds plane edges and nothing else. Asserting the
+       behaviour rather than enumerating it is what keeps one fixture per
+       template instead of one per combination of planes. */
+    assertDependencySet(requestPath,hidden,"template "+templateId+", plane visibility invariant");
 
-    if(sourceCount!==expectedCounts.sources[templateId] || serving.length!==expectedCounts.servingEdges[templateId]){
-      throw new Error("Serving baseline mismatch for template "+templateId+
-        ": expected "+expectedCounts.sources[templateId]+" sources / "+expectedCounts.servingEdges[templateId]+
-        " edges, got "+sourceCount+" sources / "+serving.length+" edges");
+    if(planeNodes.size!==expectedCounts.planeNodes[templateId] ||
+       planeEdges.length!==expectedCounts.planeEdges[templateId]){
+      throw new Error("Plane baseline mismatch for template "+templateId+
+        ": expected "+expectedCounts.planeNodes[templateId]+" nodes / "+expectedCounts.planeEdges[templateId]+
+        " edges, got "+planeNodes.size+" nodes / "+planeEdges.length+" edges");
     }
 
     templateStages.forEach(componentId=>{
@@ -2851,8 +2975,8 @@ function validateDependencyBaseline(model){
     summary[templateId] = Object.freeze({
       hiddenEdges:hidden.length,
       shownEdges:shown.length,
-      sourceNodes:sourceCount,
-      servingEdges:serving.length
+      planeNodes:planeNodes.size,
+      planeEdges:planeEdges.length
     });
   });
 
@@ -2862,12 +2986,14 @@ function validateDependencyBaseline(model){
 function validateRelationshipModel(model){
   const {components:S, templates:TPL, relations:REL, gates:GATED_EXECUTION,
          relationDetails:RELATION_DETAILS, dataSources:DATA_SOURCES,
-         serving:SERVING_REL, reverseRelations:RREL, reverseServing:RSERVING} = model;
+         serving:SERVING_REL, planeRelations:PLANE_REL, reverseRelations:RREL,
+         reverseServing:RSERVING, reversePlaneRelations:RPLANE} = model;
   const tplStages = templateId=>Model.stages(model,templateId);
   const templateIds = Object.keys(TPL).map(Number);
   const usedKinds = new Set(["flow","gated","serves"]);
   const componentRelations = [];
   const servingRelations = [];
+  const planeRelations = [];
 
   const requireComponent = (id,context)=>assertComponent(model,id,context);
   const assertUnique = (relations,context)=>{
@@ -2885,7 +3011,10 @@ function validateRelationshipModel(model){
     if(!GATE_SCOPE_LABEL[spec.decidedAt]) throw new Error("Unknown gate scope for kind: "+kind);
     if(!spec.color) throw new Error("Gate kind has no colour: "+kind);
     if(!Object.keys(spec.conditions).length) throw new Error("Gate kind declares no condition: "+kind);
-    if(spec.decidedBy) requireComponent(spec.decidedBy,"gate decider");
+  });
+  /* Who decides is this level's claim, so this level's registry must back it. */
+  Object.values(model.gateOwner).forEach(owner=>{
+    if(owner) requireComponent(owner,"gate decider");
   });
   /* A conditional stage runs on only some requests, so it owes the reader a
      reason. An orphan trigger means the flag was removed and the prose left. */
@@ -2932,22 +3061,49 @@ function validateRelationshipModel(model){
   });
   assertUnique(componentRelations,"component");
 
-  const componentKeys=new Set(componentRelations.map(({from,to,kind})=>[from,kind,to].join("|")));
-  Object.entries(RELATION_DETAILS).forEach(([key,detail])=>{
-    if(!componentKeys.has(key)) throw new Error("Relationship detail has no component relationship: "+key);
-    if(!detail.label || !detail.payload || !detail.cadence){
-      throw new Error("Incomplete relationship detail: "+key);
-    }
+  /* Relationships between sources: a write path feeding the stores it derives.
+     Both endpoints must be sources, or the edge belongs in REL where the
+     request path can disable it. */
+  const requireSource = (id,context)=>{
+    if(!DATA_SOURCES[id]) throw new Error("Unknown source in "+context+": "+id);
+  };
+  Object.entries(PLANE_REL).forEach(([from,relations])=>{
+    requireSource(from,"plane relationship source");
+    Object.keys(relations).forEach(kind=>{
+      if(!COMPONENT_RELATION_KINDS.includes(kind)){
+        throw new Error("Unsupported plane relationship kind: "+kind);
+      }
+    });
+    COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
+      requireSource(to,"plane relationship target");
+      usedKinds.add(kind);
+      planeRelations.push({from,to,kind});
+    }));
   });
+  assertUnique(planeRelations,"plane");
+
+  const drawnKeys = new Set(componentRelations.concat(planeRelations)
+    .map(({from,to,kind})=>[from,kind,to].join("|")));
   templateIds.forEach(templateId=>(TPL[templateId].extra||[]).forEach(([from,to,,kind])=>{
     requireComponent(from,"template "+templateId+" extra source");
     requireComponent(to,"template "+templateId+" extra target");
     usedKinds.add(kind);
+    drawnKeys.add([from,kind,to].join("|"));
   }));
+  Object.entries(RELATION_DETAILS).forEach(([key,detail])=>{
+    if(!drawnKeys.has(key)) throw new Error("Relationship detail has no relationship: "+key);
+    if(!detail.label || !detail.payload || !detail.cadence){
+      throw new Error("Incomplete relationship detail: "+key);
+    }
+  });
 
+  /* A source nothing reaches would be drawn floating. Serving a component is
+     the usual way; being written by another source is the other one. */
   Object.keys(DATA_SOURCES).forEach(sourceId=>{
-    const consumers = SERVING_REL[sourceId];
-    if(!consumers || !consumers.length) throw new Error("Serving source has no consumers: "+sourceId);
+    const connected = (SERVING_REL[sourceId]||[]).length ||
+                      Object.keys(PLANE_REL[sourceId]||{}).length ||
+                      Object.keys(RPLANE[sourceId]||{}).length;
+    if(!connected) throw new Error("Source is connected to nothing: "+sourceId);
   });
   Object.entries(SERVING_REL).forEach(([sourceId,consumers])=>{
     if(!DATA_SOURCES[sourceId]) throw new Error("Unknown serving source: "+sourceId);
@@ -2961,6 +3117,9 @@ function validateRelationshipModel(model){
   usedKinds.forEach(kind=>{
     const relation = RELATION_TYPES[kind];
     if(!relation) throw new Error("Missing relationship definition: "+kind);
+    if(!relationApplies(kind,model.abstraction)){
+      throw new Error("Relationship kind is not drawn at this level: "+kind);
+    }
     ["fwd","rev","description","aria","color","marker","route"].forEach(field=>{
       if(!relation[field]) throw new Error("Missing "+field+" for relationship: "+kind);
     });
@@ -2978,6 +3137,11 @@ function validateRelationshipModel(model){
     (expectedRREL[to] = expectedRREL[to] || {});
     (expectedRREL[to][kind] = expectedRREL[to][kind] || []).push(from);
   });
+  const expectedRPLANE = {};
+  planeRelations.forEach(({from,to,kind})=>{
+    (expectedRPLANE[to] = expectedRPLANE[to] || {});
+    (expectedRPLANE[to][kind] = expectedRPLANE[to][kind] || []).push(from);
+  });
   const expectedRSERVING = {};
   servingRelations.forEach(({from,to})=>
     (expectedRSERVING[to] = expectedRSERVING[to] || []).push(from));
@@ -2990,6 +3154,7 @@ function validateRelationshipModel(model){
     ])
   ));
   if(normalized(RREL)!==normalized(expectedRREL)) throw new Error("RREL is stale");
+  if(normalized(RPLANE)!==normalized(expectedRPLANE)) throw new Error("Reverse plane index is stale");
   if(normalized(RSERVING)!==normalized(expectedRSERVING)) throw new Error("RSERVING is stale");
 
   const markerColors = new Map();
@@ -3003,15 +3168,17 @@ function validateRelationshipModel(model){
 
   /* Rules only this level can state. The checks above prove the relationship
      model is coherent; these prove this particular pipeline says what it means. */
-  (model.invariants||[]).forEach(rule=>rule(model,{componentRelations,servingRelations,usedKinds}));
+  (model.invariants||[]).forEach(rule=>
+    rule(model,{componentRelations,servingRelations,planeRelations,usedKinds}));
 
   return Object.freeze({
     relationTypes:usedKinds.size,
     componentRelations:componentRelations.length,
     annotatedRelations:Object.keys(RELATION_DETAILS).length,
     servingRelations:servingRelations.length,
+    planeRelations:planeRelations.length,
     gatedStages:Object.keys(GATED_EXECUTION).length,
-    reverseIndexes:2
+    reverseIndexes:3
   });
 }
 
@@ -3236,6 +3403,7 @@ const LOGICAL = defModel({
   components:S,            templates:TPL,
   relations:REL,           relationDetails:RELATION_DETAILS,
   gates:GATED_EXECUTION,   requires:REQUIRES,
+  gateOwner:LOGICAL_GATE_OWNER,
   dataSources:DATA_SOURCES, serving:SERVING_REL,
   phases:PHASES,           capabilities:CAPS,        facets:FACETS,
   parallelGroups:PARALLEL_GROUPS, stageGroups:STAGE_GROUPS,
@@ -3252,7 +3420,7 @@ const LOGICAL = defModel({
   planes:[{id:"serving", label:"Show data sources", serves:true, defaultOn:false}],
 
   baseline:DEPENDENCY_BASELINE,
-  expectedCounts:{sources:{1:3,2:4,3:6}, servingEdges:{1:3,2:4,3:7}},
+  expectedCounts:{planeNodes:{1:3,2:4,3:6}, planeEdges:{1:3,2:4,3:7}},
   invariants:LOGICAL_INVARIANTS
 });
 
@@ -3848,7 +4016,7 @@ defPhys({
 
 defPhys({
   id:"px-embed-text", name:"Text embedding", group:"Encoding", tier:"core", intro:1,
-  runtime:"gpu", cx:3, sub:"one GPU hop, or none on a cache hit", parallel:"encoding",
+  runtime:"gpu", cx:3, sub:"one GPU hop, or none on a cache hit",
   realises:["textvec"],
   departure:"The logical dense retrieval leg assumes its query vector. Physically that vector costs a network call to a GPU endpoint, with its own deadline, its own cold start and its own version coupling to the index. Splitting it out is what makes the cache above it visible, and the cache is worth more than the node.",
   purpose:"Encodes the constraint-stripped query text into the dense space the Qdrant collection was built in. Every dense leg waits on this, so it sits on the critical path in a way no logical diagram shows.",
@@ -3896,7 +4064,7 @@ defPhys({
 
 defPhys({
   id:"px-embed-image", name:"Image embedding", group:"Encoding", tier:"optional", intro:3,
-  runtime:"gpu", cx:3, sub:"image tower · only when an image is supplied", parallel:"encoding",
+  runtime:"gpu", cx:3, sub:"image tower · only when an image is supplied",
   realises:["imageimagevec"],
   departure:"The logical image-to-image leg assumes an encoded image. Physically that means fetching the uploaded object and running the image tower — a second GPU endpoint with a different instance profile from the text one, gated on an input that most requests do not have.",
   purpose:"Encodes a user-supplied image with the same dual-tower model that produced the collection's image vectors, so the query and the corpus share one space.",
@@ -3928,7 +4096,7 @@ defPhys({
 
 defPhys({
   id:"px-embed-sparse", name:"Sparse encoder", group:"Encoding", tier:"optional", intro:3,
-  runtime:"gpu", cx:3, sub:"query term expansion with learned weights", parallel:"encoding",
+  runtime:"gpu", cx:3, sub:"query term expansion with learned weights",
   realises:["sparse"],
   departure:"The logical learned-sparse leg is one retrieval stage. Physically the query side of it is an encoder — producing weighted terms — and the retrieval side rides the same OpenSearch request as BM25. So one logical leg splits across an encoder and an engine that is already being called, which is the whole reason sparse is cheap here.",
   purpose:"Expands the query into weighted vocabulary terms that the OpenSearch sparse clause scores. The expansion happens in the model, inside one round trip, rather than in a feedback loop with a second one.",
@@ -4536,6 +4704,13 @@ defPhys({
 defPhys({
   id:"px-hydrate", name:"Hydration", group:"Results", tier:"core", intro:1,
   runtime:"engine", cx:3, sub:"_mget from OpenSearch + volatile fields from DynamoDB",
+  /* The second read arrives with the store that holds it. Until then the
+     volatile fields sit in the index's own _source and are reindexed with
+     everything else, which is the cost that eventually buys pxd-ddb. */
+  byLevel:{
+    1:{sub:"_mget from OpenSearch"},
+    2:{sub:"_mget from OpenSearch"}
+  },
   realises:["assembly"],
   departure:"One logical stage, two physical components. Fetching the fields is a network call — two, in fact, because volatile fields do not belong in either index — while shaping the response is not. Splitting them separates a hop with a deadline from a pure transformation, which is the distinction this whole view exists to draw.",
   purpose:"Turns ranked ids into displayable documents. Reads the stable fields from OpenSearch, the volatile ones from DynamoDB, and revalidates eligibility as defence in depth.",
@@ -4928,7 +5103,7 @@ defStore({
    ======================================================================= */
 defStore({
   id:"pxi-source", name:"Source of truth", sub:"the record everything else is derived from",
-  plane:"consistency", runtime:"store", tier:"recommended", intro:2,
+  plane:"consistency", runtime:"store", tier:"core", intro:1,
   realises:[], departure:"The logical view starts at the index because retrieval starts there. Physically the index is derived data, and naming the thing it is derived from is what makes the freshness and parity discussions below possible at all.",
   purpose:"Hold the authoritative listing record. Neither engine is a source of truth; both are projections of this.",
   representation:"The canonical listing, including the canonical id that both engines use verbatim.",
@@ -4946,7 +5121,7 @@ defStore({
 
 defStore({
   id:"pxi-log", name:"Change log", sub:"the ordering authority",
-  plane:"consistency", runtime:"stream", tier:"recommended", intro:2,
+  plane:"consistency", runtime:"stream", tier:"core", intro:1,
   realises:[], departure:"There is no logical equivalent, and there should not be — ordering is not a retrieval concern. Physically it is the single mechanism that keeps two derived datasets consistent, and its absence is the most expensive architectural mistake available in this design.",
   purpose:"Carry every change in one order, so both engines apply the same changes in the same sequence.",
   representation:"Ordered, partitioned change events carrying the canonical id and a version stamp.",
@@ -4969,7 +5144,7 @@ defStore({
 
 defStore({
   id:"pxi-indexer", name:"Dual-target indexer", sub:"the only writer of either engine",
-  plane:"consistency", runtime:"service", tier:"recommended", intro:2,
+  plane:"consistency", runtime:"service", tier:"core", intro:1,
   realises:[], departure:"Logically, keeping an index current is a property of the index. Physically it is a separate consumer with its own failure modes, its own rebuild cadence per engine, and the sole responsibility for the canonical id that fusion later joins on — which makes it the most consequential component in this diagram that never touches a query.",
   purpose:"Consume the ordered log and write both engines idempotently, assigning the canonical id and stamping the version that makes re-delivery safe.",
   representation:"Not a store. A consumer that projects each change into an OpenSearch document and a Qdrant point.",
@@ -5006,6 +5181,663 @@ defStore({
   cost:"Consumer task-hours, plus the embedding compute for the vector side — which is where a rebuild actually hurts.",
   caps:["identity","parity","freshness","rollback"],
   notes:["Everything in the request path assumes this component did its job: fusion assumes one id space, the predicate compiler assumes both engines can filter the same fields, and hydration assumes both engines agree a document exists. It is off by default in the diagram and load-bearing in the system, which is a fair description of most write paths."]
+});
+
+/* =======================================================================
+   THE PHYSICAL MODEL — the registries above, assembled into the second
+   abstraction level and handed to the same defModel. Nothing below this
+   line reads a physical registry by its own name either.
+
+   The row layouts follow the logical level's rule exactly: only the centre
+   spine generates flow edges, and anything in an aside sits on the row
+   where it is produced and reaches its consumers through a relationship.
+   What changes between the levels is not the geometry, it is what a box
+   costs — which is the entire point of drawing the second one.
+   ======================================================================= */
+
+/* Composition bands for the sidebar. The logical level bands by what a stage
+   does; this one bands by where the work happens, because that is what a
+   reader of a deployment diagram is tracing. */
+const PX_PHASES = [
+  {id:"ingress", label:"Ingress",        groups:["Edge","Orchestration"],                          color:"var(--rt-edge)"},
+  {id:"prepare", label:"Query prep",     groups:["Query understanding","Constraint handling"],     color:"var(--core-line)"},
+  {id:"encode",  label:"Encoding",       groups:["Encoding"],                                      color:"var(--rt-gpu)"},
+  {id:"engines", label:"Engines",        groups:["Candidate retrieval"],                           color:"var(--rt-engine)"},
+  {id:"rank",    label:"Merge & rank",   groups:["Candidate generation","Reranking","Final ranking"], color:"var(--opt-line)"},
+  {id:"respond", label:"Respond",        groups:["Results"],                                       color:"var(--ctrl-line)"},
+  {id:"operate", label:"Operations",     groups:["Operations"],                                    color:"var(--wire-train)"}
+];
+
+/* The one row whose centre members run concurrently. The encoders run
+   concurrently too, but they are not a band: see the template banner for why
+   they stand beside the engines rather than in front of them. */
+const PX_PARALLEL_GROUPS = Object.freeze({
+  retrieval:Object.freeze({
+    ingressLabel:"one call per engine",
+    ingressGatedLabel:"conditional branches",
+    egressLabel:"candidate fan-in",
+    padding:Object.freeze({x:22,y:20}),
+    boundary:Object.freeze({
+      title:"Search engines",
+      note:"two calls, six logical legs · the band costs its slowest engine"
+    }),
+    controlPorts:Object.freeze({
+      "px-router":"gates branches and depth",
+      "px-deadline":"cuts, hedges or skips"
+    })
+  })
+});
+
+const PX_RERANK_CASCADE = Object.freeze(["px-semrerank","px-crossenc","px-vlm","px-ltr"]);
+const PX_STAGE_GROUPS = Object.freeze({
+  "physical-rerank-cascade":Object.freeze({
+    label:"rerank cascade",
+    members:PX_RERANK_CASCADE,
+    padding:Object.freeze({x:22,y:28}),
+    boundary:Object.freeze({
+      title:"Rerank cascade",
+      note:"two in-process passes, two remote calls · skipped stages pass candidates through"
+    }),
+    controlPorts:Object.freeze({"px-router":"selects gated passes"}),
+    controlSides:Object.freeze({"px-router":"right"})
+  })
+});
+
+/* =======================================================================
+   PHYSICAL TEMPLATES
+
+   Four departures from the logical shape are worth naming before the rows,
+   because each is a deployment decision moving a stage rather than renaming
+   one.
+
+   The encoders stand beside the engines rather than in front of them. On the
+   spine they would have to flow into both engines, and they do not: the text
+   and image towers produce vectors for the Qdrant call and the sparse
+   encoder produces weighted terms for the OpenSearch one. Each therefore
+   feeds the engine it actually serves. They are calls the orchestrator makes
+   to build the two requests, not stages the request passes through — which
+   is also why a cache hit removes one of them without changing the path.
+
+   px-waf rides the distribution rather than preceding it, so it sits beside
+   px-edge and steers it instead of taking a row of its own.
+
+   px-rescore-late sits beside retrieval, not in the cascade. Its logical
+   twin reranks after fusion; physically it is a MaxSim clause inside the
+   Qdrant call, so it runs before fusion and costs no round trip. Drawing it
+   in the cascade would put it in the wrong half of the diagram.
+
+   The recovery loop returns to px-predicate rather than to retrieval. A
+   relaxed constraint has to be recompiled into both engine dialects before
+   either can be re-queried; loosening one and not the other would fuse two
+   incomparable candidate sets.
+   ======================================================================= */
+const PX_BRANCHES = [
+  ["px-sufficiency","px-recovery","too few / zero","branch"],
+  ["px-recovery","px-predicate","recompiled predicate","loop"]
+];
+
+const PX_TPL = {
+  1:{
+    name:"Core",
+    tagline:"Two engines, one process",
+    desc:"The smallest deployment that serves a hybrid query: one orchestrator, one call to each engine, and fusion in neither. It has <b>no cache, no rerank and no telemetry</b> — and it is already a distributed system with two derived copies of every document.",
+    rows:[
+      {c:["px-client"]},
+      {c:["px-alb"]},
+      {c:["px-orch"]},
+      {c:["px-qu"]},
+      {c:["px-predicate"]},
+      {l:["px-embed-text"], c:["px-os-search","px-qdrant-search"]},
+      {c:["px-fuse"]},
+      {c:["px-hydrate"]},
+      {c:["px-assemble"]}
+    ],
+    extra:[]
+  },
+  2:{
+    name:"Core + recommended",
+    tagline:"The production target",
+    desc:"The <b>default answer</b>. Adds the edge, the embedding cache that removes a GPU hop from most requests, a deadline controller that owns what happens when the budget runs out, bounded recovery, one cross-encoder pass, and the configuration, tracing and impression stream without which none of it is operable.",
+    rows:[
+      {c:["px-client"]},
+      {c:["px-edge"], r:["px-waf"]},
+      {c:["px-alb"], r:["px-experiment"]},
+      {c:["px-orch"], r:["px-appconfig","px-otel"]},
+      {c:["px-qu"]},
+      {c:["px-rewrite"]},
+      {c:["px-predicate"], r:["px-router"]},
+      {l:["px-embed-cache","px-embed-text"], c:["px-os-search","px-qdrant-search"], r:["px-deadline"]},
+      {c:["px-sufficiency"], nextLabel:"sufficient"},
+      {l:["px-recovery"], c:["px-fuse"]},
+      {c:["px-crossenc"]},
+      {c:["px-final"]},
+      {c:["px-hydrate"]},
+      {c:["px-assemble"], r:["px-events"]},
+      {r:["px-lake"]}
+    ],
+    extra:PX_BRANCHES
+  },
+  3:{
+    name:"Full surface",
+    tagline:"The menu, not the target",
+    desc:"Everything on the menu, and <b>every extra box is a bill</b> — a GPU endpoint, a foundation model, a store to keep current, or a job to schedule. The dashed control plane decides which of them a given request actually pays for.",
+    rows:[
+      {l:["px-image"], c:["px-client"]},
+      {c:["px-edge"], r:["px-waf"]},
+      {c:["px-alb"], r:["px-experiment"]},
+      {c:["px-orch"], r:["px-appconfig","px-otel"]},
+      {l:["px-bedrock-qu"], c:["px-qu"], r:["px-session"]},
+      {l:["px-expand"], c:["px-rewrite"]},
+      {c:["px-predicate"], r:["px-router"]},
+      {l:["px-embed-cache","px-embed-text","px-embed-image","px-embed-sparse"]},
+      {l:["px-rescore-late"], c:["px-os-search","px-qdrant-search"], r:["px-deadline"]},
+      {c:["px-sufficiency"], nextLabel:"sufficient"},
+      {l:["px-recovery"], c:["px-fuse"]},
+      {c:["px-semrerank"]},
+      {c:["px-crossenc"]},
+      {c:["px-vlm"]},
+      {c:["px-ltr"]},
+      {c:["px-personal"]},
+      {c:["px-final"]},
+      {c:["px-hydrate"]},
+      {c:["px-assemble"], r:["px-events"]},
+      {r:["px-lake","px-train"]}
+    ],
+    extra:PX_BRANCHES
+  }
+};
+
+/* =======================================================================
+   PHYSICAL RELATIONSHIPS — same kinds, same meanings, one addition.
+
+   `observes` is drawn to the hops whose timings the trace exists to
+   attribute: the orchestrator and the four remote calls that dominate the
+   critical band. px-otel instruments every component in reality. Drawing
+   that would bury the diagram under its own instrumentation, which is the
+   failure the kind describes rather than one it should commit.
+   ======================================================================= */
+const PX_ENCODERS = ["px-embed-text","px-embed-image","px-embed-sparse"];
+const PX_ROUTED = PX_ENCODERS.concat([
+  "px-os-search","px-qdrant-search","px-expand","px-semrerank","px-rescore-late","px-vlm","px-ltr"
+]);
+
+const PX_REL = {
+  "px-waf":         {steers:["px-edge"]},
+  "px-image":       {feeds:["px-embed-image"], steers:["px-router"]},
+  "px-bedrock-qu":  {feeds:["px-rewrite","px-predicate"]},
+  "px-session":     {steers:["px-qu","px-rewrite","px-router","px-personal"]},
+  "px-expand":      {feeds:["px-os-search"]},
+  "px-router":      {steers:PX_ROUTED},
+  "px-embed-cache": {feeds:PX_ENCODERS},
+  "px-embed-text":  {feeds:["px-qdrant-search"]},
+  "px-embed-image": {feeds:["px-qdrant-search"]},
+  "px-embed-sparse":{feeds:["px-os-search"]},
+  "px-deadline":    {steers:["px-embed-text","px-os-search","px-qdrant-search",
+                             "px-rescore-late","px-crossenc","px-vlm"]},
+  "px-rescore-late":{feeds:["px-fuse"]},
+  "px-appconfig":   {steers:["px-router","px-deadline","px-fuse","px-final"]},
+  "px-experiment":  {steers:["px-router","px-fuse"], feeds:["px-assemble"]},
+  "px-otel":        {observes:["px-orch","px-embed-text","px-os-search","px-qdrant-search","px-crossenc"]},
+  "px-assemble":    {feeds:["px-events"]},
+  "px-events":      {updates:["px-personal"], feeds:["px-lake"]},
+  "px-lake":        {feeds:["px-train"]},
+  "px-train":       {trains:["px-crossenc","px-ltr","px-fuse"]}
+};
+
+/* The write path. These endpoints are stores rather than stages, so they are
+   admitted by their planes and cannot be switched off with a component. */
+const PXI_REL = {
+  "pxi-source":  {feeds:["pxi-log"]},
+  "pxi-log":     {feeds:["pxi-indexer"]},
+  "pxi-indexer": {updates:["pxd-os-index","pxd-qdrant-collection"]}
+};
+
+/* Which sources answer which components. A source may be queried by more than
+   one stage — the OpenSearch index both retrieves and hydrates, which is the
+   whole reason its three logical dependencies could be merged. */
+const PX_SERVING = {
+  "pxd-os-index":          ["px-os-search","px-hydrate"],
+  "pxd-qdrant-collection": ["px-qdrant-search","px-rescore-late"],
+  "pxd-cache":             ["px-embed-cache","px-session"],
+  "pxd-ddb":               ["px-hydrate","px-personal","px-session"],
+  "pxd-s3":                ["px-events","px-lake","px-train"]
+};
+
+/* Relationships whose payload the reader cannot infer from the cards. The
+   logical level annotates its feedback plane for this reason; here the write
+   path and the two ordering departures need it for the same one. */
+const PX_RELATION_DETAILS = Object.freeze({
+  "px-rescore-late|feeds|px-fuse":Object.freeze({
+    label:"rescored Qdrant ranks",
+    payload:"the dense candidate list already reordered by MaxSim, inside the retrieval call",
+    cadence:"per request, before fusion rather than after it"
+  }),
+  "px-recovery|loop|px-predicate":Object.freeze({
+    label:"recompiled predicate",
+    payload:"the relaxed constraint set, recompiled into both engine dialects",
+    cadence:"at most two passes, inside the same request budget"
+  }),
+  "px-assemble|feeds|px-events":Object.freeze({
+    label:"impression context",
+    payload:"query, result positions, route, variant and what was degraded",
+    cadence:"buffered in-process, flushed asynchronously"
+  }),
+  "px-events|updates|px-personal":Object.freeze({
+    label:"profile events",
+    payload:"clicks, saves and enquiries, keyed on the subject",
+    cadence:"asynchronous profile update"
+  }),
+  "px-events|feeds|px-lake":Object.freeze({
+    label:"impression stream",
+    payload:"the same impressions, partitioned by date and variant",
+    cadence:"Firehose delivery, off the request path"
+  }),
+  "px-lake|feeds|px-train":Object.freeze({
+    label:"labelled sets",
+    payload:"debiased judgements with position-aware features",
+    cadence:"on the training schedule"
+  }),
+  "pxi-source|feeds|pxi-log":Object.freeze({
+    label:"change events",
+    payload:"the committed record, with its canonical id and version",
+    cadence:"one event per change, in commit order"
+  }),
+  "pxi-log|feeds|pxi-indexer":Object.freeze({
+    label:"the ordered log",
+    payload:"every change, once, in one order, partitioned by document",
+    cadence:"continuous, replayable from any offset"
+  }),
+  "pxi-indexer|updates|pxd-os-index":Object.freeze({
+    label:"analysed documents",
+    payload:"the document, its sparse expansion and its _source, written idempotently",
+    cadence:"per change · visible after the refresh interval"
+  }),
+  "pxi-indexer|updates|pxd-qdrant-collection":Object.freeze({
+    label:"points and payloads",
+    payload:"named vectors and the payload the filter reads, keyed on the same canonical id",
+    cadence:"per change · visible after the write is acknowledged"
+  })
+});
+
+/* =======================================================================
+   PHYSICAL GATES
+
+   px-os-search and px-qdrant-search are deliberately ungated even though
+   four of the six logical legs they realise are. The branches inside them
+   are gated; the calls are not, because the call still happens for the
+   ungated branches. The panels' branch tables carry the gates and px-router
+   steers both nodes. That is a real fidelity loss from merging two legs
+   into one request, and each node's departure text says so.
+   ======================================================================= */
+const PX_GATE_OWNER = Object.freeze({route:"px-router", intent:"px-router", config:null});
+const defPhysGate = gatesDecidedBy(PX_GATE_OWNER);
+
+const PX_GATES = Object.freeze({
+  "px-bedrock-qu":  defPhysGate(3,"config","optional pass"),
+  "px-expand":      defPhysGate(3,"route","route selected"),
+  "px-embed-image": defPhysGate(3,"intent","image query"),
+  "px-embed-sparse":defPhysGate(3,"route","route selected"),
+  "px-rescore-late":defPhysGate(3,"route","route selected"),
+  "px-semrerank":   defPhysGate(3,"config","optional pass"),
+  "px-vlm":         defPhysGate(3,"intent","visual intent"),
+  "px-ltr":         defPhysGate(3,"config","optional pass"),
+  "px-personal":    defPhysGate(3,"config","optional pass")
+});
+
+/* Components that cannot exist without a parent. */
+const PX_REQUIRES = {"px-recovery":"px-sufficiency", "px-embed-image":"px-image"};
+
+/* =======================================================================
+   THE VALIDATOR WALL — the rules only the physical level can state.
+
+   defPhysical already resolved every realisation link, runtime key and
+   concern id at definition time, and required a departure wherever the
+   mapping is not one-to-one. What is left are the rules that need the whole
+   inventory, or both levels, to state at all.
+   ======================================================================= */
+
+/* Where a number is the schema rather than a claim: a deadline, a k, an ef,
+   a shard count and a worked query are all allowed to contain digits. */
+const CONFIGURED_FIELDS = new Set(["dials","budget","substrate","example","byLevel"]);
+
+/* D5, narrowly: a measurement is a number with a unit of performance or money
+   attached to it. Percentile and latency *vocabulary* is fine and necessary —
+   the panels argue about tail latency constantly — but a figure is a promise
+   about a system nobody has built, and it will be quoted. */
+const MEASURED_CLAIM = new RegExp([
+  "\\b\\d[\\d,.]*\\s?(?:ms|milliseconds?|seconds?)\\b",
+  "\\bp\\d{2}\\b[^.]{0,20}?\\d",
+  "\\b\\d[\\d,.]*\\s?(?:QPS|rps|req/s)\\b",
+  "[$£€]\\s?\\d"
+].join("|"),"i");
+
+/* Remote calls the orchestrator makes. In-process work cannot time out, and
+   the edge band sits upstream of the process that owns the deadline — the
+   client's own timeout is a dial there, not a budget. */
+const ORCHESTRATED_RUNTIMES = new Set(["service","gpu","foundation","engine","store"]);
+
+const PHYSICAL_INVARIANTS = [
+  /* Cross-view fidelity (D7). Rule 1 — every realised id exists — and the
+     departure rules are enforced by defPhysical when each record is written.
+     These are the three that are not local to one record. */
+  model=>{
+    const records = Object.values(model.components).concat(Object.values(model.dataSources));
+    const realised = new Set(records.flatMap(record=>record.realises));
+
+    /* Totality: every logical component has a physical home. q-text has none
+       because the query arrives rather than being built, which is the same
+       reason it is exempt from the build ladder — so the exemption is read
+       from the logical level rather than kept as a second list here. */
+    const missing = Object.keys(LOGICAL.components)
+      .filter(id=>id!==LOGICAL.ladderExempt && !realised.has(id))
+      .concat(Object.keys(LOGICAL.dataSources).filter(id=>!realised.has(id)));
+    if(missing.length){
+      throw new Error("Logical components with no physical realisation: "+missing.join(", "));
+    }
+
+    /* The level never regresses: a physical component may not arrive before
+       the logical capability it implements. A written departure is the licence
+       to differ — px-predicate compiles constraint confidence into a field on
+       every predicate node, so it arrives at Core while the logical pass it
+       replaces arrives at Full. Without a departure the two levels must agree. */
+    records.forEach(record=>{
+      if(record.departure) return;
+      record.realises.forEach(logicalId=>{
+        const logical = LOGICAL.components[logicalId] || LOGICAL.dataSources[logicalId];
+        if(record.intro < logical.intro){
+          throw new Error("Physical component arrives before the capability it realises: "+
+            record.id+" (level "+record.intro+") realises "+logicalId+" (level "+logical.intro+")");
+        }
+      });
+    });
+
+    /* A call that can be slow must say what happens when it is. */
+    Object.values(model.components).forEach(component=>{
+      if(ORCHESTRATED_RUNTIMES.has(component.runtime) && !component.budget){
+        throw new Error("Remote call declares no budget: "+component.id);
+      }
+    });
+  },
+
+  /* D5, applied to every string the panels print except the ones whose whole
+     purpose is to carry a configured number. */
+  model=>{
+    const offend = (record,path,text)=>{
+      if(MEASURED_CLAIM.test(text)){
+        throw new Error("Measured claim in "+record.id+"."+path+": "+
+          text.slice(Math.max(0,text.search(MEASURED_CLAIM)-40), text.search(MEASURED_CLAIM)+60));
+      }
+    };
+    const walk = (record,value,path)=>{
+      if(typeof value==="string") offend(record,path,value);
+      else if(Array.isArray(value)) value.forEach((item,index)=>walk(record,item,path+"["+index+"]"));
+      else if(value && typeof value==="object"){
+        Object.entries(value).forEach(([key,item])=>walk(record,item,path+"."+key));
+      }
+    };
+    Object.values(model.components).concat(Object.values(model.dataSources)).forEach(record=>
+      Object.entries(record).forEach(([field,value])=>{
+        if(!CONFIGURED_FIELDS.has(field)) walk(record,value,field);
+      }));
+  }
+];
+
+/* =======================================================================
+   PHYSICAL DEPENDENCY BASELINE — the same wall the logical level stands
+   behind, and the same deal: it throws on the first reload after every
+   structural change, and that is the point.
+
+   Written by dependencyDiagnostics.emitBaseline("physical") and then read.
+   Generating it and reviewing it buys what the fixture is for — a human
+   confirmed every edge once — without typing a hundred and sixty pairs.
+
+   Invariants, in the level's own terms:
+   - Core is the smallest deployment that answers a hybrid query; Recommended
+     is the production target; Full is a catalogue of what can be bought.
+   - Switching a plane on adds plane edges and nothing else, so one fixture
+     per template covers all four combinations of the two planes.
+   - Disabling a component removes every relationship incident on it.
+   - A source is drawn only once its plane is on and the level has reached it.
+   ======================================================================= */
+const PHYSICAL_BASELINE = {
+  1:{
+    flow:[
+      ["px-client","px-alb"],
+      ["px-alb","px-orch"],
+      ["px-orch","px-qu"],
+      ["px-qu","px-predicate"],
+      ["px-predicate","px-os-search"],
+      ["px-predicate","px-qdrant-search"],
+      ["px-os-search","px-fuse"],
+      ["px-qdrant-search","px-fuse"],
+      ["px-fuse","px-hydrate"],
+      ["px-hydrate","px-assemble"]
+    ],
+    feeds:[
+      ["px-embed-text","px-qdrant-search"],
+      ["pxi-source","pxi-log"],
+      ["pxi-log","pxi-indexer"]
+    ],
+    updates:[
+      ["pxi-indexer","pxd-os-index"],
+      ["pxi-indexer","pxd-qdrant-collection"]
+    ],
+    serves:[
+      ["pxd-os-index","px-os-search"],
+      ["pxd-os-index","px-hydrate"],
+      ["pxd-qdrant-collection","px-qdrant-search"]
+    ]
+  },
+  2:{
+    flow:[
+      ["px-client","px-edge"],
+      ["px-edge","px-alb"],
+      ["px-alb","px-orch"],
+      ["px-orch","px-qu"],
+      ["px-qu","px-rewrite"],
+      ["px-rewrite","px-predicate"],
+      ["px-predicate","px-os-search"],
+      ["px-predicate","px-qdrant-search"],
+      ["px-os-search","px-sufficiency"],
+      ["px-qdrant-search","px-sufficiency"],
+      ["px-sufficiency","px-fuse","sufficient"],
+      ["px-fuse","px-crossenc"],
+      ["px-crossenc","px-final"],
+      ["px-final","px-hydrate"],
+      ["px-hydrate","px-assemble"]
+    ],
+    branch:[
+      ["px-sufficiency","px-recovery","too few / zero"]
+    ],
+    loop:[
+      ["px-recovery","px-predicate","recompiled predicate"]
+    ],
+    steers:[
+      ["px-waf","px-edge"],
+      ["px-router","px-embed-text"],
+      ["px-router","px-os-search"],
+      ["px-router","px-qdrant-search"],
+      ["px-deadline","px-embed-text"],
+      ["px-deadline","px-os-search"],
+      ["px-deadline","px-qdrant-search"],
+      ["px-deadline","px-crossenc"],
+      ["px-appconfig","px-router"],
+      ["px-appconfig","px-deadline"],
+      ["px-appconfig","px-fuse"],
+      ["px-appconfig","px-final"],
+      ["px-experiment","px-router"],
+      ["px-experiment","px-fuse"]
+    ],
+    feeds:[
+      ["px-embed-cache","px-embed-text"],
+      ["px-embed-text","px-qdrant-search"],
+      ["px-experiment","px-assemble"],
+      ["px-assemble","px-events"],
+      ["px-events","px-lake"],
+      ["pxi-source","pxi-log"],
+      ["pxi-log","pxi-indexer"]
+    ],
+    updates:[
+      ["pxi-indexer","pxd-os-index"],
+      ["pxi-indexer","pxd-qdrant-collection"]
+    ],
+    serves:[
+      ["pxd-os-index","px-os-search"],
+      ["pxd-os-index","px-hydrate"],
+      ["pxd-qdrant-collection","px-qdrant-search"],
+      ["pxd-cache","px-embed-cache"],
+      ["pxd-s3","px-events"],
+      ["pxd-s3","px-lake"]
+    ],
+    observes:[
+      ["px-otel","px-orch"],
+      ["px-otel","px-embed-text"],
+      ["px-otel","px-os-search"],
+      ["px-otel","px-qdrant-search"],
+      ["px-otel","px-crossenc"]
+    ]
+  },
+  3:{
+    flow:[
+      ["px-client","px-edge"],
+      ["px-edge","px-alb"],
+      ["px-alb","px-orch"],
+      ["px-orch","px-qu"],
+      ["px-qu","px-rewrite"],
+      ["px-rewrite","px-predicate"],
+      ["px-predicate","px-os-search"],
+      ["px-predicate","px-qdrant-search"],
+      ["px-os-search","px-sufficiency"],
+      ["px-qdrant-search","px-sufficiency"],
+      ["px-sufficiency","px-fuse","sufficient"],
+      ["px-semrerank","px-crossenc"],
+      ["px-personal","px-final"],
+      ["px-final","px-hydrate"],
+      ["px-hydrate","px-assemble"]
+    ],
+    gated:[
+      ["px-fuse","px-semrerank"],
+      ["px-crossenc","px-vlm"],
+      ["px-vlm","px-ltr"],
+      ["px-ltr","px-personal"]
+    ],
+    branch:[
+      ["px-sufficiency","px-recovery","too few / zero"]
+    ],
+    loop:[
+      ["px-recovery","px-predicate","recompiled predicate"]
+    ],
+    steers:[
+      ["px-waf","px-edge"],
+      ["px-image","px-router"],
+      ["px-session","px-qu"],
+      ["px-session","px-rewrite"],
+      ["px-session","px-router"],
+      ["px-session","px-personal"],
+      ["px-router","px-embed-text"],
+      ["px-router","px-embed-image"],
+      ["px-router","px-embed-sparse"],
+      ["px-router","px-os-search"],
+      ["px-router","px-qdrant-search"],
+      ["px-router","px-expand"],
+      ["px-router","px-semrerank"],
+      ["px-router","px-rescore-late"],
+      ["px-router","px-vlm"],
+      ["px-router","px-ltr"],
+      ["px-deadline","px-embed-text"],
+      ["px-deadline","px-os-search"],
+      ["px-deadline","px-qdrant-search"],
+      ["px-deadline","px-rescore-late"],
+      ["px-deadline","px-crossenc"],
+      ["px-deadline","px-vlm"],
+      ["px-appconfig","px-router"],
+      ["px-appconfig","px-deadline"],
+      ["px-appconfig","px-fuse"],
+      ["px-appconfig","px-final"],
+      ["px-experiment","px-router"],
+      ["px-experiment","px-fuse"]
+    ],
+    feeds:[
+      ["px-image","px-embed-image"],
+      ["px-bedrock-qu","px-rewrite"],
+      ["px-bedrock-qu","px-predicate"],
+      ["px-expand","px-os-search"],
+      ["px-embed-cache","px-embed-text"],
+      ["px-embed-cache","px-embed-image"],
+      ["px-embed-cache","px-embed-sparse"],
+      ["px-embed-text","px-qdrant-search"],
+      ["px-embed-image","px-qdrant-search"],
+      ["px-embed-sparse","px-os-search"],
+      ["px-rescore-late","px-fuse"],
+      ["px-experiment","px-assemble"],
+      ["px-assemble","px-events"],
+      ["px-events","px-lake"],
+      ["px-lake","px-train"],
+      ["pxi-source","pxi-log"],
+      ["pxi-log","pxi-indexer"]
+    ],
+    trains:[
+      ["px-train","px-crossenc"],
+      ["px-train","px-ltr"],
+      ["px-train","px-fuse"]
+    ],
+    updates:[
+      ["px-events","px-personal"],
+      ["pxi-indexer","pxd-os-index"],
+      ["pxi-indexer","pxd-qdrant-collection"]
+    ],
+    serves:[
+      ["pxd-os-index","px-os-search"],
+      ["pxd-os-index","px-hydrate"],
+      ["pxd-qdrant-collection","px-qdrant-search"],
+      ["pxd-qdrant-collection","px-rescore-late"],
+      ["pxd-cache","px-embed-cache"],
+      ["pxd-cache","px-session"],
+      ["pxd-ddb","px-hydrate"],
+      ["pxd-ddb","px-personal"],
+      ["pxd-ddb","px-session"],
+      ["pxd-s3","px-events"],
+      ["pxd-s3","px-lake"],
+      ["pxd-s3","px-train"]
+    ],
+    observes:[
+      ["px-otel","px-orch"],
+      ["px-otel","px-embed-text"],
+      ["px-otel","px-os-search"],
+      ["px-otel","px-qdrant-search"],
+      ["px-otel","px-crossenc"]
+    ]
+  }
+};
+
+const PHYSICAL_COUNTS = {planeNodes:{1:5,2:7,3:8}, planeEdges:{1:7,2:10,3:16}};
+
+const PHYSICAL = defModel({
+  id:"physical",
+  abstraction:"physical",
+  label:"Physical architecture",
+
+  components:PX,           templates:PX_TPL,
+  relations:PX_REL,        relationDetails:PX_RELATION_DETAILS,
+  gates:PX_GATES,          requires:PX_REQUIRES,
+  gateOwner:PX_GATE_OWNER,
+  dataSources:PXD,         serving:PX_SERVING,   planeRelations:PXI_REL,
+  phases:PX_PHASES,        capabilities:CONCERNS, facets:FACETS,
+  parallelGroups:PX_PARALLEL_GROUPS, stageGroups:PX_STAGE_GROUPS,
+
+  example:LOGICAL.example,
+  collapseGroups:[{members:PX_ENCODERS,     label:"query encoders", min:3},
+                  {members:PX_RERANK_CASCADE, label:"rerank passes", min:2}],
+
+  /* Two overlays, and the write path is not the data plane. Drawing them as
+     one band would hide the ordering authority that is the only thing keeping
+     two derived copies of a document from disagreeing. */
+  planes:[{id:"data",        label:"Show data stores", serves:true, defaultOn:false},
+          {id:"consistency", label:"Show the write path",          defaultOn:false}],
+
+  baseline:PHYSICAL_BASELINE,
+  expectedCounts:PHYSICAL_COUNTS,
+  invariants:PHYSICAL_INVARIANTS
 });
 
 /* =======================================================================
@@ -5869,7 +6701,8 @@ function drawWires(){
   parallelLayoutCache = new Map();
 
   const markerColors = new Map();
-  Object.values(RELATION_TYPES).forEach(relation=>{
+  Object.entries(RELATION_TYPES).forEach(([kind,relation])=>{
+    if(!relationApplies(kind,model.abstraction)) return;
     if(!markerColors.has(relation.marker)) markerColors.set(relation.marker,relation.color);
   });
   const defs = '<defs>' + Array.from(markerColors,([marker,color])=>
@@ -6003,7 +6836,7 @@ const FOCUS = {
   },
   gate:{
     match:(s,id)=> executionGate(s.id,slice.tpl)?.label===id,
-    describe:id=>{ const c=GATE_CONDITION[id];
+    describe:id=>{ const c=model.gateCondition[id];
       return "<b>"+c.label.toUpperCase()+"</b> — "+gateSentence(c)+" Stages it gates:"; }
   }
 };
@@ -6088,7 +6921,7 @@ function selectEntity(id){
 }
 
 /* The gate explanation, composed once. Anything with a sentence and an
-   optional decider can use it: a resolved gate or a GATE_CONDITION entry. */
+   optional decider can use it: a resolved gate or a gate-condition entry. */
 function gateSentence(gate){
   return gate.decidedBy
     ? gate.sentence+" Decided by "+S[gate.decidedBy].name+"."
@@ -6457,7 +7290,7 @@ function renderAll(){
 /* One row per condition present in the active template. Conditions the current
    template cannot reach are omitted rather than shown as dead vocabulary. */
 function renderGateLegend(){
-  const rows = GATE_CONDITIONS
+  const rows = model.gateConditions
     .map(condition=>({condition, ids:gatedStagesFor(condition.label)}))
     .filter(row=>row.ids.length);
   /* A template switch can retire the focused condition. Drop it here rather
@@ -6480,7 +7313,7 @@ function renderGateLegend(){
 
 function renderRelationLegend(){
   ui("relationLegend").innerHTML = Object.entries(RELATION_TYPES)
-    .filter(([,relation])=>relation.legend.visible)
+    .filter(([kind,relation])=>relation.legend.visible && relationApplies(kind,model.abstraction))
     .map(([kind,relation])=>{
       const markerId="legend-arrow-"+kind;
       const dash=relation.dash ? ' stroke-dasharray="'+relation.dash+'"' : "";
@@ -6731,6 +7564,7 @@ window.dependencyDiagnostics = Object.freeze({
   validation:LOGICAL.validation.dependencies,
   modelValidation:LOGICAL.validation.relationships,
   ladderValidation:LOGICAL.validation.ladder,
+  emitBaseline:(modelId="logical")=>emitBaseline(PIPELINE_MODELS[modelId]),
   layout:(...args)=>VIEWS.logical.layoutReport(...args),
   layoutSweep:(...args)=>VIEWS.logical.layoutSweep(...args)
 });
