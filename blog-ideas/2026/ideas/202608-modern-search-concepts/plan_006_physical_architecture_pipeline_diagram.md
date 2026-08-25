@@ -3,9 +3,9 @@
 **Target:** `search-query-pipeline-diagram-tool.html` — plus
 `search-query-pipeline-diagram-tool-architecture.md` and the About tab in Phase 6.
 **Status:** **Phase 1 done** (`bda600e`, 25 Aug 2026). **Phase 2 done** (`df838ad`, 26 Aug 2026).
-**Phase 3 done** (uncommitted, 26 Aug 2026) — the physical model is registered, validated and
-still undrawn, and the logical view is byte-identical. Phases 4–6 outstanding.
-Written 25 Aug 2026.
+**Phase 3 done** (uncommitted, 26 Aug 2026). **Phase 4 done** (uncommitted, 26 Aug 2026) — the
+tab exists and is usable, and the logical view still renders byte-for-byte what it did before
+Phase 2. Phases 5–6 outstanding. Written 25 Aug 2026.
 **Scope:** a fourth tab, **Physical architecture**, sitting between _Build order_ and _About_,
 rendering the AWS + OpenSearch + Qdrant realisation of the same three levels.
 **Decisions:** D1 blended best-of-breed engines · D2 model-parameterised render engine ·
@@ -14,9 +14,10 @@ D5 configured numbers only, never measured ones · D6 physical inherits the logi
 D7 cross-view fidelity is a validator, not a convention · D8 no physical build order in pass one.
 
 Line numbers below are as at `777849e`, **before Phase 1**, and are long stale — the file is
-7575 lines. Re-grep before acting on any of them. Phases 1, 2 and 3 each end with a
-"where the built shape departs from this plan" table (§1.7, §2.7, §3.9) recording what changed
-and what each change means for the phases that follow; read those before starting Phase 4.
+8178 lines. Re-grep before acting on any of them. Phases 1–4 each end with a
+"where the built shape departs from this plan" table (§1.7, §2.7, §3.9, §4.9) recording what
+changed and what each change means for the phases that follow; read those before starting
+Phase 5.
 
 ---
 
@@ -138,14 +139,16 @@ keeps reading the logical model. Revisit once the physical inventory settles.
 | **1** | Extract the pipeline-model type; a view per level                    | **no**          | reshaped, same content | +666 / −433      | **high** | **done** `bda600e` |
 | **2** | Physical component registry, data plane, consistency plane, panels   | **no**          | n/a — data only        | +1751            | medium   | **done** `df838ad` |
 | **3** | Physical templates, relations, gates, baseline, two invariants       | **no**          | new, generated         | +912 / −78       | medium   | **done** (uncommitted) |
-| **4** | Tab, LHS options panel, RHS panel spec, hover card, cross-view links | new tab usable  | no                     | ~450 lines + CSS | medium   | todo   |
+| **4** | Tab, LHS options panel, RHS panel spec, hover card, cross-view links | **new tab only** | no                    | +918 / −315      | medium   | **done** (uncommitted) |
 | **5** | "Follow one request" stepper — the query dataflow narrative          | new             | no                     | ~200 lines       | low      | todo   |
 | **6** | About tab, architecture doc, TODO reconciliation                     | prose           | no                     | 3 files          | lowest   | todo   |
 
 **Order: 1 → 2 → 3 → 4 → 5 → 6.** One commit per phase. Phases 1, 2 and 3 all left the tool
 pixel-identical — the physical model has no view until Phase 4, so the "new tab correct" cell
-above was wrong for Phase 3 too and has been corrected. Phase 3 leaves the physical model
-registered, validated and still undrawn; Phase 4 is where the tab appears and becomes usable.
+above was wrong for Phase 3 too and has been corrected. Phase 4 adds the tab and changes
+nothing else: the logical view's wires, rows and narrow layout all still match the pre-Phase-2
+build exactly, and the one visible addition to it is the derived _Implemented by_ section in
+its drawer, which is the point of the phase.
 
 Phase 1 was the only phase that could break the existing view, and the only one with a free
 correctness oracle. It is done and verified (§1.6). From Phase 2 on, the existing view is
@@ -154,8 +157,11 @@ reproduce the logical view's render signature at 1280×900**, and a Phase 2–5 
 it is a bug in the shared layer, not a physical-view decision. Phase 3 exercised it hardest so
 far — it changed `Model.dependencies`, `defModel`, both shared validators, the gate
 constructor, the relation registry and two render sites — and the logical markup came back
-byte-identical. The probe is written out in §3.8; run it against the previous commit rather
-than against a stored number, because the number depends on the probe.
+byte-identical. Phase 4 rewrote the drawer, the hover card, the sidebar, the plane control,
+the stage-group layout, the mobile markers and the recovery lanes, and it came back identical
+again. The probe is written out in §3.8 and §4.8; **run it against the previous commit in the
+same session rather than against a stored number** — the number depends on the probe and on the
+page instance, and §4.8 has the version that survives both.
 
 ---
 
@@ -1185,7 +1191,12 @@ is not Phase 3's job and the number is not yet load-bearing.
 
 ---
 
-## Phase 4 — The view
+## Phase 4 — The view — **DONE** (uncommitted)
+
+> **Built.** The tab exists, both levels render through one view factory and one copy of
+> the markup, and the drawer, the hover card and the sidebar are all ordered specs the
+> level declares rather than chains the renderer owns. §4.7 is what was built, §4.8 the
+> acceptance evidence, §4.9 where it departs from the sections below.
 
 ### 4.1 The tab
 
@@ -1208,6 +1219,11 @@ view ids. Switching to `phys` must `requestAnimationFrame(drawWires)` on the phy
 exactly as `pipe` does — wires are measured from live DOM and a hidden canvas measures as zero.
 
 ### 4.2 LHS options panel
+
+> **Built,** and the first thing the phase did, as this section asks. `renderPlaneToggles`
+> renders one `.dep-toggle` per declared plane; a plane may now declare `requires`, and
+> the write path declares it, because there is nothing to draw a write path against until
+> the stores it maintains are on screen. The four metrics are a declared list — see §4.7.
 
 > **Carried over from Phase 1.** `renderPlaneToggle` currently renders exactly one control,
 > bound to `model.planes[0]`, and is marked provisional in the code. Generalising it to one
@@ -1270,6 +1286,11 @@ registry, so `observes` appears for free), gate conditions (auto-generated), pla
 **Components list** — unchanged mechanism.
 
 ### 4.3 RHS panel — the section spec
+
+> **Built,** with three changes from the sketch below: the sections live *inside* the view
+> factory (§1.7 #1 — a renderer takes no model parameter, it already has one in scope), the
+> source drawer runs the same machinery under a second list, and the two cross-view sections
+> are one section reading `model.crossView`. See §4.9 #1.
 
 Replace the hardcoded chain at 4194–4226 with an ordered spec per model:
 
@@ -1354,6 +1375,10 @@ single tool rather than two diagrams in a trench coat.
 
 ### 4.4 Hover card
 
+> **Built** as named blocks in a level-declared order, the same shape as the drawer's spec.
+> `HOVER_RELATIONS` needed no change — it lives inside the view factory and was already
+> per-model; what needed generalising was the card's *composition*, not its relation rows.
+
 `HOVER_RELATIONS` (4344) becomes per model. The physical card's four fields:
 
 ```
@@ -1370,6 +1395,10 @@ and the reason to hover rather than click.
 
 ### 4.5 CSS
 
+> **Built,** additive plus one new rule that only fires on a row the logical
+> level does not have — see §4.9 #4. `.branch-table` was not needed: `byLevel` turned out to
+> be node vocabulary rather than a drawer table (§4.9 #5).
+
 Additive only; no existing rule changes.
 
 - `--rt-*` runtime colour tokens in both theme blocks, plus `--wire-observe`.
@@ -1382,11 +1411,179 @@ Additive only; no existing rule changes.
 
 ### 4.6 Narrow screens
 
+> **Built and verified rather than assumed,** as this section
+> insists. The logical narrow layout's markup is byte-identical at 375px across all six
+> level × plane combinations, and the physical one renders its own stage marker, recovery
+> decision, seventeen transitions and twenty-nine dependency chips (§4.8).
+
 Below 700px the tool renders dependency chips instead of wires (`mobileTransition`,
 `mobileRecovery`, `renderMobileSelection`, 3218–3384). Those functions take `logical` — the
 dependency array — and are otherwise generic, so parameterising them in Phase 1 covers the
 physical view too. **Verify it rather than assuming it**: the architecture doc's standing
 warning is that relationship display usually needs doing twice.
+
+### 4.7 What was built
+
+**+918 / −315**, file now 8178 lines. Four things stopped being the renderer's and became the
+level's, and one thing that was never anyone's got a name.
+
+| Was | Is | Why it matters beyond this phase |
+| --- | --- | --- |
+| One `.dep-toggle` in the markup, bound to `model.planes[0]` | `renderPlaneToggles()` renders one per declared plane, and `setPlane` honours a plane's `requires` | The last piece of Phase 1's provisional plane handling. A third level's planes are declarations, not markup. |
+| Three metrics hardcoded in `renderComposition` | `model.sidebar.metrics` — a name, a note and a `read(enabled, model)` returning `{value, note, fill}` | The renderer no longer knows what it is counting. `cxMetric(name, note)` is the one reading both levels share, on per-level `cxBands`. |
+| A 60-line `if (s.field)` chain in `openDrawer` | `DRAWER_SECTIONS` + `model.panel` / `model.sourcePanel`, ordered, with `["contract","Wire contract"]` to rename a section per level | Adding a field to a level is a line in the model. The source drawer runs the same machinery, which is how the write path became navigable for free. |
+| One `hoverCard.innerHTML = …` expression | `HOVER_BLOCKS` + `model.hover`, same shape as the panel spec | The physical card is six blocks in a different order, not a second card. |
+| `"selective-rerank-cascade"`, `GATED_RERANKERS`, `"semrerank"`, `"sufficiency"`, `"zerofallback"` and `parallel="retrieval"`, named inside the renderer | `activeStageGroups()`, `S[id].decision`, and `recoveryLane(from,to)` — the loop's position among the loops sharing its target | §3.9's first Phase-4 note. Nothing in the render path now knows a logical component's name. |
+
+**The ladder, in both directions.** `realises` stays declared on the physical records and
+checked at definition time; `REALISED_BY` is derived from it once, where both models exist.
+Each model then carries a `crossView` naming the other model, the section's label, and the map
+— so _Realises_ and _Implemented by_ are one renderer, and `revealComponent(modelId, id)` is
+the one move a view cannot make alone. The Build-order tab's own jump was rewritten to call it,
+which deleted the duplicate it had been carrying.
+
+**`substrate.on` — the canonical deployment key** (§2.7 #4). A `SERVICE` registry of nineteen
+ids, and every one of the 46 records declares which it deploys, validated at load. This is the
+fix for the count that returned 23 where the answer was about 15: `substrate.service` is prose
+("Amazon DynamoDB + ElastiCache" is one sentence and two services, and ElastiCache appears
+elsewhere under its fuller name), and the metric now counts ids instead. In-process stages and
+the client declare `on:[]` — an in-process stage ships inside the orchestrator, and the client
+is not yours to run.
+
+**The hop metric, finally defined** (§4.2, §2.7 #2, §3.9 #7). A hop is an enabled component
+with `component.hop`, minus the ones marked `origin`, with each concurrent band counted once:
+
+```
+hops = |{enabled, hop, not origin, not in a band}| + |{bands with a hopping member}|
+```
+
+`origin` is new and is on two records. `px-client` is where the request starts. `px-image` is a
+real round trip that happens *before* the search request exists and is not in its path. That
+gives **5 / 8 / 14**, which is what §4.2 predicted for Core and what §2.7 measured for Full, so
+Core's tagline now reads _"Two engines, one process, five hops."_
+
+**Facets came free.** `defPhysical` derives `record.handles` from the logical components a
+record realises, so the worked query's facet trace works on the physical view without a second
+hand-maintained list.
+
+**A runtime focus.** The legend's runtime chips are live, like the phase and gate legends:
+click one to see everything that runs there. `FOCUS.runtime` is four lines.
+
+**Where two things now render differently, and why**
+
+- The runtime chip stands **in the group chip's place**, not beside it. Four chips do not fit on
+  the narrowest card, and on a deployment diagram where a stage runs earns the space the family
+  name has at the logical level. The group is still in the phase legend and the drawer's tags.
+- A plane node that no component queries — the head of a write path — is placed by **what it
+  feeds**, walking `reversePlaneRelations` up from a store that is drawn. It says _Writes_ where
+  a store says _Serves_, and it is dashed and tinted with `--wire-train`.
+- Sources are placed once, on the first row that wants them. Four of the physical level's eight
+  plane nodes are read from more than one row — DynamoDB is read from three — while the logical
+  level has none, which is why the renderer did not need the rule until now. A row's sources are
+  now drawn from **every** cell rather than the centre spine, too: the cache is read by an aside
+  and the session store by a control-plane component, and neither would otherwise appear.
+
+**Validation.** `renderSections` throws on an unknown section, and the view checks `panel`,
+`sourcePanel` and `hover` **at construction** rather than the first time someone opens a
+drawer — the same deal every other reference in this file gets.
+
+### 4.8 Acceptance — met
+
+**The logical view is unchanged.** Raw markup length is *not* a stable oracle on its own, which
+cost some time to establish. Wire `d` attributes carry sub-pixel floats whose digit count moves
+a character or two between page instances, and a leftover `.selected` class costs nine — both
+noise, and both were mistaken for signal once during this phase. Rounding the coordinates does
+not fix it either: a value that lands on 123.4999 in one instance and 123.5001 in the next
+rounds to two different integers. The oracle that does hold separates the two questions:
+
+```js
+// Structure: every path, marker, dash, colour, aria-label and edge label,
+// with the geometry taken out of it entirely.
+shape += html.replace(/-?\d+(\.\d+)?/g, "N");
+// Geometry: the coordinates themselves, as a count and a sum.
+(html.match(/-?\d+(\.\d+)?/g) || []).forEach(n => nums.push(+n));
+```
+
+Measured back to back at 1280×900, over all six level × plane combinations:
+
+| Probe | Pre-Phase-2 build | This build |
+| --- | --- | --- |
+| wires + edge labels, structure only | `77229:57ca77b8` | `77229:57ca77b8` |
+| wire coordinates | 3196, summing to 1496796.22 | 3196, summing to 1496796.22 |
+| rows markup, 1280×900 | `143915:b9dd98fe` | `143915:b9dd98fe` |
+| rows markup, 375×812 (narrow layout) | `143933:c95f3a8a` | `143933:c95f3a8a` |
+
+Every wire is the same wire, in the same place, carrying the same label, with the same
+accessible name — and the rows markup, which has no geometry in it at all, is byte-identical at
+both widths.
+
+Zero console errors on load. Both models' validation summaries are unchanged from Phase 3:
+logical `{relationTypes:9, componentRelations:38, servingRelations:7, gatedStages:8}`, physical
+`{relationTypes:10, componentRelations:52, annotatedRelations:10, servingRelations:12,
+planeRelations:4, gatedStages:9}`, physical dependencies 1:{18 shown, 5 plane nodes, 7 plane
+edges}, 2:{51, 7, 10}, 3:{89, 8, 16} — matching `PHYSICAL_COUNTS` exactly.
+
+**The physical view renders.**
+
+| | Core | Recommended | Full |
+| --- | --- | --- | --- |
+| Components · rows | 11 · 9 | 26 · 15 | 38 · 20 |
+| Wires, planes off | 18 | 45 | 75 |
+| Plane cards — data only / both | 2 / 5 | 4 / 7 | 5 / 8 |
+| Wires with both planes | 25 | 55 | 91 |
+| Stage-group boundaries | 1 | 1 | 2 |
+| **Network hops** | **5** | **8** | **14** |
+| Deployment units | 6 | 15 | 17 |
+| GPU endpoints | 1 | 2 | 4 |
+| Operational burden | Lean · 32 | Moderate · 70 | Heavy · 108 |
+
+`layoutSweep("physical")` covers **nine reachable combinations** (three levels × the plane
+settings a reader can actually reach, the write path never being on alone), and reports **zero
+clipped sidebar labels** and no layer overlap beyond the pre-existing sticky-header measurement
+the logical sweep also reports.
+
+**The round trip works, driven as a reader would.** Physical `px-fuse` → _Realises_ → "Candidate
+union" lands on the Pipelines tab at Core with that drawer open; _Implemented by_ → "Union,
+prune and fuse" returns to the Physical tab at Core with the physical drawer open.
+
+**The narrow layout works without a second implementation.** At 375px the physical view renders
+its rerank-cascade marker, the recovery decision ("too few / zero → Recovery controller →
+returns recompiled predicate to Predicate compiler"), 17 transitions, 29 dependency chips and
+no wires.
+
+**Every new rule was tested by breaking it.** An unknown drawer section, an unknown hover block,
+an unknown service id and a missing `substrate.on` each throw at load, naming the offender:
+`Unknown drawer section in physical: crossVeiw`, `Unknown hover block in physical: gotchas`,
+`Unknown service on px-qdrant-search: qdrent`, `Record names no deployment units: px-orch`.
+
+### 4.9 Where the built shape departs from this plan, and what it means downstream
+
+| # | Planned | Built | Consequence |
+| --- | --- | --- | --- |
+| 1 | `PANEL_SECTIONS` is a module-level map of `render(component, model, slice)` (§4.3) | `DRAWER_SECTIONS` lives inside `createPipelineView`; renderers take `(record, id)` | §1.7 #1 again: a render function already has `model`, `slice`, `S`, `isOff` and `openDrawer` in scope, and threading them back in as parameters would undo Phase 1. It also lets `crossView`'s **title** come from `model.crossView.label`, which a module-level map could not do. |
+| 2 | Separate `realises` and `implementedBy` sections, and a separate `HOVER_RELATIONS` per model (§4.3, §4.4) | One `crossView` section and one `crossView` hover block, reading `model.crossView` | The two directions differ only in which model they point at and what the heading says. `HOVER_RELATIONS` needed no change at all — it was already inside the factory. |
+| 3 | Markup for the physical section is "a copy of the pipeline section with one changed id" (§1.7 #2) | `$("#view-phys").innerHTML = $("#view-pipe").innerHTML` at load, with every varying string moved to `model.sidebar` | Cheaper still, and the two sections cannot drift. The cost is that the sidebar's copy — panel titles, the legend paragraph, the components note — is now level vocabulary rather than markup, which is where it belonged. |
+| 4 | "Additive only; no existing rule changes" (§4.5) | One new rule that changes an existing one's effect: `.row:has(.cell.data .data-source-node) .cell.left` | A left aside borrows width from the canvas margin, and the data column *is* that margin. The physical retrieval row is the first row anywhere with both, and without this the late-interaction card sat on top of the indexer card. No logical row has both, which is why the pull was unconditional until now — and why the signature did not move. |
+| 5 | `.branch-table` for "per-branch tables inside `px-os-search` and `px-qdrant-search`" (§4.5) | No such table; `byLevel` renders on the **node** | `byLevel` carries `sub` and `chips`, which are node vocabulary — "2 clauses, 1 round trip" belongs on the card where the reader is counting round trips, not four sections down a drawer. |
+| 6 | "The uncovered concerns at Core are the argument for Recommended" (§4.2) | Twelve concerns, all covered at every level, each carrying **the number of components that own it** | Measured in Phase 3 and confirmed here: a concern is *raised* at Core because the components that own it are already there. The count is what moves, and it moves unevenly: Cost control 5 → 23 and Graceful degradation 4 → 13, while **Filter parity stays at 3 and Document identity at 5 at every level** — the two concerns the Core split creates and never stops paying for. That contrast is a better argument than the one this section planned to make. Whether a concern is *addressed* rather than owned is a different field and a different phase. |
+| 7 | `substrate.services[]` **or** a service-id registry (§2.7 #4) | Both — a 19-entry `SERVICE` registry, and `substrate.on` naming ids on all 46 records | A registry alone would still have needed a per-record list; a list alone would have kept the two ElastiCache spellings apart. The load-time check is what makes it stay true. |
+| 8 | `physical.panel` includes `"refs"` (§4.3) | It does not | No physical record carries a reference. A section spec is a claim about what the level shows, and that one would have been false. Phase 6 adds the field and the entry together. |
+
+Three notes for Phase 5:
+
+- **`revealComponent(modelId, id)` is the hook Phase 5 wants.** The stepper needs to open a
+  component at a level from outside the view; that function already does it, handles data
+  sources, and waits a frame for the view to be on screen before measuring anything.
+- **`model.trace` has no home yet.** The `.trace` row in the context bar is stamped into both
+  views by the markup copy, so the physical view already has the furniture — what it does not
+  have is a second row for the stepper, and adding one to the shared markup adds it to the
+  logical view too. Either the stepper is a level-declared block in the context bar, the way
+  the sidebar's metrics are, or the copy stops being verbatim.
+- **`px-expand` still contradicts itself** (carried from §3.9): `runtime:"inproc"` and therefore
+  `hop:false`, while its purpose text says it costs a second OpenSearch round trip. It is now
+  load-bearing — it is one of the fourteen. Correcting it to `runtime:"engine"` would make Full
+  15 and would not move Core or Recommended, since `px-expand` is Full-only. Phase 6's review
+  pass should settle it.
 
 ---
 

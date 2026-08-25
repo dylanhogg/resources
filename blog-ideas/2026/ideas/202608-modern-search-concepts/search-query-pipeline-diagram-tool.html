@@ -328,6 +328,16 @@ a{color:var(--accent)}
 .canvas.with-data-sources .cell.center{grid-column:4}
 .canvas.with-data-sources .cell.right{grid-column:5}
 .canvas.with-data-sources .cell:empty{display:none}
+/* A left aside and a data card reach for the same edge of the canvas: the
+   aside borrows width from the margin, and the data column is that margin.
+   On a row that has both — the retrieval row, once the physical level's
+   stores are shown — the aside gives up the borrowed width and sits in its
+   own track. No row at the logical level has both, which is why the pull was
+   unconditional until now. */
+.canvas.with-data-sources .row:has(.cell.data .data-source-node) .cell.left{transform:none}
+.canvas.with-data-sources .row:has(.cell.data .data-source-node) .cell.left > .node{
+  width:100%;min-width:0;max-width:100%
+}
 
 /* ---------- node ---------- */
 .node{
@@ -575,6 +585,9 @@ table.mini .met{color:var(--accent)}
 .dial{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
 .dial .dn{color:var(--text);font-weight:500}
 .dial .dv{font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap}
+/* A budget or a substrate is a sentence, not a setting; it needs to wrap. */
+.dial.wide{align-items:flex-start}
+.dial.wide .dv{font-family:inherit;font-size:12px;color:var(--text-2);white-space:normal;text-align:right}
 .dial .dnote{font-size:11px;color:var(--text-3);flex-basis:100%;margin-top:2px}
 .notes{list-style:none;margin:0;padding:0}
 .notes .note{
@@ -666,6 +679,44 @@ table.mini .met{color:var(--accent)}
   background:var(--warn-bg);padding:12px 14px;font-size:12px;color:var(--text-2);line-height:1.55
 }
 .about-note b{color:var(--text)}
+
+/* ---------- the physical level ----------
+   Additive: every rule below is either a new class or a modifier on one, so
+   the logical view renders through exactly the cascade it did before. */
+.plane-toggles{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+/* Where a stage runs matters more on a deployment diagram than which family
+   it belongs to, so this chip stands in the group chip's place. */
+.node .rtchip{
+  font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:1px 6px;border-radius:20px;border:1px solid var(--rt-color,var(--text-3));
+  color:var(--rt-color,var(--text-3));opacity:.9
+}
+.node .lvlchip{
+  font-size:9px;font-weight:650;letter-spacing:.03em;
+  padding:1px 6px;border-radius:20px;border:1px dashed var(--border-strong);color:var(--text-3)
+}
+/* The write path is not the data plane. Same card, deliberately unlike enough
+   that a reader does not take an ordering authority for another store. */
+.data-source-node.write-path{--source-line:var(--wire-train);border-style:dashed}
+.data-source-node.write-path .source-serves{color:var(--wire-train)}
+.legendrow i.data-key.write-path{border-color:var(--wire-train);border-style:dashed;background:transparent}
+.cap .capn{font-variant-numeric:tabular-nums;opacity:.7;margin-left:4px}
+.hovercard .hc-rt{color:var(--rt-color,var(--text-2));border-color:var(--rt-color,var(--border))}
+/* A departure from the logical level is the one section a reader should not
+   skim, so it is the one section with a rail. */
+.sect.warn > h4{color:var(--warn);border-bottom-color:var(--warn)}
+.sect.warn > .departure{
+  margin:0;font-size:12px;line-height:1.55;color:var(--text-2);
+  border-left:3px solid var(--warn);background:var(--warn-bg);
+  padding:9px 11px;border-radius:0 7px 7px 0
+}
+/* The highest-value paragraph on most physical cards: what bites, why, and
+   what to do instead. The fix carries its own rail so it cannot be missed. */
+.gotcha{border:1px solid var(--border);border-radius:9px;padding:10px 11px;margin-bottom:9px;background:var(--surface-2)}
+.gotcha .g{font-size:12.5px;font-weight:650;color:var(--warn);line-height:1.4}
+.gotcha .why{margin:6px 0 0;font-size:12px;line-height:1.5;color:var(--text-2)}
+.gotcha .fix{margin:7px 0 0;font-size:12px;line-height:1.5;color:var(--text);border-left:2px solid var(--ok);padding-left:8px}
+.gotcha .fix b{color:var(--ok);font-weight:650}
 
 @media (max-width:1180px){
   .app{grid-template-columns:1fr}
@@ -787,10 +838,11 @@ table.mini .met{color:var(--accent)}
 <header class="hdr">
   <div class="brand">
     <h1>Query Search Pipeline Explorer</h1>
-    <span class="sub">Progressive pipeline levels &middot; optional serving-data layer &middot; hybrid text &amp; image retrieval &middot; logical architecture, not frameworks</span>
+    <span class="sub" id="headerSub"></span>
   </div>
   <div class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-pipe" aria-controls="view-pipe" aria-selected="true" data-view="pipe">Pipelines</button>
+    <button role="tab" id="tab-phys" aria-controls="view-phys" aria-selected="false" data-view="phys">Physical architecture</button>
     <button role="tab" id="tab-build" aria-controls="view-build" aria-selected="false" data-view="build">Build order</button>
     <button role="tab" id="tab-about" aria-controls="view-about" aria-selected="false" data-view="about">About</button>
   </div>
@@ -803,13 +855,11 @@ table.mini .met{color:var(--accent)}
   <div class="ctxbar">
     <div class="ctx-row">
       <div class="seg" role="group" aria-label="Pipeline level">
-        <button data-tpl="1" aria-pressed="true"><span class="n">1</span>Core</button>
-        <button data-tpl="2" aria-pressed="false"><span class="n">2</span>Core + recommended</button>
-        <button data-tpl="3" aria-pressed="false"><span class="n">3</span>Full surface</button>
+        <button data-tpl="1" aria-pressed="true"></button>
+        <button data-tpl="2" aria-pressed="false"></button>
+        <button data-tpl="3" aria-pressed="false"></button>
       </div>
-      <button class="dep-toggle" data-el="servingToggle" aria-pressed="false" aria-label="Show data sources">
-        <span>Show data sources</span><span class="dep-sw" aria-hidden="true"></span>
-      </button>
+      <div class="plane-toggles" data-el="planeToggles"></div>
       <span class="pill new" data-el="diffPill" hidden></span>
     </div>
     <div class="trace">
@@ -828,28 +878,18 @@ table.mini .met{color:var(--accent)}
         <div class="reflist" data-el="focusList"></div>
       </div>
       <div class="panel">
-        <h3>Pipeline shape <span class="pill" data-el="stageCount"></span></h3>
+        <h3><span data-el="shapeTitle"></span> <span class="pill" data-el="stageCount"></span></h3>
         <div class="metric">
-          <div class="top"><span class="name">Stages by phase</span></div>
+          <div class="top"><span class="name" data-el="phaseName"></span></div>
           <div class="legendrow" data-el="phaseLegend"></div>
         </div>
-        <div class="metric">
-          <div class="top"><span class="name">Build &amp; run complexity</span><span class="val" data-el="cxVal"></span></div>
-          <div class="bar"><i class="cx" data-el="cxBar"></i></div>
-          <div class="note" data-el="cxNote"></div>
-        </div>
-        <div class="metric">
-          <div class="top"><span class="name">Models in the request path</span><span class="val" data-el="mdlVal"></span></div>
-          <div class="note" data-el="mdlNote"></div>
-        </div>
+        <div data-el="metrics"></div>
       </div>
 
       <div class="panel">
-        <h3>Capability coverage</h3>
+        <h3 data-el="capsTitle"></h3>
         <div class="caps" data-el="caps"></div>
-        <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
-          Click any capability to see which components provide it.
-        </p>
+        <p class="note" data-el="capsNote" style="font-size:11px;color:var(--text-3);margin-top:8px"></p>
       </div>
 
       <div class="panel">
@@ -860,31 +900,22 @@ table.mini .met{color:var(--accent)}
           <span><i style="background:var(--rec-bg);border:1px solid var(--rec-line)"></i>recommended</span>
           <span><i style="background:var(--opt-bg);border:1px solid var(--opt-line)"></i>full</span>
           <span><i style="background:var(--ctrl-bg);border:1px dashed var(--ctrl-line)"></i>control plane</span>
-          <span><i class="data-key"></i>data plane</span>
         </div>
+        <div class="legendrow" data-el="planeKeys" style="gap:7px 12px"></div>
+        <div class="legend-label" data-el="runtimeLabel" hidden>Where it runs</div>
+        <div class="legendrow" data-el="runtimeLegend" hidden></div>
         <div class="legend-label" data-el="gateLegendLabel">Gate conditions</div>
         <div class="gate-legend" data-el="gateLegend"></div>
         <div class="legend-label">Relationships</div>
         <div class="legendrow relation-legend" data-el="relationLegend"></div>
-        <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
-          Flow moves requests or candidates. A gated stage runs only when its condition holds:
-          Retrieval routing owns every request gate, while a deployment gate is a standing
-          configuration choice with no runtime owner.
-          Branches select a decision outcome; returns retry an earlier stage.
-          Control-plane components steer without transforming candidates. Feeds carry data beside the spine — query
-          variants forward, impression telemetry back; trains is offline.
-          Updates change durable profile state without implying model training.
-          Serving sources are logical indexes or stores, not prescribed products or deployments.
-        </p>
+        <p class="note" data-el="legendNote" style="font-size:11px;color:var(--text-3);margin-top:8px"></p>
       </div>
 
       <div class="panel complist">
         <h3>Components <span class="pill" data-el="offCount" hidden></span></h3>
         <div data-el="compList"></div>
         <button class="btn-ghost" data-el="resetBtn" style="margin-top:12px">Reset level defaults</button>
-        <p class="note" style="font-size:11px;color:var(--text-3);margin-top:8px">
-          Switch components off to compose a variant and watch the shape change. Core components are locked.
-        </p>
+        <p class="note" data-el="compNote" style="font-size:11px;color:var(--text-3);margin-top:8px"></p>
       </div>
     </aside>
 
@@ -896,6 +927,12 @@ table.mini .met{color:var(--accent)}
     </main>
   </div>
 </section>
+
+<!-- ================= PHYSICAL VIEW =================
+     Deliberately empty. Both levels render into the same furniture, so this
+     section is filled with a copy of the pipeline view's markup at load: one
+     copy to maintain, and no way for the two to drift apart. -->
+<section class="view" id="view-phys" role="tabpanel" aria-labelledby="tab-phys"></section>
 
 <!-- ================= BUILD ORDER VIEW ================= -->
 <section class="view" id="view-build" role="tabpanel" aria-labelledby="tab-build">
@@ -1116,6 +1153,23 @@ const Model = {
   }
 };
 
+/* The sidebar's shape panel is a list of metrics, and a metric is a name and a
+   reading over the components a composition has switched on. Only the reading
+   knows what it counts, so a level adds a metric by declaring one rather than
+   by editing the panel. A reading is {value, note, fill}; `fill` is a 0..1 bar
+   and a metric without one is a number and a sentence. */
+const sumField = (records,field)=> records.reduce((total,record)=>total+(record[field]||0),0);
+const bandFor  = (bands,value)=> (bands.find(([limit])=>value<=limit) || bands[bands.length-1])[1];
+
+/* The one reading both levels want, under two names. `cx` is build-and-run
+   complexity at the logical level and operational burden at the physical one:
+   the same sum over different meanings, which is exactly why each level
+   brings its own bands rather than sharing a scale. */
+const cxMetric = (name,note)=> Object.freeze({name, note, read:(enabled,model)=>{
+  const cx = sumField(enabled,"cx");
+  return {value:bandFor(model.cxBands,cx)+" \u00b7 "+cx, fill:cx/model.maxCx};
+}});
+
 /* True of any endpoint that belongs to a plane rather than to the request
    path. Switching a plane on may add these edges and must add nothing else —
    the invariant that keeps the baseline fixture from doubling per plane. */
@@ -1140,7 +1194,8 @@ function validateModel(model){
    reaches a renderer half-built. Validation runs here for the same reason:
    a level that cannot pass its own rules must not become reachable. */
 function defModel(spec){
-  const model = Object.assign({planes:[], planeRelations:{}, steps:null}, spec);
+  const model = Object.assign({planes:[], planeRelations:{}, steps:null,
+                               runtimes:null, crossView:null}, spec);
 
   model.gateConditions = gateConditionsFor(model.gateOwner);
   model.gateCondition = Object.freeze(Object.fromEntries(
@@ -3395,10 +3450,50 @@ const LOGICAL_INVARIANTS = [
   }
 ];
 
+/* What the sidebar reads out about this level. Two metrics beyond the phase
+   legend: how much there is to build, and how much of it has to be learned. */
+const LOGICAL_METRICS = [
+  cxMetric("Build & run complexity",
+    "Relative index over enabled components \u2014 for comparing variants, not an estimate of effort."),
+  {name:"Models in the request path", read:enabled=>{
+    /* Two retrieval legs may share one dual tower; the reader wants the number
+       of models to train and serve, not the number of stages that call one. */
+    const names = new Map();
+    enabled.filter(record=>record.model).forEach(record=>{
+      const key = record.modelKey || record.id;
+      if(!names.has(key)) names.set(key, record.modelLabel || record.name);
+    });
+    return {value:names.size, note:names.size
+      ? [...names.values()].join(", ")+"."
+      : "No learned models in the request path."};
+  }}
+];
+
+const LOGICAL_SIDEBAR = {
+  shape:"Pipeline shape",
+  phases:"Stages by phase",
+  metrics:LOGICAL_METRICS,
+  cxChip:"Complexity",
+  caps:{title:"Capability coverage",
+        note:"Click any capability to see which components provide it."},
+  legendNote:
+    "Flow moves requests or candidates. A gated stage runs only when its condition holds: "+
+    "Retrieval routing owns every request gate, while a deployment gate is a standing "+
+    "configuration choice with no runtime owner. "+
+    "Branches select a decision outcome; returns retry an earlier stage. "+
+    "Control-plane components steer without transforming candidates. Feeds carry data beside the spine \u2014 query "+
+    "variants forward, impression telemetry back; trains is offline. "+
+    "Updates change durable profile state without implying model training. "+
+    "Serving sources are logical indexes or stores, not prescribed products or deployments.",
+  components:"Switch components off to compose a variant and watch the shape change. Core components are locked."
+};
+
 const LOGICAL = defModel({
   id:"logical",
   abstraction:"logical",
   label:"Logical pipeline",
+  subtitle:"Progressive pipeline levels \u00b7 optional serving-data layer \u00b7 hybrid text & image retrieval \u00b7 logical architecture, not frameworks",
+  sourceLabel:"logical dependency",
 
   components:S,            templates:TPL,
   relations:REL,           relationDetails:RELATION_DETAILS,
@@ -3416,8 +3511,18 @@ const LOGICAL = defModel({
                   {members:GATED_RERANKERS, label:"gated rerankers", min:2}],
 
   /* Optional overlays the reader can switch on. A plane marked `serves` is what
-     admits the serving edges into the dependency set. */
-  planes:[{id:"serving", label:"Show data sources", serves:true, defaultOn:false}],
+     admits the serving edges into the dependency set; `key` is what the legend
+     calls the nodes it reveals. */
+  planes:[{id:"serving", label:"Show data sources", key:"data plane", serves:true, defaultOn:false}],
+
+  sidebar:LOGICAL_SIDEBAR,
+  cxBands:[[18,"Lean"],[32,"Moderate"],[50,"Substantial"],[Infinity,"Heavy"]],
+
+  /* The drawer, in order. A section renders only where the field is there. */
+  panel:["decisions","contract","dials","notes","failures","example","refs",
+         "relations","serving","crossView","appears"],
+  sourcePanel:["servingContract","implementation","notes","serves","appearsWith"],
+  hover:["pills","gate","conditional","purpose","example","relations","notes"],
 
   baseline:DEPENDENCY_BASELINE,
   expectedCounts:{planeNodes:{1:3,2:4,3:6}, planeEdges:{1:3,2:4,3:7}},
@@ -3469,6 +3574,23 @@ const RUNTIME = Object.freeze({
   control:   Object.freeze({label:"Control plane",       hop:false, chip:"config",     color:"var(--rt-ctrl)"})
 });
 
+/* One canonical name per thing you actually deploy. `substrate.service` is
+   prose meant to be read on a card: "Amazon DynamoDB + ElastiCache" is one
+   sentence and two services, and ElastiCache appears elsewhere under its
+   fuller name. Counting distinct deployment units means counting these ids,
+   never that string. A record declaring none deploys nothing of its own — an
+   in-process stage ships inside the orchestrator, and the client is not yours
+   to run at all. */
+const SERVICE = Object.freeze({
+  cloudfront:"Amazon CloudFront", waf:"AWS WAF", alb:"Application Load Balancer",
+  fargate:"Amazon ECS on Fargate", bedrock:"Amazon Bedrock", sagemaker:"Amazon SageMaker",
+  opensearch:"Amazon OpenSearch Service", qdrant:"Qdrant Cloud Hybrid (BYOC)",
+  dynamodb:"Amazon DynamoDB", elasticache:"Amazon ElastiCache (Valkey)", s3:"Amazon S3",
+  firehose:"Amazon Kinesis Data Firehose", kinesis:"Amazon Kinesis Data Streams",
+  aurora:"Amazon Aurora", appconfig:"AWS AppConfig", adot:"AWS Distro for OpenTelemetry",
+  glue:"AWS Glue", athena:"Amazon Athena", stepfunctions:"AWS Step Functions"
+});
+
 /* This level's taxonomy, standing where the logical level puts CAPS. Every
    one of these is something the logical view is right not to model and this
    one would be wrong to omit: they are properties of a deployment, not of a
@@ -3507,10 +3629,14 @@ const PXD = {};   /* the data and consistency planes */
    components (realises:[]) owe the strongest one: why the logical view was
    right to leave them out. */
 function defPhysical(registry, record){
-  const {id, runtime, realises=[], departure, caps=[], ridesCall} = record;
+  const {id, runtime, realises=[], departure, caps=[], ridesCall, substrate} = record;
 
   if(registry[id]) throw new Error("Duplicate physical id: "+id);
   if(!RUNTIME[runtime]) throw new Error("Unknown runtime on "+id+": "+runtime);
+  if(!substrate || !substrate.on) throw new Error("Record names no deployment units: "+id);
+  substrate.on.forEach(key=>{
+    if(!SERVICE[key]) throw new Error("Unknown service on "+id+": "+key);
+  });
 
   caps.forEach(cap=>{
     if(!CONCERN_IDS.has(cap)) throw new Error("Undeclared concern on "+id+": "+cap);
@@ -3528,6 +3654,11 @@ function defPhysical(registry, record){
   }
 
   record.realises = realises;
+  /* The facets this component carries are the facets of the logical work it
+     realises. Derived, because a second hand-maintained list would drift from
+     the first one the day someone changed a single record. */
+  record.handles = [...new Set(realises.flatMap(logicalId=>
+    LOGICAL.components[logicalId]?.handles || []))];
   /* The count the view leads with, resolved once here rather than at every
      site that wants it: a component is a round trip unless it runs inside
      someone else's. */
@@ -3547,10 +3678,13 @@ const defStore = record=> defPhysical(PXD, record);
 /* ---------- band 1 · edge and entry ---------- */
 defPhys({
   id:"px-client", name:"Search client", group:"Edge", tier:"core", io:true, intro:1,
+  /* The request starts here. Every other hop is one the system makes; this one
+     is the reader's own, which is why the hop metric leaves it out. */
+  origin:true,
   runtime:"edge", cx:1, sub:"web / mobile app",
   realises:[], departure:"The logical view starts at the query string because the client is not part of the search algorithm. Physically it is the first thing that can get the request wrong: it owns the retry, the abandonment, and the decision to send a keystroke rather than a query.",
   purpose:"Issues the search request and renders the response. It is also where a request is abandoned, retried and debounced — three behaviours that change the load the rest of this diagram sees.",
-  substrate:{service:"Client application", unit:"web / mobile app",
+  substrate:{on:[], service:"Client application", unit:"web / mobile app",
     sizing:["one request per settled query","abandoned requests cancelled, not ignored"]},
   contract:{in:"user input", out:"POST /search { query, ui_filters, image_ref?, session_id?, page_token? }"},
   dials:[{n:"Debounce",v:"settle before sending",note:"Autocomplete and search are different endpoints with different budgets. Sending a search per keystroke is the cheapest way to multiply your bill by ten."},
@@ -3566,10 +3700,13 @@ defPhys({
 
 defPhys({
   id:"px-image", name:"Image upload", group:"Edge", tier:"optional", io:true, intro:3,
+  /* A real round trip, and not one in the request path: it happens before the
+     search request exists, and the search request carries only its result. */
+  origin:true,
   runtime:"edge", cx:2, sub:"presigned S3 PUT, then a reference",
   realises:["q-image"], departure:"The browser does not post image bytes through the search API. The upload is a separate, earlier round trip to S3 and the search request carries only a reference. Logically an image query is one input; physically it is two requests with an object store between them.",
   purpose:"Accepts a user-supplied image out of band and hands the search request a reference to it, so the search path never carries megabytes.",
-  substrate:{service:"Amazon S3", unit:"presigned PUT + lifecycle rule",
+  substrate:{on:["s3"], service:"Amazon S3", unit:"presigned PUT + lifecycle rule",
     sizing:["short-lived prefix","lifecycle expiry in hours","content-type and size enforced in the presign"]},
   decisions:[{
     q:"How does the image reach the pipeline?",
@@ -3597,7 +3734,7 @@ defPhys({
   runtime:"edge", cx:2, sub:"TLS termination · no search caching",
   realises:[], departure:"A CDN in front of a search API is pure transport, which is why the logical view has nothing to say about it. It is here because the temptation to cache search responses at the edge is strong and wrong, and this node is where that gets stated.",
   purpose:"Terminates TLS close to the user and shortens the connection path. It caches static assets and autocomplete, and deliberately caches nothing that this pipeline produces.",
-  substrate:{service:"Amazon CloudFront", unit:"distribution",
+  substrate:{on:["cloudfront"], service:"Amazon CloudFront", unit:"distribution",
     sizing:["origin: ALB","HTTP/2 or HTTP/3 to the client","search path: no-store"]},
   decisions:[{
     q:"Is the search response cacheable at the edge?",
@@ -3623,7 +3760,7 @@ defPhys({
   runtime:"edge", cx:2, sub:"rate rules, bot control, request shape", ridesCall:"px-edge",
   realises:[], departure:"Abuse control is not a retrieval concern, so the logical view is right to omit it. Physically a search endpoint is the most expensive unauthenticated surface you own — one query can cost two engine scans and a GPU batch — and it is where an attacker will point first.",
   purpose:"Rate-limits and shape-checks search traffic before it reaches anything expensive. The search endpoint amplifies: a cheap request buys a costly amount of downstream work.",
-  substrate:{service:"AWS WAF", unit:"web ACL on the distribution",
+  substrate:{on:["waf"], service:"AWS WAF", unit:"web ACL on the distribution",
     sizing:["rate rule per IP and per session","body size limit","managed bot rules"]},
   contract:{in:"HTTP request", out:"forwarded, challenged or blocked"},
   dials:[{n:"Rate limit",v:"per IP and per authenticated subject"},
@@ -3644,7 +3781,7 @@ defPhys({
   runtime:"edge", cx:2, sub:"TLS, OIDC, health, spread",
   realises:[], departure:"Authentication is invisible in the logical view because relevance does not depend on it. Physically it is load-bearing for correctness, not just security: the authenticated subject becomes a non-relaxable predicate that both engines must enforce identically.",
   purpose:"Terminates the request, establishes who is asking, and spreads across availability zones. The identity it produces becomes an authorization predicate that px-predicate compiles alongside the user's own constraints.",
-  substrate:{service:"Application Load Balancer", unit:"ALB with an OIDC / Cognito authenticate action",
+  substrate:{on:["alb"], service:"Application Load Balancer", unit:"ALB with an OIDC / Cognito authenticate action",
     sizing:["at least two availability zones","target group health checks on a real query","idle timeout above the request deadline"]},
   contract:{in:"HTTPS", out:"request + verified subject and entitlement claims"},
   dials:[{n:"Idle timeout",v:"above the orchestrator's own deadline",note:"A load-balancer idle timeout below the server deadline turns a slow-but-successful request into a 504 with no server-side trace."},
@@ -3665,7 +3802,7 @@ defPhys({
   runtime:"service", cx:3, sub:"the process every in-process stage runs inside",
   realises:[], departure:"The logical view has no orchestrator because it has no processes — it is a description of stages, not of where they run. Physically almost every logical stage is a function call inside this one task, and saying so is the single most useful thing this view does: the diagram's box count is not the system's service count.",
   purpose:"Owns the request. Every component drawn with an in-process runtime is a function call inside this task; every other component is a network call it makes. It also owns the deadline, the cancellation and the trace.",
-  substrate:{service:"Amazon ECS on Fargate", unit:"service, rolling deployment",
+  substrate:{on:["fargate"], service:"Amazon ECS on Fargate", unit:"service, rolling deployment",
     sizing:["≥ 2 tasks across ≥ 2 AZs","CPU-bound: size on concurrent requests, not on memory","one connection pool per downstream engine"]},
   decisions:[{
     q:"What runs the orchestrator?",
@@ -3718,7 +3855,7 @@ defPhys({
   realises:["normalise","understand"],
   departure:"Two logical stages, one physical component. Both are pure CPU over the same string in the same process, so splitting them would cost a hop and buy nothing. Normalisation stays a distinct step inside it because it is the cache key: everything cached downstream is keyed on its output, so its determinism is a system property rather than an implementation detail.",
   purpose:"Turns the raw string into a normalised query plus an intent class and a set of extracted constraints with confidences. Runs entirely inside the orchestrator on the logical default of rules plus a small classifier.",
-  substrate:{service:"In-process", unit:"rules + ONNX Runtime classifier",
+  substrate:{on:[], service:"In-process", unit:"rules + ONNX Runtime classifier",
     sizing:["model loaded at task start","single-threaded per request","versioned with the deployment"]},
   decisions:[{
     q:"Rules and a small model, or an LLM?",
@@ -3762,7 +3899,7 @@ defPhys({
   realises:["understand"],
   departure:"One logical stage, two physical components. The logical default is rules plus a classifier; the LLM tier is a different substrate with a different failure mode, a different cache requirement and a different bill, so drawing it as the same node would hide the only decision that matters here. It also breaks deterministic replay, which is the real reason it is Full-only — not the cost.",
   purpose:"Handles the queries the rules miss: unusual phrasing, implicit constraints, multi-clause intent. Gated on the classifier's own uncertainty, cached hard, and never the only path.",
-  substrate:{service:"Amazon Bedrock", unit:"on-demand model invocation",
+  substrate:{on:["bedrock"], service:"Amazon Bedrock", unit:"on-demand model invocation",
     sizing:["strict output schema","short max tokens","cache before the call, always"]},
   decisions:[{
     q:"When is the LLM invoked?",
@@ -3810,7 +3947,7 @@ defPhys({
   runtime:"inproc", cx:2, sub:"full text lexically · stripped to the vector legs",
   realises:["rewrite"],
   purpose:"Produces the per-leg query strings. The lexical leg gets the full text; the vector legs get the text with hard constraints stripped, because a number in a sentence is noise to an encoder and a filter to an index.",
-  substrate:{service:"In-process", unit:"dictionary + rules",
+  substrate:{on:[], service:"In-process", unit:"dictionary + rules",
     sizing:["synonym and abbreviation tables versioned with the deployment"]},
   contract:{in:"normalised query + extracted constraints",
     out:"{ lexical_text, vector_text, expansion_terms? }"},
@@ -3834,7 +3971,7 @@ defPhys({
   runtime:"inproc", cx:3, sub:"pseudo-relevance feedback into the sparse legs",
   realises:["expand"],
   purpose:"Adds terms drawn from the top of a first lexical pass and re-queries. Off by default and route-gated, because it costs a second OpenSearch round trip on every request where it fires.",
-  substrate:{service:"In-process", unit:"PRF over the first lexical result set",
+  substrate:{on:[], service:"In-process", unit:"PRF over the first lexical result set",
     sizing:["bounded term count","only the lexical and sparse legs"]},
   decisions:[{
     q:"Where does expansion get its terms?",
@@ -3866,7 +4003,7 @@ defPhys({
   runtime:"store", cx:3, sub:"read on refinement only",
   realises:["session"],
   purpose:"Supplies the previous query's constraints when the classifier judges this query a refinement. Read from DynamoDB behind a cache, and only on the requests that need it.",
-  substrate:{service:"Amazon DynamoDB + ElastiCache", unit:"session item, short TTL",
+  substrate:{on:["dynamodb","elasticache"], service:"Amazon DynamoDB + ElastiCache", unit:"session item, short TTL",
     sizing:["partition on session id","TTL attribute set on write","cache-aside on read"]},
   decisions:[{
     q:"Is session context read on every request?",
@@ -3899,7 +4036,7 @@ defPhys({
   realises:["prefilter","confidence"],
   departure:"Two logical stages, one physical component, and one of them stops being a stage at all: confidence is a field on each predicate node rather than a pass over the query. What replaces them is a compiler with two back ends — an OpenSearch bool.filter and a Qdrant Filter — and the requirement that they mean exactly the same thing. That requirement is the tab's central subject and it does not exist in the logical view at all.",
   purpose:"Compiles the extracted constraints, the UI filters and the authorization predicate into one AST, then emits it in both engine dialects. Every candidate set in this diagram is filtered by one of its two outputs.",
-  substrate:{service:"In-process", unit:"AST + two emitters",
+  substrate:{on:[], service:"In-process", unit:"AST + two emitters",
     sizing:["golden files per emitter","allow-listed field names","non-relaxable flag per node"]},
   decisions:[{
     q:"How is one predicate applied to two engines?",
@@ -3946,7 +4083,7 @@ defPhys({
   runtime:"inproc", cx:3, sub:"static rules from AppConfig",
   realises:["routing"],
   purpose:"Decides which legs run, which encoders are needed and which rerank passes are eligible, from static rules on the intent class. A config object, not a model.",
-  substrate:{service:"In-process", unit:"rules loaded from AWS AppConfig",
+  substrate:{on:[], service:"In-process", unit:"rules loaded from AWS AppConfig",
     sizing:["rules cached in the task, refreshed on a poll","rollback is a config push"]},
   decisions:[{
     q:"Rules or a learned router?",
@@ -3981,7 +4118,7 @@ defPhys({
   runtime:"store", cx:2, sub:"keyed on stripped text + encoder version",
   realises:[], departure:"The logical view assumes a query vector exists — producing it is not a retrieval decision. Physically it is a GPU round trip, and this cache is what removes it. That makes the cache a component rather than an implementation detail: on a hit, the request has one fewer hop, and the shape of the request changes.",
   purpose:"Serves query embeddings that have been computed before. A hit removes an entire GPU hop from the request, which is why it is drawn rather than assumed.",
-  substrate:{service:"Amazon ElastiCache (Valkey)", unit:"cluster, cache-aside",
+  substrate:{on:["elasticache"], service:"Amazon ElastiCache (Valkey)", unit:"cluster, cache-aside",
     sizing:["key: encoder id + version + stripped text","values are small; entry count is the sizing axis","TTL long — embeddings do not go stale, encoders do"]},
   decisions:[{
     q:"What is the cache key?",
@@ -4020,7 +4157,7 @@ defPhys({
   realises:["textvec"],
   departure:"The logical dense retrieval leg assumes its query vector. Physically that vector costs a network call to a GPU endpoint, with its own deadline, its own cold start and its own version coupling to the index. Splitting it out is what makes the cache above it visible, and the cache is worth more than the node.",
   purpose:"Encodes the constraint-stripped query text into the dense space the Qdrant collection was built in. Every dense leg waits on this, so it sits on the critical path in a way no logical diagram shows.",
-  substrate:{service:"Amazon SageMaker", unit:"real-time endpoint, Triton dynamic batching",
+  substrate:{on:["sagemaker"], service:"Amazon SageMaker", unit:"real-time endpoint, Triton dynamic batching",
     sizing:["provisioned minimum capacity — do not scale to zero","version pinned to the collection","one model, one endpoint"]},
   decisions:[{
     q:"Where does query encoding run?",
@@ -4068,7 +4205,7 @@ defPhys({
   realises:["imageimagevec"],
   departure:"The logical image-to-image leg assumes an encoded image. Physically that means fetching the uploaded object and running the image tower — a second GPU endpoint with a different instance profile from the text one, gated on an input that most requests do not have.",
   purpose:"Encodes a user-supplied image with the same dual-tower model that produced the collection's image vectors, so the query and the corpus share one space.",
-  substrate:{service:"Amazon SageMaker", unit:"real-time endpoint, CLIP/SigLIP image tower",
+  substrate:{on:["sagemaker"], service:"Amazon SageMaker", unit:"real-time endpoint, CLIP/SigLIP image tower",
     sizing:["gated: most requests never touch it","tower version pinned to the collection's image vectors"]},
   contract:{in:"image reference", out:"image-tower vector"},
   dials:[{n:"Gate",v:"an image is present in the request"},
@@ -4100,7 +4237,7 @@ defPhys({
   realises:["sparse"],
   departure:"The logical learned-sparse leg is one retrieval stage. Physically the query side of it is an encoder — producing weighted terms — and the retrieval side rides the same OpenSearch request as BM25. So one logical leg splits across an encoder and an engine that is already being called, which is the whole reason sparse is cheap here.",
   purpose:"Expands the query into weighted vocabulary terms that the OpenSearch sparse clause scores. The expansion happens in the model, inside one round trip, rather than in a feedback loop with a second one.",
-  substrate:{service:"Amazon SageMaker", unit:"SPLADE-style encoder",
+  substrate:{on:["sagemaker"], service:"Amazon SageMaker", unit:"SPLADE-style encoder",
     sizing:["bounded expansion term count","vocabulary version pinned to the index"]},
   decisions:[{
     q:"Where does the sparse encoder run?",
@@ -4135,7 +4272,7 @@ defPhys({
   realises:["lexical","sparse"],
   departure:"Two logical retrieval legs become one network call. BM25 and the learned-sparse clause are both postings lookups over the same inverted structure, so they share one request, one filter and one round trip. The legs stay two distinct queries with two distinct rank lists — they simply stop being two round trips, which is the largest single latency saving in the design and the reason sparse lives on this engine.",
   purpose:"Runs everything sparse. Exact and rare terms via BM25 with per-field weighting, learned-sparse expansion in the same request, both scoped by the compiled hard predicate in filter context.",
-  substrate:{service:"Amazon OpenSearch Service", unit:"managed domain",
+  substrate:{on:["opensearch"], service:"Amazon OpenSearch Service", unit:"managed domain",
     sizing:["3 data nodes minimum, dedicated masters","20–40 GB per shard, shard count fixed at creation","2 replicas","private subnets, no public endpoint"]},
   byLevel:{
     1:{sub:"BM25, field-weighted", chips:["1 clause"]},
@@ -4210,7 +4347,7 @@ defPhys({
   realises:["textvec","textimagevec","imageimagevec","multivec"],
   departure:"Four logical retrieval legs become one network call. Qdrant's Query API takes several prefetch branches in one request, each over a different named vector on the same points, sharing one payload filter. The legs are still four distinct queries — they just stop being four round trips. The panel's branch list keeps them visible.",
   purpose:"Runs everything dense. Text-to-text, text-to-image, image-to-image and late-interaction branches over named vectors on the same points, all scoped by the same compiled payload filter.",
-  substrate:{service:"Qdrant Cloud Hybrid (BYOC)", unit:"collection",
+  substrate:{on:["qdrant"], service:"Qdrant Cloud Hybrid (BYOC)", unit:"collection",
     sizing:["shards ≈ 2× nodes","replication factor 2","gRPC, not REST","data plane stays in the customer VPC"]},
   byLevel:{
     1:{sub:"one branch · text_dense", chips:["1 prefetch branch"]},
@@ -4286,7 +4423,7 @@ defPhys({
   runtime:"inproc", cx:4, sub:"budget, hedging, breakers, drop order",
   realises:["degradation"],
   purpose:"Owns what happens when the budget runs out. Holds the per-band allocation, decides what to drop and in what order, and opens the breakers that keep a failing dependency from becoming a failing request.",
-  substrate:{service:"In-process", unit:"budget object + circuit breakers",
+  substrate:{on:[], service:"In-process", unit:"budget object + circuit breakers",
     sizing:["drop order in AppConfig, so it can be changed and tested without a deploy"]},
   decisions:[{
     q:"What is dropped first when the budget runs short?",
@@ -4337,7 +4474,7 @@ defPhys({
   runtime:"inproc", cx:2, sub:"per-leg floors, after union and before pruning",
   realises:["sufficiency"],
   purpose:"Decides whether the candidate set is worth ranking. Applies calibrated per-leg floors to the unioned set and routes to recovery when it is not.",
-  substrate:{service:"In-process", unit:"floors loaded from AppConfig",
+  substrate:{on:[], service:"In-process", unit:"floors loaded from AppConfig",
     sizing:["one floor per leg, tuned separately"]},
   contract:{in:"unioned candidates with per-leg ranks", out:"sufficient, or a recovery trigger with a reason"},
   dials:[{n:"Per-leg floors",v:"calibrated separately; the legs return different volumes by nature"},
@@ -4357,7 +4494,7 @@ defPhys({
   realises:["relax","zerofallback"],
   departure:"Two logical stages, one physical controller — they are two branches of the same bounded loop with one pass counter. The loop's target also moves: logically relaxation returns to pre-filtering, but physically it must return to the predicate compiler, because a relaxed constraint has to be recompiled into both engine dialects before either can be re-queried.",
   purpose:"Escapes a zero or thin result set by loosening the softest constraints and re-querying, at most twice, never touching a constraint the user set or the authorizer imposed.",
-  substrate:{service:"In-process", unit:"bounded loop with a pass counter",
+  substrate:{on:[], service:"In-process", unit:"bounded loop with a pass counter",
     sizing:["relaxation ladder in AppConfig","hard cap of two passes","never loosens a non-relaxable node"]},
   decisions:[{
     q:"Where does a relaxed query re-enter the pipeline?",
@@ -4393,7 +4530,7 @@ defPhys({
   realises:["union","prune","fusion"],
   departure:"Three logical stages, one physical component: three passes over one array in one process. Drawing three boxes for three loops would be dishonest at this abstraction level — but the reason they can merge is worth stating, because it is the design's whole argument. Fusion runs here rather than in either engine, because reciprocal rank fusion needs both rank lists in one process and neither engine can see the other's.",
   purpose:"Unions the two engines' rank lists on a shared document id, prunes per leg, and produces one ordering by reciprocal rank fusion. This is the component that makes two engines into one search system.",
-  substrate:{service:"In-process", unit:"one pass over the candidate array",
+  substrate:{on:[], service:"In-process", unit:"one pass over the candidate array",
     sizing:["k = 60","per-leg top-N with conservative floors","per-leg ranks and evidence retained to the end"]},
   decisions:[{
     q:"Ranks or scores across the engine boundary?",
@@ -4438,7 +4575,7 @@ defPhys({
   runtime:"inproc", cx:2, sub:"ONNX bi-encoder · off by default",
   realises:["semrerank"],
   purpose:"A cheap in-process rescoring pass over the fused set, kept only where the cross-encoder cannot afford the depth it would need. Its default state is absent.",
-  substrate:{service:"In-process", unit:"quantized bi-encoder via ONNX Runtime",
+  substrate:{on:[], service:"In-process", unit:"quantized bi-encoder via ONNX Runtime",
     sizing:["CPU only — if it needs a GPU it is the wrong tier","deployment-gated, off"]},
   decisions:[{
     q:"Is a cheap semantic pass worth having at all?",
@@ -4470,7 +4607,7 @@ defPhys({
   realises:["latererank"],
   departure:"The logical cascade puts late-interaction reranking after fusion. Physically it is a multivector MaxSim rescore over points Qdrant has already retrieved — a clause in the query, not a service — so it runs before fusion, not after. That is a real ordering departure, and it is the clearest case in this diagram of an engine capability changing where a stage belongs rather than just how it is built.",
   purpose:"Rescores the dense candidate set with token-level late interaction, inside the same Qdrant request that retrieved it. No service, no GPU, and no extra round trip.",
-  substrate:{service:"Qdrant Cloud Hybrid (BYOC)", unit:"rescore clause over a multivector named vector",
+  substrate:{on:["qdrant"], service:"Qdrant Cloud Hybrid (BYOC)", unit:"rescore clause over a multivector named vector",
     sizing:["multivectors quantized and on disk","narrow candidate set only","storage scales with tokens, not documents"]},
   decisions:[{
     q:"Where does late interaction run?",
@@ -4510,7 +4647,7 @@ defPhys({
   runtime:"gpu", cx:4, sub:"top 100, one batched call",
   realises:["crossenc"],
   purpose:"The precision stage. Scores query-document pairs jointly on a GPU endpoint, at the depth the logical view settled on, in one batch inside one deadline.",
-  substrate:{service:"Amazon SageMaker", unit:"real-time endpoint, Triton dynamic batching",
+  substrate:{on:["sagemaker"], service:"Amazon SageMaker", unit:"real-time endpoint, Triton dynamic batching",
     sizing:["one batch of 100 pairs per request","sequence length truncated","provisioned minimum capacity"]},
   decisions:[{
     q:"How is the batch dispatched?",
@@ -4561,7 +4698,7 @@ defPhys({
   runtime:"foundation", cx:4, sub:"top 10–20 · gated on visual intent",
   realises:["vlmrerank"],
   purpose:"Verifies visual claims on a handful of finalists by looking at the images. Tiny depth, hard deadline, and the first thing degradation drops.",
-  substrate:{service:"Amazon Bedrock", unit:"vision model, on-demand invocation",
+  substrate:{on:["bedrock"], service:"Amazon Bedrock", unit:"vision model, on-demand invocation",
     sizing:["depth 10–20, never more","gated on inferred visual intent","cached on document and attribute"]},
   decisions:[{
     q:"How deep does visual verification go?",
@@ -4597,7 +4734,7 @@ defPhys({
   realises:["ltr"],
   departure:"Not the OpenSearch LTR plugin, and not by preference. The plugin can only score documents OpenSearch retrieved, and half the candidates came from Qdrant. Blended retrieval rules out engine-side learning-to-rank entirely — a direct, non-obvious consequence of the design's central choice, and one nobody discovers until they try it.",
   purpose:"Combines relevance and soft behavioural signals into one learned ordering over the reranked set, in the orchestrator, where both engines' candidates exist.",
-  substrate:{service:"In-process", unit:"gradient-boosted model exported to ONNX",
+  substrate:{on:[], service:"In-process", unit:"gradient-boosted model exported to ONNX",
     sizing:["model versioned with the feature list","features computed from data already on the candidate"]},
   decisions:[{
     q:"Where does learning-to-rank run?",
@@ -4635,7 +4772,7 @@ defPhys({
   runtime:"store", cx:3, sub:"one profile read · a few slots adjusted",
   realises:["personalisation"],
   purpose:"Reads the user's durable profile and adjusts a small number of result slots, leaving the rest unpersonalised on purpose.",
-  substrate:{service:"Amazon DynamoDB", unit:"profile item, single read",
+  substrate:{on:["dynamodb"], service:"Amazon DynamoDB", unit:"profile item, single read",
     sizing:["one key read per personalised request","cached, short TTL","updated asynchronously from events"]},
   decisions:[{
     q:"How much of the ranking is personalised?",
@@ -4670,7 +4807,7 @@ defPhys({
   realises:["freshness","dedup","diversity","business"],
   departure:"Four logical stages, one physical component: four re-sorts of one array in a fixed order, in one process. The panel keeps the order explicit rather than hiding it, because the audit trail depends on it — 'why is this result here' is answerable only if the sequence of adjustments is known and stable.",
   purpose:"Applies the last adjustments in the order the logical view fixed: freshness decay, near-duplicate removal, per-attribute diversity capping, then hard business rules. Each records what it did.",
-  substrate:{service:"In-process", unit:"four ordered passes",
+  substrate:{on:[], service:"In-process", unit:"four ordered passes",
     sizing:["order fixed in code","rule set in AppConfig","applied_rules recorded per result"]},
   decisions:[{
     q:"Do business rules go in the model or after it?",
@@ -4714,7 +4851,7 @@ defPhys({
   realises:["assembly"],
   departure:"One logical stage, two physical components. Fetching the fields is a network call — two, in fact, because volatile fields do not belong in either index — while shaping the response is not. Splitting them separates a hop with a deadline from a pure transformation, which is the distinction this whole view exists to draw.",
   purpose:"Turns ranked ids into displayable documents. Reads the stable fields from OpenSearch, the volatile ones from DynamoDB, and revalidates eligibility as defence in depth.",
-  substrate:{service:"Amazon OpenSearch Service + Amazon DynamoDB", unit:"_mget + BatchGetItem",
+  substrate:{on:["opensearch","dynamodb"], service:"Amazon OpenSearch Service + Amazon DynamoDB", unit:"_mget + BatchGetItem",
     sizing:["page size only, never the candidate set","two concurrent reads","eligibility revalidated on the way out"]},
   decisions:[{
     q:"Where do volatile fields live?",
@@ -4754,7 +4891,7 @@ defPhys({
   realises:["assembly"],
   departure:"The data half of this logical stage is px-hydrate, a network call with a deadline. What remains here is pure shaping — and it is where the request's honesty lives: what was relaxed, what was dropped, which route ran. Those fields exist because the physical pipeline degrades, which is a fact the logical view does not have to model.",
   purpose:"Shapes the response and says what happened to it. Carries the relaxation record, the degradation record, the route and the experiment variant, plus a paging token that pins the ranking snapshot.",
-  substrate:{service:"In-process", unit:"response serialisation",
+  substrate:{on:[], service:"In-process", unit:"response serialisation",
     sizing:["paging token encodes the ranking snapshot","disclosure fields always present, even when empty"]},
   decisions:[{
     q:"What does the response disclose?",
@@ -4787,7 +4924,7 @@ defPhys({
   realises:["fusionpolicy"],
   departure:"Three logical control components — routing, degradation policy and fusion policy — become two in-process controllers reading one config store. The control plane physically is AppConfig plus two objects, and saying so is more useful than drawing three services that do not exist.",
   purpose:"Holds every decision that must be changeable without a deployment: routing rules, drop order, leg weights, sufficiency floors, business rules and experiment definitions.",
-  substrate:{service:"AWS AppConfig", unit:"configuration profile with a deployment strategy",
+  substrate:{on:["appconfig"], service:"AWS AppConfig", unit:"configuration profile with a deployment strategy",
     sizing:["polled by each task","validators on the schema","gradual rollout, automatic rollback on alarm"]},
   decisions:[{
     q:"Config store or deployment?",
@@ -4816,7 +4953,7 @@ defPhys({
   runtime:"inproc", cx:2, sub:"deterministic hash · variant on every impression",
   realises:["experiment"],
   purpose:"Assigns the request to a variant by hashing the unit, and makes sure that variant reaches every decision and every log line that depends on it.",
-  substrate:{service:"In-process", unit:"hash of the assignment unit + definitions from AppConfig",
+  substrate:{on:[], service:"In-process", unit:"hash of the assignment unit + definitions from AppConfig",
     sizing:["unit = user, per the logical default","no network call — assignment is a hash"]},
   contract:{in:"assignment unit + active experiment definitions", out:"variant per experiment"},
   dials:[{n:"Assignment unit",v:"user — so a session's ranking does not change mid-task"},
@@ -4838,7 +4975,7 @@ defPhys({
   runtime:"control", cx:2, sub:"one trace id, propagated to both engines",
   realises:[], departure:"Observability is not a retrieval concern and the logical view is right to leave it out. Physically it is the only way to answer the question this diagram most often provokes: which of these hops was slow. A fan-out to two engines with two encoders in front of it is not debuggable from an aggregate latency number.",
   purpose:"Carries one trace across every hop and records the per-leg timings, degradation events and cache outcomes that make a slow request attributable rather than mysterious.",
-  substrate:{service:"AWS Distro for OpenTelemetry", unit:"sidecar collector → X-Ray and CloudWatch",
+  substrate:{on:["adot"], service:"AWS Distro for OpenTelemetry", unit:"sidecar collector → X-Ray and CloudWatch",
     sizing:["trace id propagated to both engines","tail-based sampling on slow and degraded requests"]},
   decisions:[{
     q:"What is sampled?",
@@ -4868,7 +5005,7 @@ defPhys({
   runtime:"stream", cx:2, sub:"fire-and-forget, off the critical path",
   realises:["behavioural"],
   purpose:"Records what was shown, in what order, under which route and variant, and what the user did about it. Buffered in-process and flushed asynchronously, so the request never waits for it.",
-  substrate:{service:"Amazon Kinesis Data Firehose", unit:"delivery stream → S3 as Parquet",
+  substrate:{on:["firehose"], service:"Amazon Kinesis Data Firehose", unit:"delivery stream → S3 as Parquet",
     sizing:["buffered in the task, flushed on size or time","no back-pressure onto the request path"]},
   decisions:[{
     q:"Is event recording on the request path?",
@@ -4901,7 +5038,7 @@ defPhys({
   realises:["offlineeval"],
   departure:"One logical component, one physical stack: object storage, a catalogue and a query engine. It is drawn as one node because that is how it is used and how it fails — as a place you ask questions of — rather than as three services with a boundary between them.",
   purpose:"Where a ranking is replayed, a labelled set is scored, and a candidate change is judged before it reaches traffic.",
-  substrate:{service:"Amazon S3 + AWS Glue + Amazon Athena", unit:"partitioned Parquet with a catalogue",
+  substrate:{on:["s3","glue","athena"], service:"Amazon S3 + AWS Glue + Amazon Athena", unit:"partitioned Parquet with a catalogue",
     sizing:["partitioned by date and variant","schema evolution handled in the catalogue","query cost scales with bytes scanned"]},
   decisions:[{
     q:"What makes a replay trustworthy?",
@@ -4931,7 +5068,7 @@ defPhys({
   runtime:"control", cx:3, sub:"offline · versioned artefacts · never in the request path",
   realises:[], departure:"The logical view has training as a relationship — behavioural events train learning-to-rank — rather than as a component, and at that level that is right. Physically it is a scheduled pipeline producing versioned artefacts, and it is worth drawing precisely because it must never appear on the request path. It is here to be visibly elsewhere.",
   purpose:"Fits the reranking and fusion-policy models from lake data and publishes versioned artefacts the request path loads at start-up.",
-  substrate:{service:"Amazon SageMaker + AWS Step Functions", unit:"scheduled training and evaluation pipeline",
+  substrate:{on:["sagemaker","stepfunctions"], service:"Amazon SageMaker + AWS Step Functions", unit:"scheduled training and evaluation pipeline",
     sizing:["artefacts versioned with their feature list","promotion gated on the offline metric","no request-path dependency at any point"]},
   contract:{in:"labelled and behavioural data from the lake",
     out:"a versioned model artefact plus its feature list and evaluation report"},
@@ -4972,7 +5109,7 @@ defStore({
   filtering:"The compiled hard predicate executes in filter context, unscored and cacheable, inside the search operation.",
   updates:"Refresh interval governs visibility; analysis changes require a rebuild behind an alias. Volatile fields deliberately live elsewhere so ordinary price changes are not reindexes.",
   implementation:"Amazon OpenSearch Service managed domain, private subnets, dedicated master nodes.",
-  substrate:{service:"Amazon OpenSearch Service", unit:"index behind an alias",
+  substrate:{on:["opensearch"], service:"Amazon OpenSearch Service", unit:"index behind an alias",
     sizing:["20–40 GB per shard, count fixed at creation","2 replicas","blue-green on the alias, not the cluster"]},
   dials:[{n:"Refresh interval",v:"the freshness/throughput dial"},
          {n:"Shards",v:"fixed at creation — the one irreversible sizing decision"},
@@ -5001,7 +5138,7 @@ defStore({
   filtering:"A payload filter with a payload index on every filtered field, so filtering happens inside the graph traversal rather than after it.",
   updates:"Written only by the indexer, from the same ordered log as OpenSearch. Encoder version is part of the collection name, so an encoder change is a rebuild and an alias-style swap rather than an in-place migration.",
   implementation:"Qdrant Cloud Hybrid — control plane managed, data plane in the customer VPC.",
-  substrate:{service:"Qdrant Cloud Hybrid (BYOC)", unit:"collection, versioned by encoder",
+  substrate:{on:["qdrant"], service:"Qdrant Cloud Hybrid (BYOC)", unit:"collection, versioned by encoder",
     sizing:["shards ≈ 2× nodes","replication factor 2","quantized vectors resident, full vectors mmapped"]},
   dials:[{n:"HNSW m",v:"16 — permanent, set at creation"},
          {n:"Quantization",v:"scalar int8 with rescore"},
@@ -5032,7 +5169,7 @@ defStore({
   filtering:"None. A cache that filters is a store, and this one must never become the source of an eligibility decision.",
   updates:"Invalidation is by version, not by expiry. A normaliser or encoder change is a version change, and the old entries simply stop being addressed.",
   implementation:"Amazon ElastiCache (Valkey), cache-aside, failing open on every error.",
-  substrate:{service:"Amazon ElastiCache (Valkey)", unit:"cluster",
+  substrate:{on:["elasticache"], service:"Amazon ElastiCache (Valkey)", unit:"cluster",
     sizing:["entry count, not value size, is the sizing axis","fail open, always"]},
   dials:[{n:"Understanding TTL",v:"long — it is deterministic"},
          {n:"Embedding TTL",v:"long, versioned by encoder"},
@@ -5057,7 +5194,7 @@ defStore({
   filtering:"None at retrieval — these fields are read after ranking, at hydration. A constraint on a volatile field is therefore a post-ranking check, not a predicate, and that limitation is real.",
   updates:"Written continuously and read late. No index rebuild, no refresh interval, and no dependence on the ordered log that feeds the two engines.",
   implementation:"Amazon DynamoDB, on-demand capacity, with a TTL attribute on session items.",
-  substrate:{service:"Amazon DynamoDB", unit:"table per concern",
+  substrate:{on:["dynamodb"], service:"Amazon DynamoDB", unit:"table per concern",
     sizing:["single-key reads only","batch reads at hydration","eventually consistent reads are correct here"]},
   dials:[{n:"Capacity",v:"on-demand until the shape of the traffic is known"},
          {n:"Consistency",v:"eventually consistent — a stale read beats a slow one"},
@@ -5079,7 +5216,7 @@ defStore({
   filtering:"Partition pruning is the only filtering that matters — it is what bounds the cost of every question anyone asks.",
   updates:"Append-only from Firehose. Schema evolves in the catalogue rather than by rewriting history.",
   implementation:"Amazon S3 with an AWS Glue catalogue, queried by Athena.",
-  substrate:{service:"Amazon S3 + AWS Glue", unit:"partitioned Parquet dataset",
+  substrate:{on:["s3","glue"], service:"Amazon S3 + AWS Glue", unit:"partitioned Parquet dataset",
     sizing:["files large enough to be worth opening","lifecycle tiering on raw impressions","labelled sets kept longer than raw data"]},
   dials:[{n:"Partitions",v:"date and variant"},
          {n:"File size",v:"large — many small files is the classic lake mistake"},
@@ -5110,7 +5247,7 @@ defStore({
   filtering:"Not a query-path store. It is never read during a search.",
   updates:"Written by the application. Every change emits an ordered, versioned event.",
   implementation:"Amazon Aurora or DynamoDB, depending on the shape of the write workload.",
-  substrate:{service:"Amazon Aurora", unit:"the operational store",
+  substrate:{on:["aurora"], service:"Amazon Aurora", unit:"the operational store",
     sizing:["canonical id assigned here or in the indexer, never in an engine"]},
   gotchas:[{g:"An engine treated as a source of truth",
     why:"Reindexing from OpenSearch into Qdrant, or vice versa, propagates whatever is already wrong and adds a second lineage. The two copies then diverge from each other and from reality, with no authority to reconcile against.",
@@ -5128,7 +5265,7 @@ defStore({
   filtering:"None. Every change rides it, deletions included.",
   updates:"Fed by change data capture from the source of truth, never by application code writing twice.",
   implementation:"DynamoDB Streams or DMS into Amazon Kinesis Data Streams.",
-  substrate:{service:"Amazon Kinesis Data Streams", unit:"stream, partitioned by document id",
+  substrate:{on:["kinesis"], service:"Amazon Kinesis Data Streams", unit:"stream, partitioned by document id",
     sizing:["partition key = canonical id, so one document's changes stay ordered","retention long enough to replay a bad deploy"]},
   dials:[{n:"Partition key",v:"the canonical id — ordering is per document, which is all that is needed"},
          {n:"Retention",v:"long enough to reprocess, not just to recover"}],
@@ -5151,7 +5288,7 @@ defStore({
   filtering:"Applies the payload field list derived from the predicate compiler's allow-list, so both engines can filter on the same fields.",
   updates:"Idempotent, version-stamped upserts. Re-delivery is normal and must be harmless.",
   implementation:"An ECS consumer service, with the embedding pipeline behind it for the vector side.",
-  substrate:{service:"Amazon ECS on Fargate", unit:"stream consumer, one per shard group",
+  substrate:{on:["fargate"], service:"Amazon ECS on Fargate", unit:"stream consumer, one per shard group",
     sizing:["idempotent, version-stamped writes","per-engine rebuild runnable independently","canonical id derived deterministically"]},
   decisions:[{
     q:"How do two indexes stay consistent?",
@@ -5279,7 +5416,7 @@ const PX_BRANCHES = [
 const PX_TPL = {
   1:{
     name:"Core",
-    tagline:"Two engines, one process",
+    tagline:"Two engines, one process, five hops",
     desc:"The smallest deployment that serves a hybrid query: one orchestrator, one call to each engine, and fusion in neither. It has <b>no cache, no rerank and no telemetry</b> — and it is already a distributed system with two derived copies of every document.",
     rows:[
       {c:["px-client"]},
@@ -5812,6 +5949,79 @@ const PHYSICAL_BASELINE = {
 
 const PHYSICAL_COUNTS = {planeNodes:{1:5,2:7,3:8}, planeEdges:{1:7,2:10,3:16}};
 
+/* =======================================================================
+   THE DEPLOYMENT SHAPE — what the sidebar reads out about this level.
+
+   The logical panel counts what there is to build. This one counts what
+   there is to run: round trips, services, provisioned endpoints, and the
+   operational burden of keeping them all alive.
+   ======================================================================= */
+
+/* The headline number, and the two adjustments that make it honest. Calls the
+   system makes concurrently cost one hop's worth of latency, not two — the
+   retrieval band waits for its slowest engine either way. And a component
+   marked `origin` is where the request comes from rather than somewhere the
+   system goes. */
+const hopMetric = Object.freeze({
+  name:"Network hops in the request path",
+  note:"Round trips on the critical path. A concurrent band counts once, because it costs its slowest member; "+
+       "the client is where the request starts, not a hop the system makes.",
+  read:enabled=>{
+    const hops = enabled.filter(record=>record.hop && !record.origin);
+    const bands = new Set(hops.map(record=>record.parallel).filter(Boolean));
+    return {value:hops.filter(record=>!record.parallel).length + bands.size};
+  }
+});
+
+const unitMetric = Object.freeze({
+  name:"Distinct deployment units",
+  read:enabled=>{
+    const services = [...new Set(enabled.flatMap(record=>record.substrate.on))];
+    return {value:services.length,
+      note:services.length
+        ? services.map(key=>SERVICE[key]).sort().join(", ")+"."
+        : "Nothing of your own to run."};
+  }
+});
+
+/* The physical echo of "models in the request path", split the way the bill
+   is: an endpoint you provision and pay for while it idles is a different
+   commitment from a call you pay for by the token. */
+const endpointMetric = Object.freeze({
+  name:"GPU endpoints in the path",
+  read:enabled=>{
+    const provisioned = enabled.filter(record=>record.runtime==="gpu");
+    const perToken = enabled.filter(record=>record.runtime==="foundation");
+    return {value:provisioned.length, note:
+      (provisioned.length ? provisioned.map(record=>record.name).join(", ")+"."
+                          : "No provisioned endpoints in the request path.")+
+      (perToken.length ? " Plus "+perToken.length+" foundation-model call"+
+        (perToken.length>1?"s":"")+", billed per token rather than provisioned." : "")};
+  }
+});
+
+const PHYSICAL_SIDEBAR = {
+  shape:"Deployment shape",
+  phases:"Components by phase",
+  metrics:[hopMetric, unitMetric, endpointMetric,
+    cxMetric("Operational burden",
+      "What this shape costs to run, patch and be paged about \u2014 not the logical view's build index. "+
+      "Two stateful engines score high here and low there, so the two numbers are not comparable.")],
+  cxChip:"Operational burden",
+  caps:{title:"Concerns", count:true,
+        note:"Every concern is raised at Core, because the components that own it are already there. "+
+             "The count is what moves: click one to see who owns it."},
+  legendNote:
+    "Flow moves the request or its candidates; a gated stage runs only when its condition holds. "+
+    "Retrieval routing owns every request gate, while a deployment gate is a standing configuration "+
+    "choice with no runtime owner \u2014 a gate on an aside shows as a chip on the card rather than a dashed wire. "+
+    "Branches select a decision outcome; returns retry an earlier stage. "+
+    "Control-plane components steer without touching candidates, and observes carries traces out: "+
+    "it can fail without failing the request, which is why it is drawn as the quietest line here. "+
+    "Data-plane nodes are stores and engines; the write path is the ordering authority that keeps them in step.",
+  components:"Switch components off to price a variant. Core components are locked, and switching a store's last consumer off greys the store with it."
+};
+
 const PHYSICAL = defModel({
   id:"physical",
   abstraction:"physical",
@@ -5825,6 +6035,9 @@ const PHYSICAL = defModel({
   phases:PX_PHASES,        capabilities:CONCERNS, facets:FACETS,
   parallelGroups:PX_PARALLEL_GROUPS, stageGroups:PX_STAGE_GROUPS,
 
+  subtitle:"The same pipeline on AWS \u00b7 OpenSearch for sparse, Qdrant for dense, fusion in neither \u00b7 network hops, deadlines and the write path",
+  runtimes:RUNTIME,
+
   example:LOGICAL.example,
   collapseGroups:[{members:PX_ENCODERS,     label:"query encoders", min:3},
                   {members:PX_RERANK_CASCADE, label:"rerank passes", min:2}],
@@ -5832,13 +6045,52 @@ const PHYSICAL = defModel({
   /* Two overlays, and the write path is not the data plane. Drawing them as
      one band would hide the ordering authority that is the only thing keeping
      two derived copies of a document from disagreeing. */
-  planes:[{id:"data",        label:"Show data stores", serves:true, defaultOn:false},
-          {id:"consistency", label:"Show the write path",          defaultOn:false}],
+  planes:[{id:"data",        label:"Show data stores",   key:"data plane", serves:true, defaultOn:false},
+          {id:"consistency", label:"Show the write path", key:"write path",
+           requires:"data", defaultOn:false}],
+
+  sidebar:PHYSICAL_SIDEBAR,
+  cxBands:[[40,"Lean"],[75,"Moderate"],[95,"Substantial"],[Infinity,"Heavy"]],
+
+  /* The drawer, in order. `departure` sits second on purpose: the reader
+     arriving from the logical view is owed the difference before the detail. */
+  panel:["crossView","departure","decisions","substrate",["contract","Wire contract"],
+         "budget",["dials","Configuration"],"optimisation","gotchas","scaling","failures",
+         "alternatives","cost","notes","example","relations","serving","appears"],
+  sourcePanel:["crossView","departure","servingContract","implementation","substrate",
+               "decisions","dials","gotchas","scaling","cost","notes",
+               "planeRelations","serves","appearsWith"],
+  hover:["runtimePills","gate","purpose","crossView","budget","gotcha"],
 
   baseline:PHYSICAL_BASELINE,
   expectedCounts:PHYSICAL_COUNTS,
   invariants:PHYSICAL_INVARIANTS
 });
+
+/* =======================================================================
+   THE LADDER, IN BOTH DIRECTIONS
+
+   `realises` is declared on the physical records and checked at definition
+   time. Its reverse is derived here, where both models exist, because a
+   second hand-maintained mapping is a second thing to get wrong. Either
+   drawer can now offer the round trip to the other level.
+   ======================================================================= */
+const REALISES = {}, REALISED_BY = {};
+[PHYSICAL.components, PHYSICAL.dataSources].forEach(registry=>
+  Object.values(registry).forEach(record=>{
+    if(record.realises.length) REALISES[record.id] = record.realises;
+    record.realises.forEach(logicalId=>
+      (REALISED_BY[logicalId] = REALISED_BY[logicalId] || []).push(record.id));
+  }));
+
+PHYSICAL.crossView = {
+  model:LOGICAL, label:"Realises", links:REALISES,
+  note:"The logical work this component is here to do. Open one to see the same stage a rung up the ladder."
+};
+LOGICAL.crossView = {
+  model:PHYSICAL, label:"Implemented by", links:REALISED_BY,
+  note:"Where this stage lands on AWS. Derived from the physical records rather than declared twice."
+};
 
 /* =======================================================================
    VIEW STATE
@@ -5873,7 +6125,10 @@ const DRAWER = {
   purpose:$("#dPurpose"), chips:$("#dChips"), gate:$("#dGate"),
   body:$("#dBody"), toggle:$("#dToggle")
 };
-const drawerSect = (title,body)=> '<div class="sect"><h4>'+title+'</h4>'+body+'</div>';
+/* A rail is for the one section a reader must not skim past; everything else
+   is a heading and a body. */
+const drawerSect = (title,body,rail)=>
+  '<div class="sect'+(rail?" "+rail:"")+'"><h4>'+title+'</h4>'+body+'</div>';
 
 /* Whichever view opened the drawer clears its own selection when it shuts,
    even if the reader has since changed tabs. */
@@ -5883,6 +6138,10 @@ function closeDrawer(){
   drawerOwner?.clearSelection();
   drawerOwner = null;
 }
+
+/* Opening a component in another level's view is the one thing a view does
+   that reaches outside itself. Declared here, bound once the views exist. */
+let revealInModel = (modelId,id)=>{};
 
 const hoverCard = document.createElement("div");
 hoverCard.className = "hovercard";
@@ -5905,8 +6164,10 @@ function createPipelineView(model, slice, root){
 /* This level's registries, under the names the renderer knows them by. */
 const {components:S, templates:TPL, relations:REL, reverseRelations:RREL,
        requires:REQUIRES, dataSources:DATA_SOURCES, serving:SERVING_REL,
-       reverseServing:RSERVING, phases:PHASES, capabilities:CAPS, facets:FACETS,
-       parallelGroups:PARALLEL_GROUPS, stageGroups:STAGE_GROUPS, maxCx:MAX_CX} = model;
+       reverseServing:RSERVING, planeRelations:PLANE_REL,
+       reversePlaneRelations:RPLANE_REL, phases:PHASES, capabilities:CAPS,
+       facets:FACETS, runtimes:RUNTIMES, parallelGroups:PARALLEL_GROUPS,
+       stageGroups:STAGE_GROUPS, sidebar:SIDEBAR} = model;
 
 /* Selectors are scoped to this view's root so both views can share one markup
    vocabulary: ids belong to the document, `data-el` names belong to a view,
@@ -5916,21 +6177,26 @@ const $$ = (sel,scope)=> Array.from((scope||root).querySelectorAll(sel));
 const ui = name => root.querySelector('[data-el="'+name+'"]');
 
 const canvas = ui("canvas"), wires = ui("wires"), rowsEl = ui("rows");
-/* The few handles the document itself needs, made unique per view. */
+/* The one handle the document itself needs, made unique per view. */
 rowsEl.id = model.id+"-rows";
-ui("servingToggle").setAttribute("aria-controls", rowsEl.id);
 
 /* Model queries, bound to this level. */
 const tplStages      = templateId=> Model.stages(model,templateId);
 const executionGate  = (id,templateId)=> Model.gate(model,id,templateId);
 const relationDetail = (from,kind,to)=> Model.relationDetail(model,from,kind,to);
-const optionalPlane  = model.planes[0];
 
 /* Every relationship endpoint the current composition draws. */
 const currentDependencies = ()=>
   Model.dependencies(model, slice.tpl, {planes:slice.planes, off:slice.off[slice.tpl]});
-/* True while a plane carrying serving edges is switched on. */
-const sourcesShown = ()=> model.servesPlanes.some(id=>slice.planes[id]);
+/* True while any optional plane is on: the canvas gains its data column for
+   the first one, whichever plane that is. */
+const planesShown = ()=> model.planes.some(plane=>slice.planes[plane.id]);
+/* The same admission rule the dependency set uses, so what is drawn and what
+   is counted cannot disagree. */
+const sourceShown = sourceId=>{
+  const source = DATA_SOURCES[sourceId];
+  return !!source && !!slice.planes[source.plane] && slice.tpl>=source.intro;
+};
 
 function isOff(id){ return slice.off[slice.tpl].has(id); }
 function isOn(id){ return !isOff(id); }
@@ -5951,15 +6217,39 @@ function activeConsumers(sourceId){
   return templateConsumers(sourceId).filter(isOn);
 }
 
-function activeSourceIds(){
-  return sourceIdsForConsumers(tplStages(slice.tpl).filter(isOn));
+/* Sources this source is derived from, deepest first — the write path read
+   backwards. A plane node no component queries is placed by what it feeds,
+   because there is nothing else in the diagram that knows where it belongs. */
+function writersOf(sourceId,seen=new Set()){
+  return Object.values(RPLANE_REL[sourceId]||{}).flat()
+    .filter(from=>sourceShown(from) && !seen.has(from))
+    .flatMap(from=>{ seen.add(from); return writersOf(from,seen).concat(from); });
 }
 
+/* Everything a row draws, in reading order. A source is placed by whatever
+   asks it for data, and what asks may be an aside or a control rather than a
+   stage on the spine — the session store is read by a control-plane component
+   and by nothing on the centre line at all. */
+const rowMembers = row => (row.l||[]).concat(row.c||[], row.r||[]);
+
+/* The sources a row draws, in the order they read down the page: the ones its
+   components ask for data, each preceded by whatever writes into it. */
 function sourceIdsFor(componentIds){
   const position = new Map(componentIds.map((id,index)=>[id,index]));
   const firstConsumer = sourceId=>Math.min(...templateConsumers(sourceId)
     .filter(id=>position.has(id)).map(id=>position.get(id)));
-  return sourceIdsForConsumers(componentIds).sort((a,b)=>firstConsumer(a)-firstConsumer(b));
+  return sourceIdsForConsumers(componentIds).filter(sourceShown)
+    .sort((a,b)=>firstConsumer(a)-firstConsumer(b))
+    .flatMap(sourceId=>writersOf(sourceId).concat(sourceId));
+}
+
+/* A source is live when something downstream of it is: a store because a
+   component still queries it, a write-path node because a store it derives
+   is live. */
+function sourceLive(sourceId){
+  const consumers = templateConsumers(sourceId);
+  if(consumers.length) return consumers.some(isOn);
+  return Object.values(PLANE_REL[sourceId]||{}).flat().filter(sourceShown).some(sourceLive);
 }
 
 function setOff(id,off){
@@ -5970,26 +6260,18 @@ function setOff(id,off){
   if(!off && REQUIRES[id]) set.delete(REQUIRES[id]);
 }
 
+/* The facts every metric reads from, gathered once. What they mean is the
+   metrics' business, not this function's. */
 function composition(){
   const ids = tplStages(slice.tpl).filter(isOn);
+  const records = ids.map(id=>S[id]);
   const per = {};
-  let cxSum=0;
-  const modelMap=new Map(), caps=new Set();
-
-  ids.forEach(id=>{
-    const s = S[id];
-    cxSum += s.cx||0;
-    (s.caps||[]).forEach(c=>caps.add(c));
-    if(s.model){
-      const key = s.modelKey || id;
-      if(!modelMap.has(key)) modelMap.set(key, s.modelLabel || s.name);
-    }
-    const ph = PHASES.find(p=>p.groups.includes(s.group));
-    if(ph) per[ph.id] = (per[ph.id]||0) + 1;
+  records.forEach(record=>{
+    const phase = PHASES.find(p=>p.groups.includes(record.group));
+    if(phase) per[phase.id] = (per[phase.id]||0) + 1;
   });
-  return {per, cx:cxSum,
-          models:modelMap.size, modelNames:Array.from(modelMap.values()),
-          caps, count:ids.length, off:tplStages(slice.tpl).filter(isOff).length};
+  return {records, per, count:ids.length,
+          off:tplStages(slice.tpl).filter(isOff).length};
 }
 
 function renderComposition(){
@@ -5999,16 +6281,26 @@ function renderComposition(){
     '<button data-phase="'+p.id+'" aria-pressed="false" title="Show the components in this phase">'+
     '<i style="background:'+p.color+'"></i>'+p.label+' '+b.per[p.id]+'</button>').join("");
 
-  const band = b.cx<=18 ? "Lean" : b.cx<=32 ? "Moderate" : b.cx<=50 ? "Substantial" : "Heavy";
-  ui("cxVal").textContent = band + " · " + b.cx;
-  ui("cxBar").style.width = Math.min(100, b.cx/MAX_CX*100) + "%";
-  ui("cxNote").textContent = "Relative index over enabled components — for comparing variants, not an estimate of effort.";
-  ui("mdlVal").textContent = b.models;
-  ui("mdlNote").textContent = b.models ? b.modelNames.join(", ") + "." : "No learned models in the request path.";
+  ui("metrics").innerHTML = SIDEBAR.metrics.map(metric=>{
+    const reading = metric.read(b.records, model);
+    const note = reading.note ?? metric.note;
+    return '<div class="metric">'+
+      '<div class="top"><span class="name">'+metric.name+'</span>'+
+        '<span class="val">'+reading.value+'</span></div>'+
+      (reading.fill==null ? "" :
+        '<div class="bar"><i class="cx" style="width:'+Math.min(100,reading.fill*100)+'%"></i></div>')+
+      (note ? '<div class="note">'+note+'</div>' : "")+
+      '</div>';
+  }).join("");
 
-  ui("caps").innerHTML = CAPS.map(c=>
-    '<button class="cap'+(b.caps.has(c.id)?" on":"")+'" data-cap="'+c.id+'" aria-pressed="false">'+
-    c.label+'</button>').join("");
+  /* The count is the part that moves between levels where every concern is
+     owned by something at every level: the question the panel answers is
+     which components own this, not whether it is solved. */
+  ui("caps").innerHTML = CAPS.map(c=>{
+    const owners = b.records.filter(record=>(record.caps||[]).includes(c.id)).length;
+    return '<button class="cap'+(owners?" on":"")+'" data-cap="'+c.id+'" aria-pressed="false">'+
+      c.label+(SIDEBAR.caps.count ? '<span class="capn">'+owners+'</span>' : "")+'</button>';
+  }).join("");
 
   const offEl = ui("offCount");
   offEl.hidden = b.off===0; offEl.textContent = b.off + " off";
@@ -6018,12 +6310,61 @@ function renderComposition(){
   syncFocusUI();
 }
 
-/* One optional plane today, so one control. The panel spec in a later pass
-   turns this into one control per declared plane. */
-function renderPlaneToggle(){
-  const button = ui("servingToggle");
-  button.setAttribute("aria-pressed",String(!!slice.planes[optionalPlane.id]));
-  button.setAttribute("aria-label",optionalPlane.label);
+/* A plane may depend on another. The write path is drawn as the thing that
+   keeps the stores in step, so there is nothing to draw it against until they
+   are on screen — the same rule a component's `requires` states, and the same
+   behaviour: a dependent follows its parent down, and switching one on brings
+   its parent with it. */
+function setPlane(id,on){
+  slice.planes[id] = on;
+  const plane = model.planes.find(entry=>entry.id===id);
+  if(on && plane.requires) slice.planes[plane.requires] = true;
+  if(!on) model.planes.forEach(entry=>{
+    if(entry.requires===id) slice.planes[entry.id] = false;
+  });
+}
+
+/* One control per declared plane. The state slice, the dependency set and the
+   canvas have been plane-driven since Phase 1; this was the last piece that
+   was not. */
+function renderPlaneToggles(){
+  ui("planeToggles").innerHTML = model.planes.map(plane=>
+    '<button class="dep-toggle" data-plane="'+plane.id+'" aria-pressed="'+!!slice.planes[plane.id]+
+      '" aria-controls="'+rowsEl.id+'" aria-label="'+escapeAttribute(plane.label)+'">'+
+      '<span>'+plane.label+'</span><span class="dep-sw" aria-hidden="true"></span></button>').join("");
+  $$("[data-plane]",ui("planeToggles")).forEach(button=>
+    button.addEventListener("click", ()=>{
+      const id = button.dataset.plane;
+      setPlane(id, !slice.planes[id]);
+      renderAll();
+    }));
+}
+
+/* Sidebar copy: level vocabulary, written once because none of it moves. */
+function renderSidebarCopy(){
+  ui("shapeTitle").textContent = SIDEBAR.shape;
+  ui("phaseName").textContent  = SIDEBAR.phases;
+  ui("capsTitle").textContent  = SIDEBAR.caps.title;
+  ui("capsNote").textContent   = SIDEBAR.caps.note;
+  ui("legendNote").innerHTML   = SIDEBAR.legendNote;
+  ui("compNote").textContent   = SIDEBAR.components;
+  ui("planeKeys").innerHTML    = model.planes.map(plane=>
+    '<span><i class="data-key'+(plane.serves?"":" write-path")+'"></i>'+plane.key+'</span>').join("");
+}
+
+/* Where the enabled components run. Runtimes this level cannot reach are left
+   out, the same way the gate legend omits unreachable conditions. */
+function renderRuntimeLegend(){
+  if(!RUNTIMES) return;
+  const present = new Set(tplStages(slice.tpl).map(id=>S[id].runtime));
+  const rows = Object.entries(RUNTIMES).filter(([key])=>present.has(key));
+  ui("runtimeLabel").hidden = !rows.length;
+  ui("runtimeLegend").hidden = !rows.length;
+  ui("runtimeLegend").innerHTML = rows.map(([key,runtime])=>
+    '<button data-runtime="'+key+'" aria-pressed="false" title="'+escapeAttribute(runtime.label)+'">'+
+      '<i style="background:'+runtime.color+'"></i>'+runtime.chip+'</button>').join("");
+  $$("button",ui("runtimeLegend")).forEach(b=>
+    b.addEventListener("click", ()=> setFocus("runtime", b.dataset.runtime)));
 }
 
 /* =======================================================================
@@ -6112,8 +6453,8 @@ function mobileTransition(row,logical){
   return el;
 }
 
-function mobileRecovery(logical){
-  const branches=logical.filter(edge=>edge.from==="sufficiency" && edge.kind==="branch");
+function mobileRecovery(logical,decisionId){
+  const branches=logical.filter(edge=>edge.from===decisionId && edge.kind==="branch");
   if(!branches.length) return null;
   const el=document.createElement("section");
   el.className="mobile-recovery";
@@ -6126,10 +6467,12 @@ function mobileRecovery(logical){
   return el;
 }
 
-function mobileStageMarker(){
+/* What the wide layout draws as a dashed boundary, the narrow one announces. */
+function mobileStageMarker(groupId){
+  const {title,note}=STAGE_GROUPS[groupId].boundary;
   const el=document.createElement("div");
   el.className="mobile-stage-marker";
-  el.innerHTML='<b>Selective rerank cascade</b><span>Gated passes · skipped stages pass candidates through</span>';
+  el.innerHTML='<b>'+title+'</b><span>'+note.charAt(0).toUpperCase()+note.slice(1)+'</span>';
   return el;
 }
 
@@ -6201,6 +6544,10 @@ function activateEntity(id){
 function nodeEl(id, newIds, logical){
   const s = S[id];
   const gate = executionGate(id,slice.tpl);
+  /* What this component looks like at this level, where that changes: the
+     engines gain branches as the pipeline grows, and the card should say so. */
+  const level = s.byLevel?.[slice.tpl] || {};
+  const runtime = RUNTIMES?.[s.runtime];
   const el = document.createElement("button");
   el.className = "node " + (s.control ? "control" : s.tier) +
                  (s.decision ? " decision":"") + (s.io ? " io":"") + (gate ? " gated":"");
@@ -6215,10 +6562,17 @@ function nodeEl(id, newIds, logical){
   if(!isOn(id)) el.classList.add("off");
   if(newIds.has(id)) el.classList.add("isnew");
   if(slice.sel===id) el.classList.add("selected");
-  const meta =                                       // tier, group, then conditional state
+  const meta =                                       // tier, where or what, then state
     '<span class="tierchip '+s.tier+'" title="First appears in '+TPL[s.intro].name+'">'+
       TIER_LABEL[s.intro]+'</span>' +
-    '<span class="groupchip">'+s.group+'</span>' +
+    /* On a deployment diagram where a stage runs earns the space the family
+       name has at the logical level, and four chips will not fit on the
+       narrowest card. The group is still in the phase legend and the drawer. */
+    (runtime
+      ? '<span class="rtchip" style="--rt-color:'+runtime.color+'" title="'+
+          escapeAttribute(runtime.label)+'">'+runtime.chip+'</span>'
+      : '<span class="groupchip">'+s.group+'</span>') +
+    (level.chips||[]).map(chip=>'<span class="lvlchip">'+chip+'</span>').join("") +
     /* Gating and cost are orthogonal — when a stage runs, and how much work it
        does on the requests where it does. VLM rerank is both, so neither chip
        may hide the other. */
@@ -6226,9 +6580,10 @@ function nodeEl(id, newIds, logical){
       gate.label+'</span>' : "")+
     (s.conditional ? '<span class="condchip" title="'+escapeAttribute(CONDITIONAL_NOTE)+
       '">conditional</span>' : "");
+  const sub = level.sub || s.sub;
   el.innerHTML =
     '<div class="nm">'+s.name+'</div>' +
-    (s.sub ? '<div class="sb">'+s.sub+'</div>' : "") +
+    (sub ? '<div class="sb">'+sub+'</div>' : "") +
     '<div class="meta">'+meta+'</div>' +
     (s.control ? mobileDependencyChips(id,logical) : "")+
     '<span class="offmark"></span>';
@@ -6238,23 +6593,31 @@ function nodeEl(id, newIds, logical){
 
 function dataSourceEl(id,logical){
   const source = DATA_SOURCES[id];
+  const plane = model.planes.find(entry=>entry.id===source.plane);
   const consumers = templateConsumers(id);
-  const sourceOn = consumers.some(isOn);
+  /* A store says what it serves; a write-path node has no consumer to name and
+     says what it derives instead. */
+  const derives = Object.values(PLANE_REL[id]||{}).flat().filter(sourceShown);
+  const relates = consumers.length
+    ? {label:"Serves", names:consumers.map(cid=>S[cid].name)}
+    : {label:"Writes", names:derives.map(sid=>DATA_SOURCES[sid].name)};
+  const sourceOn = sourceLive(id);
   const el = document.createElement("button");
-  el.className = "data-source-node " + source.tier;
+  el.className = "data-source-node " + source.tier + (plane.serves ? "" : " write-path");
   el.dataset.sourceId = id;
   el.dataset.on = sourceOn ? "1" : "0";
   if(!sourceOn) el.classList.add("off");
   if(slice.sel===id) el.classList.add("selected");
-  el.setAttribute("aria-label",source.name+", "+TIER_LABEL[source.intro]+", data plane"+
-    (sourceOn?"":"; inactive because all served components are disabled")+". Serves "+
-    consumers.map(componentId=>S[componentId].name).join(", "));
+  el.setAttribute("aria-label",source.name+", "+TIER_LABEL[source.intro]+", "+plane.key+
+    (sourceOn?"":"; inactive because everything it feeds is disabled")+". "+
+    relates.label+" "+relates.names.join(", "));
   el.innerHTML =
     '<div class="nm">'+source.name+'</div>'+
     '<div class="sb">'+source.sub+'</div>'+
     '<div class="meta"><span class="tierchip '+source.tier+'">'+TIER_LABEL[source.intro]+'</span>'+
-      '<span class="data-plane-chip">data plane</span></div>'+
-    '<div class="source-serves"><b>Serves</b> '+consumers.map(cid=>S[cid].name).join(" · ")+'</div>'+
+      '<span class="data-plane-chip">'+plane.key+'</span></div>'+
+    (relates.names.length ? '<div class="source-serves"><b>'+relates.label+'</b> '+
+      relates.names.join(" · ")+'</div>' : "")+
     mobileDependencyChips(id,logical)+
     '<span class="offmark"></span>';
   el.addEventListener("click", ()=> activateEntity(id));
@@ -6273,18 +6636,28 @@ function renderCanvas(){
 
   rowsEl.innerHTML = "";
   $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
-  canvas.classList.toggle("with-data-sources",sourcesShown());
+  const planes = planesShown();
+  canvas.classList.toggle("with-data-sources",planes);
   rowsEl.appendChild(mobileDependencyIntro(logical));
 
+  /* One card per source, on the first row that wants it. A store serving three
+     stages is one store, and drawing it three times would make the wires lie. */
+  const placed = new Set();
+  const markers = stageGroupMarkers();
+
   TPL[t].rows.forEach((r,i)=>{
-    if((r.c||[]).includes("semrerank")) rowsEl.appendChild(mobileStageMarker());
+    if(markers.has(i)) rowsEl.appendChild(mobileStageMarker(markers.get(i)));
     const row = document.createElement("div");
     const parallel = (r.c||[]).some(id=>S[id].parallel);
     row.className = "row" + (parallel ? " parallel-row" : "");
     if(parallel) row.dataset.parallelGroup = S[(r.c||[]).find(id=>S[id].parallel)].parallel;
     row.dataset.row = i;
-    const rowSourceIds = sourcesShown() ? sourceIdsFor(r.c||[]) : [];
-    (sourcesShown() ? ["d","l","c","r"] : ["l","c","r"]).forEach(k=>{
+    const rowSourceIds = !planes ? [] : sourceIdsFor(rowMembers(r)).filter(id=>{
+      if(placed.has(id)) return false;
+      placed.add(id);
+      return true;
+    });
+    (planes ? ["d","l","c","r"] : ["l","c","r"]).forEach(k=>{
       const cell = document.createElement("div");
       cell.className = "cell " + (k==="d"?"data":k==="l"?"left":k==="c"?"center":"right");
       if(k==="c") cell.dataset.cellRow = i;
@@ -6302,8 +6675,9 @@ function renderCanvas(){
     rowsEl.appendChild(row);
     const transition=mobileTransition(r,logical);
     if(transition) rowsEl.appendChild(transition);
-    if((r.c||[]).includes("sufficiency")){
-      const recovery=mobileRecovery(logical);
+    const decision=(r.c||[]).find(id=>S[id].decision);
+    if(decision){
+      const recovery=mobileRecovery(logical,decision);
       if(recovery) rowsEl.appendChild(recovery);
     }
   });
@@ -6485,7 +6859,9 @@ function componentRenderEdges(templateId,logicalEdges){
 
     const byParallel = new Map();
     edges.filter(edge=>!consumed.has(edge)).forEach(edge=>{
-      const parallel=S[edge.to].parallel;
+      /* A plane relationship uses the same kinds as a component one and ends
+         on a plane node, which is in no row and therefore in no band. */
+      const parallel=S[edge.to]?.parallel;
       const key=parallel||("@"+edge.to);
       if(!byParallel.has(key)) byParallel.set(key,[]);
       byParallel.get(key).push(edge);
@@ -6641,14 +7017,23 @@ function activeParallelTarget(parallel){
   return members.length<2 ? null : groupRenderTarget("parallel:"+parallel,rowIndex,members);
 }
 
-function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,parallel="retrieval"){
+/* Two recovery loops returning to the same stage need two lanes, or they draw
+   as one wire. The lane is the loop's position among the loops that share its
+   target — declaration order in the template, not a component's name. */
+function recoveryLane(fromId,toId){
+  const loops=(TPL[slice.tpl].extra||[])
+    .filter(([,to,,kind])=>kind==="loop" && to===toId);
+  return Math.max(0, loops.findIndex(([from])=>from===fromId));
+}
+
+function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,lane,parallel){
   const target=activeParallelTarget(parallel);
   if(!target) return null;
   const layout=parallelGroupLayout(target);
   if(!layout || sourceRect.y<layout.bounds.y+layout.bounds.h ||
      targetRect.y+targetRect.h>layout.bounds.y) return null;
 
-  const laneX=layout.bounds.x-34-(sourceId==="zerofallback" ? 18 : 0);
+  const laneX=layout.bounds.x-34-lane*18;
   const lowerY=layout.bounds.y+layout.bounds.h+22;
   const upperY=layout.bounds.y-22;
   const sx=sourceRect.x+sourceRect.w, sy=sourceRect.cy;
@@ -6657,14 +7042,32 @@ function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,sourceId,para
     ' L'+laneX+','+upperY+' C'+laneX+','+ty+' '+laneX+','+ty+' '+tx+','+ty;
 }
 
+/* The stage groups the active level actually draws. Fewer than two members on
+   screen is not a group, which is also why the cascade does not appear at the
+   level where only its cross-encoder has arrived. */
+function activeStageGroups(){
+  const present=new Set(tplStages(slice.tpl));
+  return Object.entries(STAGE_GROUPS)
+    .map(([id,spec])=>({id,spec,members:spec.members.filter(memberId=>present.has(memberId))}))
+    .filter(group=>group.members.length>=2);
+}
+
+/* Row index -> the stage group that starts there, for the narrow layout. */
+function stageGroupMarkers(){
+  const rows=TPL[slice.tpl].rows;
+  return new Map(activeStageGroups().map(group=>
+    [rows.findIndex(row=>(row.c||[]).includes(group.members[0])), group.id])
+    .filter(([index])=>index>=0));
+}
+
 /* Every group whose members are a set the reader should treat as one region gets
    the same dashed boundary, so a wire that stops at the border is unambiguous. */
 function boundaryLayouts(){
   const layouts=[];
-  if(slice.tpl===3){
-    const cascade=stageGroupLayout(stageGroupRenderTarget("selective-rerank-cascade",GATED_RERANKERS));
-    if(cascade) layouts.push({id:"selective-rerank-cascade",layout:cascade});
-  }
+  activeStageGroups().forEach(({id,members})=>{
+    const layout=stageGroupLayout(stageGroupRenderTarget(id,members));
+    if(layout) layouts.push({id,layout});
+  });
   Object.keys(PARALLEL_GROUPS).forEach(parallel=>{
     const target=activeParallelTarget(parallel);
     const layout=target && parallelGroupLayout(target);
@@ -6776,14 +7179,15 @@ function drawWires(){
       d = "M"+sx+","+sy+" C"+(sx-dx)+","+sy+" "+(tx+dx)+","+ty+" "+tx+","+ty;
     } else if(relation.route==="loop" || (spine && runsUp)){
       style=RELATION_TYPES.loop;
-      const aroundGroup=recoveryGeometryAroundParallelGroup(a,b,renderTargetIds(e.from)[0]);
+      const lane=recoveryLane(renderTargetIds(e.from)[0],renderTargetIds(e.to)[0]);
+      const aroundGroup=Object.keys(PARALLEL_GROUPS).reduce((found,parallel)=>
+        found || recoveryGeometryAroundParallelGroup(a,b,lane,parallel), null);
       const besideMain = a.x+a.w < b.x;
       if(aroundGroup){
         d=aroundGroup;
       } else if(besideMain){
         const sx=a.x+a.w, sy=a.cy, tx=b.x;
-        const isFallback=renderTargetIds(e.from).includes("zerofallback");
-        const ty=b.cy+(isFallback?7:-7);
+        const ty=b.cy+(lane?7:-7);
         const spread=Math.max(48,Math.min(110,(tx-sx)*.58));
         d = "M"+sx+","+sy+" C"+(sx+spread)+","+sy+" "+(tx-spread)+","+ty+" "+tx+","+ty;
       } else {
@@ -6833,6 +7237,10 @@ const FOCUS = {
     match:(s,id)=>{ const p=PHASES.find(x=>x.id===id); return !!p && p.groups.includes(s.group); },
     describe:id=>{ const p=PHASES.find(x=>x.id===id);
       return "<b>"+p.label+"</b> — components in this phase:"; }
+  },
+  runtime:{
+    match:(s,id)=> s.runtime===id,
+    describe:id=> "<b>"+RUNTIMES[id].label+"</b> \u2014 components that run here:"
   },
   gate:{
     match:(s,id)=> executionGate(s.id,slice.tpl)?.label===id,
@@ -6896,6 +7304,8 @@ function syncFocusUI(){
     el.setAttribute("aria-pressed", String(!!f && f.kind==="phase" && f.id===el.dataset.phase)));
   $$("button",ui("gateLegend")).forEach(el=>
     el.setAttribute("aria-pressed", String(!!f && f.kind==="gate" && f.id===el.dataset.gateCondition)));
+  $$("button",ui("runtimeLegend")).forEach(el=>
+    el.setAttribute("aria-pressed", String(!!f && f.kind==="runtime" && f.id===el.dataset.runtime)));
 
   const box = ui("focusBox");
   if(!f){ box.hidden = true; return; }
@@ -6945,10 +7355,205 @@ function setGateNote(gate){
   if(gate) el.style.setProperty("--gate-color", gate.color);
 }
 
+/* =======================================================================
+   THE DRAWER'S SECTIONS
+
+   An ordered spec per level rather than a chain of ifs. A section renders when
+   its field is there and is skipped when it is not, so adding a field to a
+   level is a line in the model instead of an edit inside a sixty-line
+   function. The two levels share every renderer they honestly can — a contract
+   is a contract at both — and a section only one level declares costs the
+   other nothing, because nothing asks for it.
+   ======================================================================= */
+const list = (items,render)=> (items||[]).map(render).join("");
+
+const miniTable = (heads,items,cells)=> !(items||[]).length ? "" :
+  '<table class="mini"><thead><tr>'+heads.map(head=>'<th>'+head+'</th>').join("")+
+  '</tr></thead><tbody>'+list(items,item=>'<tr>'+cells(item)+'</tr>')+'</tbody></table>';
+
+/* A budget line or a substrate line is a sentence, not a setting, so it wraps
+   where a dial does not. Empty entries drop out rather than printing a blank. */
+const dialRows = pairs => list(pairs.filter(([,value])=>value),
+  ([name,value])=>'<div class="dial wide"><span class="dn">'+name+'</span>'+
+    '<span class="dv">'+value+'</span></div>');
+
+const refButton = (attribute,value,label,off)=>
+  '<button class="ref'+(off?" isoff":"")+'" '+attribute+'="'+value+'">'+label+'</button>';
+const refList = html => '<div class="reflist">'+html+'</div>';
+
+/* One relationship kind, in one direction, with the transmission detail where
+   the level has bothered to state it. */
+function relationSection(id,kind,ids,direction,detailFor){
+  const live = ids.filter(x=>S[x]||DATA_SOURCES[x]);
+  if(!live.length) return "";
+  const relation = RELATION_TYPES[kind];
+  const offAndNeeded = direction==="rev" ? live.filter(x=>S[x] && isOff(x)) : [];
+  return drawerSect(relation[direction==="fwd" ? "fwd" : "rev"],
+    '<p class="relnote">'+relation.description+'</p>' +
+    refList(list(live,x=>{
+      const detail = direction==="fwd" ? detailFor(id,kind,x) : detailFor(x,kind,id);
+      const other = S[x] || DATA_SOURCES[x];
+      const off = !!S[x] && isOff(x);
+      return refButton(S[x] ? "data-goto" : "data-source", x,
+        other.name + (off?" · off":"") +
+        (detail ? '<span class="refdetail">'+detail.label+' — '+detail.payload+
+          ' · '+detail.cadence+'</span>' : ""), off);
+    })) +
+    (offAndNeeded.length && kind==="trains"
+      ? '<p class="reldep">'+S[id].name+' is trained from data '+
+        offAndNeeded.map(x=>S[x].name).join(" and ")+
+        ' produces, and that is currently switched off. In a real build this is a sequencing dependency, not an optional extra.</p>'
+      : ""));
+}
+
+/* Both directions of every kind, for either a component or a plane node. */
+function relationSections(id,forward,reverse){
+  return COMPONENT_RELATION_KINDS.map(kind=>relationSection(id,kind,forward[kind]||[],"fwd",relationDetail)).join("")+
+         COMPONENT_RELATION_KINDS.map(kind=>relationSection(id,kind,reverse[kind]||[],"rev",relationDetail)).join("");
+}
+
+function crossViewIds(id){
+  return model.crossView ? (model.crossView.links[id]||[]) : [];
+}
+
+const DRAWER_SECTIONS = {
+  /* The round trip between the levels. It is derived in one direction and
+     declared in the other, so the two can never disagree. */
+  crossView:{title:model.crossView?.label, render:(record,id)=>{
+    const ids = crossViewIds(id);
+    if(!ids.length) return "";
+    const other = model.crossView.model;
+    return '<p class="relnote">'+model.crossView.note+'</p>'+
+      refList(list(ids,otherId=>refButton("data-cross",otherId,
+        (other.components[otherId]||other.dataSources[otherId]).name)));
+  }},
+  departure:{title:"Departure from logical", rail:"warn",
+    render:record=> record.departure ? '<p class="departure">'+record.departure+'</p>' : ""},
+  decisions:{title:"What you are choosing", render:record=> list(record.decisions, d=>
+    '<div class="dec"><div class="q">'+d.q+'</div><ul>'+
+    list(d.opts, o=>'<li>'+o+'</li>')+'</ul>'+
+    '<div class="def"><b>Default:</b> '+d.def+'<br>'+d.why+'</div></div>')},
+  substrate:{title:"Substrate", render:record=> !record.substrate ? "" :
+    dialRows([["Service",record.substrate.service],["Unit",record.substrate.unit]])+
+    (record.substrate.sizing
+      ? '<ul class="notes">'+list(record.substrate.sizing,line=>'<li class="note">'+line+'</li>')+'</ul>'
+      : "")},
+  contract:{title:"Stage contract", render:record=> !record.contract ? "" :
+    '<div class="iobox"><span class="k">in  </span>'+record.contract.in+
+    '\n<span class="k">out </span>'+record.contract.out+'</div>'},
+  servingContract:{title:"Serving contract", render:record=> !record.representation ? "" :
+    '<div class="iobox"><span class="k">representation  </span>'+record.representation+
+    '\n<span class="k">filtering       </span>'+record.filtering+
+    '\n<span class="k">updates         </span>'+record.updates+'</div>'},
+  implementation:{title:"Implementation boundary", render:record=>
+    record.implementation ? '<p class="relnote">'+record.implementation+'</p>' : ""},
+  /* What this component promises to give up, and when. The whole point of the
+     level: a stage with no deadline is a stage that decides the tail latency. */
+  budget:{title:"Deadline & failure", render:record=> !record.budget ? "" :
+    dialRows([["Deadline",record.budget.deadline],["Timeout",record.budget.timeout],
+              ["On expiry",record.budget.onExpiry],["Retry",record.budget.retry]])},
+  dials:{title:"Dials", render:record=> list(record.dials, d=>
+    '<div class="dial"><span class="dn">'+d.n+'</span><span class="dv">'+d.v+'</span>'+
+    (d.note?'<span class="dnote">'+d.note+'</span>':"")+'</div>')},
+  optimisation:{title:"Optimisation", render:record=>
+    miniTable(["Optimisation","When it pays"],record.optimisation,
+      o=>'<td>'+o.o+'</td><td>'+o.when+'</td>')},
+  gotchas:{title:"Gotchas", render:record=> list(record.gotchas, g=>
+    '<div class="gotcha"><div class="g">'+g.g+'</div>'+
+    '<p class="why">'+g.why+'</p><p class="fix"><b>Fix</b> '+g.fix+'</p></div>')},
+  scaling:{title:"Scaling", render:record=>
+    miniTable(["Axis","Response"],record.scaling,
+      row=>'<td>'+row.axis+'</td><td>'+row.response+'</td>')},
+  failures:{title:"Failure modes", render:record=>
+    miniTable(["Failure","Symptom","Metric that catches it"],record.failures,
+      f=>'<td>'+f.f+'</td><td>'+f.s+'</td><td class="met">'+f.m+'</td>')},
+  alternatives:{title:"Alternatives", render:record=>
+    miniTable(["Alternative","When it wins"],record.alternatives,
+      a=>'<td>'+a.a+'</td><td>'+a.when+'</td>')},
+  cost:{title:"Cost driver", render:record=>
+    record.cost ? '<p class="relnote">'+record.cost+'</p>' : ""},
+  notes:{title:"Notes", render:record=> !(record.notes||[]).length ? "" :
+    '<ul class="notes">'+list(record.notes,note=>'<li class="note">'+note+'</li>')+'</ul>'},
+  example:{title:"In the worked example", render:record=>
+    record.example ? '<div class="exline">'+record.example+'</div>' : ""},
+  refs:{title:"Background reading", render:record=> list(record.refs, r=>
+    '<a class="reflink" href="'+r.u+'" target="_blank" rel="noopener noreferrer">'+
+      '<span class="rt">'+r.t+'</span><span class="rs">'+r.s+'</span>'+
+      (r.w ? '<span class="rw">'+r.w+'</span>' : "")+'</a>')},
+
+  /* The two below carry their own headings, because one relationship kind is
+     one section and a component has as many as it has. */
+  relations:{expand:true, render:(record,id)=>
+    relationSections(id, REL[id]||{}, RREL[id]||{})},
+  planeRelations:{expand:true, render:(record,id)=>
+    relationSections(id, PLANE_REL[id]||{}, RPLANE_REL[id]||{})},
+
+  serving:{title:"Served by", render:(record,id)=> !(RSERVING[id]||[]).length ? "" :
+    '<p class="relnote">External logical indexes or stores required to serve this component. They exist whether or not the diagram layer is expanded.</p>'+
+    refList(list(RSERVING[id],sourceId=>
+      refButton("data-source",sourceId,DATA_SOURCES[sourceId].name)))},
+  serves:{title:"Serves", render:(record,id)=>{
+    const consumers = SERVING_REL[id] || [];
+    if(!consumers.length) return "";
+    const present = new Set(tplStages(slice.tpl));
+    return '<p class="relnote">Components that query or hydrate from this logical source.</p>'+
+      refList(list(consumers,componentId=>{
+        const missing = !present.has(componentId), off = !missing && isOff(componentId);
+        return refButton("data-goto",componentId,
+          S[componentId].name + (missing ? " · not in "+TPL[slice.tpl].name : off ? " · off" : ""),
+          missing || off);
+      }));
+  }},
+  appears:{title:"Appears in", render:(record,id)=>
+    refList(list([1,2,3].filter(t=>tplStages(t).includes(id)),
+      t=>refButton("data-tpl",t,TPL[t].name)))},
+  appearsWith:{title:"Appears with", render:(record,id)=>{
+    const consumers = SERVING_REL[id] || [];
+    /* A store appears where something reads it. An ordering authority has no
+       readers, so it appears from the level that introduces it onwards. */
+    const levels = consumers.length
+      ? [1,2,3].filter(t=>consumers.some(componentId=>tplStages(t).includes(componentId)))
+      : [1,2,3].filter(t=>t>=record.intro);
+    return refList(list(levels,t=>refButton("data-source-tpl",t,TPL[t].name)));
+  }}
+};
+
+/* The level names the sections and their order; an entry may rename one where
+   the same field answers a different question at the two levels. */
+function renderSections(spec,id,record){
+  return spec.map(entry=>{
+    const [key,title] = Array.isArray(entry) ? entry : [entry,null];
+    const section = DRAWER_SECTIONS[key];
+    if(!section) throw new Error("Unknown drawer section: "+key);
+    const html = section.render(record,id);
+    if(!html) return "";
+    return section.expand ? html : drawerSect(title || section.title, html, section.rail);
+  }).join("");
+}
+
+/* Every link a rendered section can produce, wired in one place. */
+function wireDrawerLinks(reopen){
+  $$(".ref[data-goto]",DRAWER.body).forEach(b=> b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
+  $$(".ref[data-source]",DRAWER.body).forEach(b=> b.addEventListener("click",()=> openSourceDrawer(b.dataset.source)));
+  $$(".ref[data-cross]",DRAWER.body).forEach(b=> b.addEventListener("click",()=>
+    revealInModel(model.crossView.model.id, b.dataset.cross)));
+  $$(".ref[data-tpl],.ref[data-source-tpl]",DRAWER.body).forEach(b=> b.addEventListener("click",()=>{
+    setTpl(+(b.dataset.tpl || b.dataset.sourceTpl));
+    reopen();
+  }));
+}
+
+function showDrawer(){
+  drawerOwner = view;
+  DRAWER.root.classList.add("open"); DRAWER.scrim.classList.add("open");
+  DRAWER.root.setAttribute("aria-modal","false");
+}
+
 function openDrawer(id){
   const s = S[id];
   if(!s) return;
   const gate = executionGate(id,slice.tpl);
+  const runtime = RUNTIMES?.[s.runtime];
   hideHover();
   selectEntity(id);
 
@@ -6962,7 +7567,8 @@ function openDrawer(id){
   const locked = lockedFor(id), on = isOn(id);
   DRAWER.chips.innerHTML =
     '<span class="chip">Introduced in <b>'+TPL[s.intro].name+'</b></span>' +
-    (s.cx ? '<span class="chip">Complexity <b>'+s.cx+'/5</b></span>' : "") +
+    (runtime ? '<span class="chip">Runtime <b>'+runtime.label+'</b></span>' : "") +
+    (s.cx ? '<span class="chip">'+SIDEBAR.cxChip+' <b>'+s.cx+'/5</b></span>' : "") +
     (s.model ? '<span class="chip">model in path</span>' : "") +
     /* A request gate is one hop from the component that owns the decision.
        A deployment gate has no owner to hop to, and the chip that leads
@@ -6976,134 +7582,45 @@ function openDrawer(id){
   $$("[data-goto]",DRAWER.chips).forEach(b=>
     b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
 
-  const sect = drawerSect;
-  let h = "";
-
-  if(s.decisions) h += sect("What you are choosing", s.decisions.map(d=>
-    '<div class="dec"><div class="q">'+d.q+'</div><ul>'+
-    d.opts.map(o=>'<li>'+o+'</li>').join("")+'</ul>'+
-    '<div class="def"><b>Default:</b> '+d.def+'<br>'+d.why+'</div></div>').join(""));
-
-  if(s.contract) h += sect("Stage contract",
-    '<div class="iobox"><span class="k">in  </span>'+s.contract.in+'\n<span class="k">out </span>'+s.contract.out+'</div>');
-
-  if(s.dials) h += sect("Dials", s.dials.map(d=>
-    '<div class="dial"><span class="dn">'+d.n+'</span><span class="dv">'+d.v+'</span>'+
-    (d.note?'<span class="dnote">'+d.note+'</span>':"")+'</div>').join(""));
-
-  if(s.notes && s.notes.length) h += sect("Notes",
-    '<ul class="notes">'+s.notes.map(n=>'<li class="note">'+n+'</li>').join("")+'</ul>');
-
-  if(s.failures) h += sect("Failure modes",
-    '<table class="mini"><thead><tr><th>Failure</th><th>Symptom</th><th>Metric that catches it</th></tr></thead><tbody>'+
-    s.failures.map(f=>'<tr><td>'+f.f+'</td><td>'+f.s+'</td><td class="met">'+f.m+'</td></tr>').join("")+
-    '</tbody></table>');
-
-  if(s.example) h += sect("In the worked example", '<div class="exline">'+s.example+'</div>');
-
-  if(s.refs && s.refs.length) h += sect("Background reading", s.refs.map(r=>
-    '<a class="reflink" href="'+r.u+'" target="_blank" rel="noopener noreferrer">'+
-      '<span class="rt">'+r.t+'</span><span class="rs">'+r.s+'</span>'+
-      (r.w ? '<span class="rw">'+r.w+'</span>' : "")+
-    '</a>').join(""));
-
-  const relRow = (kind, ids, dir) => {
-    const live = ids.filter(x=>S[x]);
-    if(!live.length) return "";
-    const relation = RELATION_TYPES[kind];
-    const offAndNeeded = dir==="rev" ? live.filter(isOff) : [];
-    return sect(relation[dir==="fwd"?"fwd":"rev"],
-      '<p class="relnote">'+relation.description+'</p>' +
-      '<div class="reflist">'+live.map(x=>{
-        const detail=dir==="fwd" ? relationDetail(id,kind,x) : relationDetail(x,kind,id);
-        return '<button class="ref'+(isOff(x)?" isoff":"")+'" data-goto="'+x+'">'+
-          S[x].name + (isOff(x)?" · off":"") +
-          (detail ? '<span class="refdetail">'+detail.label+' — '+detail.payload+' · '+detail.cadence+'</span>' : '')+
-          '</button>';
-      }).join("")+'</div>' +
-      (offAndNeeded.length && kind==="trains"
-        ? '<p class="reldep">'+S[id].name+' is trained from data '+
-          offAndNeeded.map(x=>S[x].name).join(" and ")+
-          ' produces, and that is currently switched off. In a real build this is a sequencing dependency, not an optional extra.</p>'
-        : ""));
-  };
-  const fwd = REL[id] || {}, rev = RREL[id] || {};
-  COMPONENT_RELATION_KINDS.forEach(k=>{ h += relRow(k, fwd[k]||[], "fwd"); });
-  COMPONENT_RELATION_KINDS.forEach(k=>{ h += relRow(k, rev[k]||[], "rev"); });
-
-  const sources = RSERVING[id] || [];
-  if(sources.length) h += sect("Served by",
-    '<p class="relnote">External logical indexes or stores required to serve this component. They exist whether or not the diagram layer is expanded.</p>'+
-    '<div class="reflist">'+sources.map(sourceId=>
-      '<button class="ref" data-source="'+sourceId+'">'+DATA_SOURCES[sourceId].name+'</button>').join("")+'</div>');
-
-  const usedIn = [1,2,3].filter(t=>tplStages(t).includes(id));
-  h += sect("Appears in", '<div class="reflist">'+usedIn.map(t=>
-        '<button class="ref" data-tpl="'+t+'">'+TPL[t].name+'</button>').join("")+'</div>');
-
-  DRAWER.body.innerHTML = h;
-  $$(".ref[data-goto]",DRAWER.body).forEach(b=> b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
-  $$(".ref[data-source]",DRAWER.body).forEach(b=> b.addEventListener("click",()=> openSourceDrawer(b.dataset.source)));
-  $$(".ref[data-tpl]",DRAWER.body).forEach(b=> b.addEventListener("click",()=>{ setTpl(+b.dataset.tpl); openDrawer(id); }));
+  DRAWER.body.innerHTML = renderSections(model.panel,id,s);
+  wireDrawerLinks(()=>openDrawer(id));
   const tg = DRAWER.toggle;
   if(tg && !locked) tg.addEventListener("click", ()=>{ setOff(id, isOn(id)); renderAll(); openDrawer(id); });
 
-  drawerOwner = view;
-  DRAWER.root.classList.add("open"); DRAWER.scrim.classList.add("open");
-  DRAWER.root.setAttribute("aria-modal","false");
+  showDrawer();
 }
 
 function openSourceDrawer(id){
   const source = DATA_SOURCES[id];
   if(!source) return;
+  const plane = model.planes.find(entry=>entry.id===source.plane);
   hideHover();
   selectEntity(id);
 
   DRAWER.tags.innerHTML =
     '<span class="tag '+source.tier+'">'+TIER_LABEL[source.intro]+'</span>'+
-    '<span class="tag data">data plane</span><span class="tag grp">logical dependency</span>';
+    /* What kind of thing this is: the level that knows about runtimes says
+       which one, and the level that does not says what it stands for. */
+    '<span class="tag data">'+plane.key+'</span><span class="tag grp">'+
+      (RUNTIMES ? RUNTIMES[source.runtime].label : model.sourceLabel)+'</span>';
   DRAWER.title.textContent = source.name;
   DRAWER.purpose.textContent = source.purpose;
   setGateNote(null);
 
   const consumers = SERVING_REL[id] || [];
-  const active = activeConsumers(id);
+  const derives = Object.values(PLANE_REL[id]||{}).flat();
   DRAWER.chips.innerHTML =
     '<span class="chip">Introduced in <b>'+TPL[source.intro].name+'</b></span>'+
-    '<span class="chip">Active consumers <b>'+active.length+'</b></span>'+
-    '<span class="chip">Defined consumers <b>'+consumers.length+'</b></span>';
+    /* A store is measured by who reads it; an ordering authority has no
+       readers to count and is measured by what it keeps in step. */
+    (consumers.length
+      ? '<span class="chip">Active consumers <b>'+activeConsumers(id).length+'</b></span>'+
+        '<span class="chip">Defined consumers <b>'+consumers.length+'</b></span>'
+      : '<span class="chip">Derives <b>'+derives.length+'</b></span>');
 
-  const contract = '<div class="iobox"><span class="k">representation  </span>'+source.representation+
-    '\n<span class="k">filtering       </span>'+source.filtering+
-    '\n<span class="k">updates         </span>'+source.updates+'</div>';
-  const present = new Set(tplStages(slice.tpl));
-  const serves = '<p class="relnote">Components that query or hydrate from this logical source.</p>'+
-    '<div class="reflist">'+consumers.map(componentId=>{
-      const unavailable = !present.has(componentId), off = present.has(componentId) && isOff(componentId);
-      const suffix = unavailable ? " · not in "+TPL[slice.tpl].name : off ? " · off" : "";
-      return '<button class="ref'+(unavailable||off?' isoff':'')+'" data-goto="'+componentId+'">'+
-        S[componentId].name+suffix+'</button>';
-    }).join("")+'</div>';
-  const notes = source.notes && source.notes.length
-    ? drawerSect("Notes",'<ul class="notes">'+source.notes.map(note=>'<li class="note">'+note+'</li>').join("")+'</ul>') : "";
-  const templates = [1,2,3].filter(t=>
-    consumers.some(componentId=>tplStages(t).includes(componentId)));
-
-  DRAWER.body.innerHTML =
-    drawerSect("Serving contract",contract)+
-    drawerSect("Implementation boundary",'<p class="relnote">'+source.implementation+'</p>')+
-    notes+
-    drawerSect("Serves",serves)+
-    drawerSect("Appears with",'<div class="reflist">'+templates.map(t=>
-      '<button class="ref" data-source-tpl="'+t+'">'+TPL[t].name+'</button>').join("")+'</div>');
-
-  $$(".ref[data-goto]",DRAWER.body).forEach(b=>b.addEventListener("click",()=>openDrawer(b.dataset.goto)));
-  $$(".ref[data-source-tpl]",DRAWER.body).forEach(b=>b.addEventListener("click",()=>{
-    setTpl(+b.dataset.sourceTpl); openSourceDrawer(id);
-  }));
-  drawerOwner = view;
-  DRAWER.root.classList.add("open"); DRAWER.scrim.classList.add("open");
-  DRAWER.root.setAttribute("aria-modal","false");
+  DRAWER.body.innerHTML = renderSections(model.sourcePanel,id,source);
+  wireDrawerLinks(()=>openSourceDrawer(id));
+  showDrawer();
 }
 
 /* The drawer is a document singleton; closing it is handled once, outside.
@@ -7132,6 +7649,58 @@ const HOVER_RELATIONS = Object.freeze([
   {label:RELATION_TYPES.steers.fwd, pick:id=>REL[id]?.steers,  name:x=>S[x]?.name, scoped:true}
 ]);
 const HOVER_RELATION_LIMIT = 7;   // routing steers twelve stages; the drawer lists them all
+
+/* The card is composed the way the drawer is: named blocks, in the order the
+   level asks for them. Every block returns "" when the record has nothing to
+   put in it, so a level's list is a preference rather than a promise. */
+const HOVER_BLOCKS = {
+  /* What kind of thing this is at the logical level: which family, and how
+     much work it is to build. */
+  pills:s=> '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
+    '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
+    /* Orthogonal to the gate, exactly as on the node card: when a stage runs,
+       and what it costs on the requests where it does. */
+    (s.conditional ? '<span class="hc-pill hc-cond">Conditional</span>' : "")+'</div>',
+  /* And at the physical level: where it runs, and on what. */
+  runtimePills:s=>{
+    const runtime = RUNTIMES[s.runtime];
+    return '<div class="hc-top"><span class="hc-pill hc-rt" style="--rt-color:'+runtime.color+'">'+
+      runtime.chip+'</span><span class="hc-pill hc-group">'+s.substrate.service+'</span></div>';
+  },
+  /* The gate needs no pill of its own \u2014 this paragraph names it, and its
+     rail colour still separates request gates from deployment ones. */
+  gate:(s,id)=>{
+    const gate = executionGate(id,slice.tpl);
+    return gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'"><b>'+gate.label+
+      ' gate</b> \u2014 '+gateSentence(gate)+'</p>' : "";
+  },
+  conditional:s=> s.conditional
+    ? '<p class="hc-gate hc-condline"><b>Conditional</b> \u2014 '+s.conditionalOn+'</p>' : "",
+  purpose:s=> '<p class="hc-desc">'+s.purpose+'</p>',
+  example:s=> s.example
+    ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "",
+  crossView:(s,id)=>{
+    const ids = crossViewIds(id);
+    if(!ids.length) return "";
+    const other = model.crossView.model;
+    return '<div class="hc-notes"><span class="hc-lb">'+model.crossView.label+'</span><ul><li>'+
+      ids.map(otherId=>(other.components[otherId]||other.dataSources[otherId]).name).join(" \u00b7 ")+
+      '</li></ul></div>';
+  },
+  /* What this stage gives up when the clock runs out. On a deployment diagram
+     that is the sentence the reader came for. */
+  budget:s=> !s.budget ? "" :
+    '<div class="hc-notes"><span class="hc-lb">Deadline</span><ul><li>'+s.budget.deadline+
+    '</li><li>on expiry: '+s.budget.onExpiry+'</li></ul></div>',
+  /* One gotcha on hover is deliberate: it is the highest-value sentence on
+     most of these cards, and the reason to hover rather than click. */
+  gotcha:s=> !(s.gotchas||[]).length ? "" :
+    '<div class="hc-notes"><span class="hc-lb">Gotcha</span><ul><li>'+s.gotchas[0].g+'</li></ul></div>',
+  relations:(s,id)=> hoverRelations(id),
+  notes:s=> (s.notes||[]).length
+    ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+
+      s.notes.map(n=>'<li>'+n+'</li>').join("")+'</ul></div>' : ""
+};
 
 function hoverRelations(id){
   const drawn = new Set(tplStages(slice.tpl));
@@ -7194,25 +7763,8 @@ function showHover(el, id){
   } else {
     const s = S[id];
     if(!s || DRAWER.root.classList.contains("open")) return;
-    const gate = executionGate(id,slice.tpl);
-    hoverCard.innerHTML =
-      '<div class="hc-title">'+s.name+'</div>'+
-      '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
-        '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
-        /* Orthogonal to the gate, exactly as on the node card: when a stage
-           runs, and what it costs on the requests where it does. */
-        (s.conditional ? '<span class="hc-pill hc-cond">Conditional</span>' : "")+'</div>'+
-      /* The gate needs no pill of its own — this paragraph names it, and its
-         rail colour still separates request gates from deployment ones. */
-      (gate ? '<p class="hc-gate" style="--gate-color:'+gate.color+'"><b>'+gate.label+
-        ' gate</b> \u2014 '+gateSentence(gate)+'</p>' : "")+
-      (s.conditional ? '<p class="hc-gate hc-condline"><b>Conditional</b> \u2014 '+
-        s.conditionalOn+'</p>' : "")+
-      '<p class="hc-desc">'+s.purpose+'</p>'+
-      (s.example ? '<div class="hc-ex"><span class="hc-lb">In the worked example</span>'+s.example+'</div>' : "")+
-      hoverRelations(id)+
-      (s.notes && s.notes.length ? '<div class="hc-notes"><span class="hc-lb">Notes</span><ul>'+
-        s.notes.map(n=>'<li>'+n+'</li>').join("")+'</ul></div>' : "");
+    hoverCard.innerHTML = '<div class="hc-title">'+s.name+'</div>'+
+      model.hover.map(key=>HOVER_BLOCKS[key](s,id)).join("");
   }
   hoverCard.hidden = false;          // must be visible before it can be measured
   const r = el.getBoundingClientRect();
@@ -7283,8 +7835,8 @@ function renderCompList(){
    WIRING
    ======================================================================= */
 function renderAll(){
-  hideHover(); renderGateLegend(); renderCanvas(); renderComposition();
-  renderCompList(); renderPlaneToggle();
+  hideHover(); renderGateLegend(); renderRuntimeLegend(); renderCanvas();
+  renderComposition(); renderCompList(); renderPlaneToggles();
 }
 
 /* One row per condition present in the active template. Conditions the current
@@ -7339,6 +7891,7 @@ function setTpl(t){
    ======================================================================= */
 $$(".seg button").forEach(b=>{
   const t = +b.dataset.tpl, template = TPL[t];
+  b.innerHTML = '<span class="n">'+t+'</span>'+template.name;
   const tip = document.createElement("span");
   tip.className = "tpl-tip"; tip.id = model.id+"-tplTip"+t; tip.setAttribute("role","tooltip");
   tip.innerHTML = "<b>"+template.tagline+".</b> "+template.desc;
@@ -7348,10 +7901,6 @@ $$(".seg button").forEach(b=>{
   b.addEventListener("click",()=> setTpl(t));
 });
 ui("resetBtn").addEventListener("click", ()=>{ slice.off[slice.tpl] = new Set(); renderAll(); });
-ui("servingToggle").addEventListener("click", ()=>{
-  slice.planes[optionalPlane.id] = !slice.planes[optionalPlane.id];
-  renderAll();
-});
 
 /* worked example + facet trace */
 ui("exQuery").textContent = model.example;
@@ -7412,7 +7961,7 @@ function layoutReport(scrollY = window.scrollY){
     .map(([name,selector])=>[name,layoutBox($(selector))]));
   const report = {
     template:slice.tpl, templateName:TPL[slice.tpl].name,
-    dataSources:sourcesShown(), narrow:isNarrowLayout(),
+    planes:{...slice.planes}, narrow:isNarrowLayout(),
     viewport:{width:window.innerWidth, height:window.innerHeight},
     scrollY:Math.round(window.scrollY),
     documentHeight:Math.round(document.documentElement.scrollHeight),
@@ -7432,21 +7981,31 @@ function layoutReport(scrollY = window.scrollY){
   return report;
 }
 
-/* Every level crossed with every data-source setting, at whatever width
-   the window currently has. Wires are drawn synchronously here because
-   the render path defers them to the next frame. */
+/* Every combination of optional planes this level declares, minus the ones a
+   reader cannot reach: a plane that depends on another is never on alone. */
+function planeCombinations(){
+  return model.planes
+    .reduce((combinations,plane)=>combinations.flatMap(combination=>
+      [{...combination,[plane.id]:false},{...combination,[plane.id]:true}]), [{}])
+    .filter(combination=>model.planes.every(plane=>
+      !combination[plane.id] || !plane.requires || combination[plane.requires]));
+}
+
+/* Every level crossed with every plane combination, at whatever width the
+   window currently has. Wires are drawn synchronously here because the render
+   path defers them to the next frame. */
 function layoutSweep(scrollY = 0){
-  const resume = {tpl:slice.tpl, plane:slice.planes[optionalPlane.id], focus:slice.focus};
+  const resume = {tpl:slice.tpl, planes:{...slice.planes}, focus:slice.focus};
   const settle = ()=>{ renderAll(); drawWires(); };
   const combinations = [];
-  Object.keys(TPL).map(Number).forEach(tpl=>[false,true].forEach(shown=>{
+  Object.keys(TPL).map(Number).forEach(tpl=>planeCombinations().forEach(planes=>{
     Object.assign(slice,{tpl});
-    slice.planes[optionalPlane.id] = shown;
+    Object.assign(slice.planes,planes);
     settle();
     combinations.push(layoutReport(scrollY));
   }));
   Object.assign(slice,{tpl:resume.tpl, focus:resume.focus});
-  slice.planes[optionalPlane.id] = resume.plane;
+  Object.assign(slice.planes,resume.planes);
   settle();
   return {viewport:{width:window.innerWidth, height:window.innerHeight}, combinations};
 }
@@ -7457,10 +8016,22 @@ function layoutSweep(scrollY = 0){
    ======================================================================= */
 const view = Object.freeze({
   model, slice,
-  render:renderAll, drawWires, setTpl, openDrawer, revealNode,
+  render:renderAll, drawWires, setTpl, openDrawer, openSourceDrawer, revealNode,
   clearSelection, dismissFocus, layoutReport, layoutSweep
 });
 
+/* A section or block name that does not exist is a typo, and a typo should
+   fail at load like every other reference in this file rather than the first
+   time a reader opens a drawer. */
+[model.panel, model.sourcePanel].forEach(spec=> spec.forEach(entry=>{
+  const key = Array.isArray(entry) ? entry[0] : entry;
+  if(!DRAWER_SECTIONS[key]) throw new Error("Unknown drawer section in "+model.id+": "+key);
+}));
+model.hover.forEach(key=>{
+  if(!HOVER_BLOCKS[key]) throw new Error("Unknown hover block in "+model.id+": "+key);
+});
+
+renderSidebarCopy();
 renderRelationLegend();
 renderAll();
 return view;
@@ -7470,20 +8041,55 @@ return view;
    VIEWS AND PAGE CHROME — one pipeline view per level that has one, plus
    the tabs, theme and keyboard handling they all share.
    ======================================================================= */
-const VIEWS = {
-  logical: createPipelineView(LOGICAL, state.models.logical, $("#view-pipe"))
-};
 /* Which level a tab draws. A tab with no entry here is prose. */
-const VIEW_MODEL = {pipe:"logical"};
+const VIEW_MODEL = {pipe:"logical", phys:"physical"};
+const MODEL_VIEW = Object.fromEntries(
+  Object.entries(VIEW_MODEL).map(([viewId,modelId])=>[modelId,viewId]));
+
+/* The second view's markup is the first one's, stamped before either is
+   built. One copy to maintain, and no way for the two to drift apart. */
+$("#view-phys").innerHTML = $("#view-pipe").innerHTML;
+
+const VIEWS = Object.fromEntries(Object.entries(VIEW_MODEL).map(([viewId,modelId])=>
+  [modelId, createPipelineView(PIPELINE_MODELS[modelId], state.models[modelId], $("#view-"+viewId))]));
 const activeView = ()=> VIEWS[VIEW_MODEL[state.view]] || null;
+
+/* The header line belongs to the tab: the physical tab is not "logical
+   architecture, not frameworks". */
+const VIEW_SUBTITLE = {
+  pipe:LOGICAL.subtitle,
+  phys:PHYSICAL.subtitle,
+  build:"Ordered by value delivered per unit of cost \u00b7 the trigger condition that says now, not a schedule",
+  about:"What this explorer is for, how to read it, and where its answers stop"
+};
 
 function setView(v){
   state.view = v;
   $$(".view").forEach(section=> section.classList.toggle("on", section.id==="view-"+v));
   $$(".tabs button").forEach(b=> b.setAttribute("aria-selected", String(b.dataset.view===v)));
+  $("#headerSub").textContent = VIEW_SUBTITLE[v] || "";
   const view = activeView();
   if(view) requestAnimationFrame(view.drawWires);
 }
+
+/* Open a component in the view that draws its level, at the level where it
+   first appears. It is the one move a view cannot make on its own, and it is
+   what makes this one tool rather than two diagrams in a trench coat. */
+function revealComponent(modelId,id){
+  const view = VIEWS[modelId];
+  if(!view) return;
+  const model = view.model;
+  const templateId = [1,2,3].find(t=>Model.stages(model,t).includes(id)) || 3;
+  setView(MODEL_VIEW[modelId]);
+  view.setTpl(templateId);
+  /* The view has to be on screen and laid out before either call can measure
+     anything, and a hidden canvas measures as zero. */
+  setTimeout(()=>{
+    if(model.dataSources[id]) view.openSourceDrawer(id);
+    else { view.openDrawer(id); view.revealNode(id); }
+  },60);
+}
+revealInModel = revealComponent;
 
 /* =======================================================================
    BUILD ORDER VIEW
@@ -7511,12 +8117,8 @@ function renderBuild(){
         'Everything below is Full surface territory.</div>'+html
       : html;
   }).join("");
-  $$("#steps .ref[data-goto]").forEach(b=> b.addEventListener("click",()=>{
-    const id = b.dataset.goto, view = VIEWS.logical;
-    const t = [1,2,3].find(t=>Model.stages(LOGICAL,t).includes(id)) || 3;
-    setView("pipe"); view.setTpl(t);
-    setTimeout(()=>{ view.openDrawer(id); view.revealNode(id); },60);
-  }));
+  $$("#steps .ref[data-goto]").forEach(b=>
+    b.addEventListener("click", ()=> revealComponent("logical", b.dataset.goto)));
 }
 
 $$(".tabs button").forEach(b=> b.addEventListener("click",()=> setView(b.dataset.view)));
@@ -7565,10 +8167,11 @@ window.dependencyDiagnostics = Object.freeze({
   modelValidation:LOGICAL.validation.relationships,
   ladderValidation:LOGICAL.validation.ladder,
   emitBaseline:(modelId="logical")=>emitBaseline(PIPELINE_MODELS[modelId]),
-  layout:(...args)=>VIEWS.logical.layoutReport(...args),
-  layoutSweep:(...args)=>VIEWS.logical.layoutSweep(...args)
+  layout:(modelId="logical",...args)=>VIEWS[modelId].layoutReport(...args),
+  layoutSweep:(modelId="logical",...args)=>VIEWS[modelId].layoutSweep(...args)
 });
 
+setView(state.view);
 renderBuild();
 </script>
 </body>
