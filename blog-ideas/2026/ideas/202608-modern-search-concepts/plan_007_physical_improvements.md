@@ -6,14 +6,16 @@ Companion reading: `search-query-pipeline-diagram-tool-architecture.md` (point-i
 **layer model, the validator-wall contract and the recipes are still accurate**).
 
 **Status:** **Phases 1–2 done** (`7d093e6`, 26 Aug 2026), **Phase 3 done** (`1b46328`,
-26 Aug 2026), **Phase 4 done** (uncommitted, 26 Aug 2026) — the vocabulary is installed
-(`writes`, `confidence`, `"optional stage"`, `configured`), candidate generation is split so
-the spine reads `engines → union → sufficiency → fuse`, every request-path stage but the two
-held items now has a visible input, and the two contradicted gates now carry the kinds their
-own cards claim. The fixture was re-emitted, diffed and read at each phase; hops, units and
-`cx` did not move in Phase 3, and Phase 4 moved no edge at all (**F23**). Phases 5–8
-outstanding. Written on top of `f8d8d29` (plan 006 phases 1–4). Update this line as each
-phase lands, in the style of plan 006 (`Phase N done (<sha>, <date>)`).
+26 Aug 2026), **Phase 4 done** (`44e2c27`, 26 Aug 2026), **Phase 5 done** (uncommitted,
+26 Aug 2026) — the vocabulary is installed (`writes`, `confidence`, `"optional stage"`,
+`configured`), candidate generation is split so the spine reads
+`engines → union → sufficiency → fuse`, every request-path stage but the two held items now
+has a visible input, the two contradicted gates now carry the kinds their own cards claim,
+and the three partial control relations say so in numbers the page computes. The fixture was
+re-emitted, diffed and read at each phase; hops, units and `cx` did not move in Phase 3, and
+Phases 4 and 5 moved no edge at all (**F23**, **F31**). Phases 6–8 outstanding. Written on
+top of `f8d8d29` (plan 006 phases 1–4). Update this line as each phase lands, in the style of
+plan 006 (`Phase N done (<sha>, <date>)`).
 
 Where implementing a phase turns up something this plan did not predict, the finding is
 recorded in that phase under **"What Phase N found"** — the later phases are written against
@@ -27,7 +29,7 @@ those, not against the original guess.
 | **2 — Split candidate generation**      | Splits `px-fuse` into `px-union` + `px-fuse` and puts `px-sufficiency` between them, so the spine reads `engines → union → sufficiency → fuse` as its own card claims. Count-neutral on hops and units; +1 component.          | Re-emitted and read — 7 out, 10 in, 158 → 161                  | 1              | **Done**    |
 | **3 — The missing request-path inputs** | The user-visible fix: adds `px-qu → px-bedrock-qu`, gives the encoder band an input, and adds `PX_REL_BY_LEVEL` for level-scoped relations. Two of four orphans; two held.                                                     | Re-emitted and compared byte-for-byte — 0 out, 4 in, 161 → 165 | 2 (order only) | **Done**    |
 | **4 — Gate reassignment**               | `px-bedrock-qu` becomes a `confidence` gate; `px-personal` gains a config gate plus conditional chip. The gate-authority check widens to admit a decider that feeds what it gates, and the physical legend stops naming one owner. | Re-emitted and compared character-for-character — no change    | 1.3, 1.4       | **Done**    |
-| **5 — Coverage notes**                  | Adds a derived "drawn to N of M" line to the three partial control-plane relations (`px-otel observes`, `px-deadline steers`, `px-appconfig steers`), computed from a scope predicate so it cannot drift.                      | No change                                                      | 1.5            | Not started |
+| **5 — Coverage notes**                  | Adds a derived "drawn to N of M" line to the three partial control-plane relations (`px-otel observes`, `px-deadline steers`, `px-appconfig steers`), computed from a scope predicate so it cannot drift. Also fixes the two things that made the number unreadable: the drawer never redrew on a level change, and a relation list printed a target the level had not reached exactly like a drawn one (**F19**). | No change                                                      | 1.5            | **Done**    |
 | **6 — Cross-view fidelity**             | Level-filters the REALISES list, records departures for the two retargets, and applies/documents the four proposed logical-side changes (L1 required, L2 applied, L3 documented, L4 deferred).                                 | Logical baseline re-emitted for L2                             | 2, 3, 4        | Not started |
 | **7 — Invariants**                      | Three validators that would have caught this whole class of defect — every request-path stage has an input, a departure is owed both ways, coverage notes must describe something — each throwing when it becomes unnecessary. | No change                                                      | everything     | Not started |
 | **8 — Verification & documentation**    | All three templates × both planes, orphan sweep, correspondence sweep, narrow screens, dark theme, then the architecture doc and `TODO.md`.                                                                                    | No change                                                      | 1–7            | Not started |
@@ -852,8 +854,8 @@ Three relations are partial, and each one's card is contradicted by its wires:
 
 | Relation              | Drawn at Full | Should be scoped to                     | Omissions worth naming                                                                                                                                                                |
 | --------------------- | ------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `px-otel observes`    | 5             | every network hop (14)                  | `px-bedrock-qu` and `px-vlm` — the two most expensive hops at Full — while `px-crossenc` is included. The list is the Recommended set, unchanged.                                     |
-| `px-deadline steers`  | 6             | every remote call under the budget (13) | `px-bedrock-qu`, whose budget says `timeout:"the deadline, not the model's default"`; `px-embed-image`; `px-embed-sparse`; `px-hydrate`; `px-personal` (`"a small slice, skippable"`) |
+| `px-otel observes`    | 5             | every network hop (15 — **F29**)        | `px-bedrock-qu` and `px-vlm` — the two most expensive hops at Full — while `px-crossenc` is included. The list is the Recommended set, unchanged.                                     |
+| `px-deadline steers`  | 6             | every remote call under the budget (14 — **F28**) | `px-bedrock-qu`, whose budget says `timeout:"the deadline, not the model's default"`; `px-embed-image`; `px-embed-sparse`; `px-hydrate`; `px-personal` (`"a small slice, skippable"`) |
 | `px-appconfig steers` | 4             | every `configured` component (6)        | `px-sufficiency`, `px-recovery` — both name AppConfig in their own records                                                                                                            |
 
 ### The mechanism
@@ -903,12 +905,105 @@ Compute the denominator from components **active at the current template and not
 off**, reusing whatever `enabled` accessor the sidebar metrics already read — do not
 introduce a second notion of "active".
 
+> **Two corrections to the block above landed in implementation.** `px-deadline`'s predicate
+> cannot be `record.hop` (**F28**) and `px-otel`'s `of` string cannot reuse the sidebar's
+> wording (**F29**). Both are the same lesson: a predicate has to answer the question the
+> _relation_ asks, not the one the nearest existing field happens to answer.
+
+### What Phase 5 found
+
+**F26 · The drawer never redrew on a level change, so the coverage line could not have
+worked as specified.** `renderAll()` redrew the canvas, the metrics, the gate legend and the
+component list — and not an open drawer. Only two ad-hoc sites reopened it: the level links
+_inside_ the drawer (`wireDrawerLinks(reopen)`) and toggling the drawer's own subject
+(`if(slice.sel===id) openDrawer(id)`). So changing level from the segmented control, or
+switching some _other_ component off, left the drawer showing the previous composition's
+answer. This was already wrong before this phase — the `serves` section's `" · not in <level>"`
+markers and the `appears` list have the same dependency — but a number that is supposed to
+move as the reader climbs makes it unmissable, and Phase 5's own exit criterion could not
+have held.
+
+The fix is a subtraction, not an addition: the drawer records how to redraw itself on its
+current subject (`reopenDrawer`, set in `showDrawer(id, reopen)`, cleared in `closeDrawer`),
+and `renderAll()` calls it when this view owns the drawer. The three ad-hoc reopen sites are
+gone — `wireDrawerLinks` takes no argument any more, and neither toggle handler reopens
+anything. One rule: **a re-render redraws the drawer.** The subject is unchanged, so the
+existing `drawerSubject` logic keeps the reader's scroll position, exactly as its comment
+already promised for "a level switch, an enable toggle".
+
+**F27 · A relation list printed a target the level had not reached exactly like a drawn
+one — this is F19, and it is fixed.** `DRAWER_SECTIONS.serves` has distinguished the two
+cases since it was written (`" · not in "+TPL[slice.tpl].name` for absent, `" · off"` for
+switched off, `isoff` styling for both). `relationSection()` knew only `isOff`. So at
+Recommended `px-deadline`'s _Steers_ listed six identical chips while the diagram drew four,
+and `routing`'s listed ten while it drew three. That is this plan's own defect class — a card
+claiming what the wires do not draw — sitting inside the renderer, and it is why the coverage
+numerator and the list underneath it agreed on nothing.
+
+One shared `absenceMarker(present,id)` now answers it for both sections, over one shared
+notion of what a composition draws (`presentStages`, `activeStages`, `isDrawn` — the last of
+which `composition()` now reads too, so the sidebar's metrics and every coverage denominator
+count the same population). Entries gaining the mark: **2 physical / 1 logical at Core,
+14 physical / 16 logical at Recommended, none at Full** — Full draws everything, which is
+the reassurance that the marker is measuring the level and not a bug.
+
+**F28 · The deadline's scope predicate cannot be `record.hop`.** `px-rescore-late` rides
+inside the Qdrant call (`ridesCall`), so `defPhysical` resolves `record.hop` to false — and
+the deadline is drawn to it. `record.hop && record.budget` therefore yields _"6 of 13"_ with
+one of the six standing outside the thirteen. The predicate asks `RUNTIME[record.runtime].hop`
+instead — _does this execute off-box_ — which is the question "remote calls under the request
+budget" actually asks; a rescore clause inside someone else's call is a remote call under the
+budget, it simply is not a second one. Denominator **14**, and every drawn target is inside
+it. **This is the invariant 7.3 must carry** — see the amendment there.
+
+**F29 · The OTel denominator is 15, and the plan's 14 is a different true number.** The 14 in
+the table above came from the sidebar's "Network hops in the request path", which collapses a
+concurrent band to one round trip because a band costs its slowest member. Tracing does not
+collapse: it instruments each service in the band. Two true numbers under one name is the
+drift this file exists to prevent, and they sit on the same screen — sidebar reading 14,
+drawer reading 15. So the coverage `of` deliberately does **not** reuse the sidebar's wording
+(`"components that are their own network hop"`), and the `why` closes by saying why the two
+differ. Worth remembering the next time a coverage entry is added: the `of` string is naming a
+population, and if the sidebar already names one, they must not collide.
+
+**F30 · `configured` is six, and only two of the three denominators move.** F11 holds —
+Phase 2's `px-union` did not become a seventh, and Phase 4 added no marker. All six configured
+components arrive at Recommended, so `px-appconfig` reads _4 of 6_ at Recommended and _4 of 6_
+at Full; it is the two hop-based denominators that climb (5 of 9 → 5 of 15, 4 of 7 → 6 of 14).
+Switching a component off moves both numbers as it should: with `px-recovery` off, AppConfig
+reads _4 of 5_; with `px-final` off as well, _3 of 4_ and the chip marked `· off`.
+
+**F32 · A coverage line needs its own source to be drawn, and the drawer will happily show
+a card the level does not draw.** Carrying an open drawer down to Core — a level switch, or
+an `Appears in` link — leaves `px-otel`'s card on screen at a level that has no `px-otel`.
+The first implementation counted its targets there and read _"4 of 6"_, describing four wires
+that are not on the canvas, because at Core the relation draws none: a wire needs both of its
+ends. `coverageNote` now returns nothing unless the source is drawn too. This is the
+narrowest safe rule and it is worth stating for 7.3: **the numerator is edges, not targets**,
+and every predicate written against this registry has to be read that way.
+
+**F31 · No edge moved, and the fixture proves it.** This phase touched no registry that
+`Model.dependencies` reads. `PIPELINE_MODELS.physical.validation.dependencies` is present on
+load, which is the fixture confirming the match; the logical model validates unchanged. No
+re-emission was needed or done.
+
 ### Exit criteria — Phase 5
 
-- Opening `px-otel`, `px-deadline` or `px-appconfig` shows the coverage line, and the numbers
-  change between Core, Recommended and Full.
-- Nothing else in the drawer changes; no new wires.
-- No baseline change — this phase adds no edges.
+- ~~Opening `px-otel`, `px-deadline` or `px-appconfig` shows the coverage line, and the
+  numbers change between Core, Recommended and Full.~~ Done for **Recommended and Full**.
+  All three components are `intro:2`, so at Core the relation draws nothing and the line
+  correctly does not appear (**F32**) — the phase text's _"reads '5 of 6' at Core"_ was
+  never achievable. Verified live with the drawer held open across every switch:
+  `px-otel` 5 of 9 → 5 of 15, `px-deadline` 4 of 7 → 6 of 14, `px-appconfig` 4 of 6 →
+  4 of 6 (**F30**). Switching a component off moves the denominator (`px-recovery` off →
+  4 of 5), switching a drawn target off moves both (`px-final` off → 3 of 4), and switching
+  the source itself off retires the line.
+- ~~Nothing else in the drawer changes; no new wires.~~ **Amended, deliberately.** Two things
+  else in the drawer changed, both because the coverage line cannot be read without them:
+  the drawer now redraws on any re-render (**F26**) and relation lists now mark a target the
+  level has not reached (**F27**, closing **F19**). No new wires, and no renderer gained a
+  second notion of what "active" means.
+- ~~No baseline change — this phase adds no edges.~~ Done — **F31**.
 
 ---
 
@@ -933,10 +1028,25 @@ is exactly the round trip the section exists for.
 > **Phase 3 changed the shape of this.** The drawer now already asks the model what the
 > _current level_ holds, through `relationsOf` / `reverseRelationsOf` (F14). This section is
 > the same question aimed at the other model: `Model.stages(model.crossView.model, tpl)`.
-> Follow that pattern rather than reaching into the other model's registries — and note F19
-> while you are here, because it is this same section's problem one level along: the drawer
-> lists relations to components the current template does not draw, and `crossView` is about
-> to grow the vocabulary (`" · not yet at this level"`) that would fix both.
+> Follow that pattern rather than reaching into the other model's registries.
+>
+> **Phase 5 changed it again, and this section got easier.** F19 is fixed —
+> `relationSection()` now marks a target the level has not reached, through a shared
+> `absenceMarker(present,id)` that `DRAWER_SECTIONS.serves` reads as well (**F27**). So the
+> vocabulary this section was going to invent already exists, in two callers, and the right
+> move is a third caller rather than a third wording. Two differences to respect:
+>
+> - `absenceMarker` is closed over **this** view's `slice` and `TPL`. `crossView` is asking
+>   about the _other_ model, whose level is that view's own `slice.tpl`, not this one's.
+>   Take the answer from the other view rather than re-implementing the predicate here — a
+>   marker that reads the wrong model's level is worse than no marker.
+> - Keep the phase's own copy (`" · not yet at this level"`) rather than `absenceMarker`'s
+>   (`" · not in <level>"`). They say different things: one is _the ladder has not reached
+>   here yet_, the other is _this level does not draw it_. Sharing the mechanism does not
+>   mean sharing the sentence.
+>
+> Also note what F26 removed: the drawer redraws on every re-render now, so this section
+> does not need its own refresh path when the reader changes level.
 
 ### 6.2 Departures for the two retargets
 
@@ -1036,6 +1146,31 @@ For each `PX_COVERAGE` entry: every drawn target must be inside the scope predic
 a typo), and the drawn set must be a **strict** subset of the scope at the fullest template.
 If someone later completes the relation, the note becomes a lie and the validator says so.
 
+> **Phase 5 shipped the registry and proved the first of those rules earns its place.** The
+> containment check is not a typo-catcher — it is the rule that fixes the predicate.
+> `px-deadline` with the obvious `record.hop && record.budget` scope draws to a target that
+> falls outside its own denominator (**F28**), and nothing on the page says so; the reader
+> just sees _"6 of 13"_ over a list of six. Write containment first, run it against the
+> shipped `PX_COVERAGE`, and it must pass at every level — it does today.
+>
+> Three additions the phase text did not anticipate, each cheap now that the registry exists:
+>
+> - **Every key must name a relation that exists.** `"px-otel|observes"` is a string, and
+>   nothing checks that `PX_REL["px-otel"].observes` is there. Resolve the key through
+>   `Model.relations` at every level, not through `PX_REL` — `PX_REL_BY_LEVEL` can supply
+>   the relation a key refers to.
+> - **The numerator is edges, not targets** (**F32**). A validator that counts scope members
+>   without asking whether the relation's source is drawn will disagree with the page at
+>   every level that has not reached the control component yet.
+> - **Strictness must be checked per level, not only at Full.** A denominator that stops
+>   moving is the interesting case: `px-appconfig` reads _4 of 6_ at both Recommended and
+>   Full (**F30**), so a seventh `configured` component arriving would be visible only at
+>   the level that introduced it.
+> - **An `of` string must not collide with a sidebar metric's name.** Two true numbers under
+>   one name is what **F29** cost an afternoon to. This one cannot be a runtime assertion —
+>   it is a rule for whoever adds the next entry, and it belongs in the comment above
+>   `PX_COVERAGE` rather than in a validator.
+
 **Do not re-narrow `GATE_AUTHORITY_KINDS`.** Phase 4 widened the gate-decider check from
 `steers` to `steers | feeds` on the evidence that the `steers` wire would have been drawn
 directly over the `feeds` one (F21, F22). It is the tighter-looking rule that is wrong here,
@@ -1052,7 +1187,9 @@ staleness at every level as well (F15).
 
 - Temporarily delete one Phase 3 edge and confirm 7.1 throws naming the component; restore.
   F20's sweep still stands unchanged after Phase 4 — that phase moved no edge (F23).
-- Temporarily complete `px-appconfig steers` and confirm 7.3 throws; restore.
+- Temporarily complete `px-appconfig steers` and confirm 7.3 throws; restore. Do the
+  containment half too: point one entry's `scope` at `record.hop` and confirm it names
+  `px-rescore-late` (**F28**).
 - `PX_UNREACHED` contains exactly the two held items.
 
 ---
@@ -1062,7 +1199,9 @@ staleness at every level as well (F15).
 1. **All three templates, both planes.** For each of Core / Recommended / Full, with data
    stores and write path both off, both on, and each alone: page loads, no console error,
    `PIPELINE_MODELS.physical.validation` clean (`dependencyDiagnostics.validation` is the
-   logical model's — see Working rules).
+   logical model's — see Working rules). Add one pass with **the drawer left open** across
+   every level switch, plane toggle and component toggle: since F26 that is a render path,
+   not a static panel, and it is the path nothing had been exercising.
 2. **Orphan sweep.** Re-run the data-edge orphan analysis over `PHYSICAL_BASELINE`. Expected
    remaining "no data in" at Full: `px-image` (I/O), the control nodes, and the two
    `PX_UNREACHED` entries. Nothing else.
@@ -1076,26 +1215,38 @@ staleness at every level as well (F15).
    any kind — that is the one to look at first. Already checked at 600px: both node chips
    render (`CLASSIFIER UNCERTAIN`, and `OPTIONAL STAGE · CONDITIONAL`). Note that the hover
    card is `display:none` below 700px, so the conditional trigger has **no** narrow-screen
-   home at all until the drawer grows one — see F25 and item 6.
+   home at all until the drawer grows one — see F25 and item 6. Phase 5 adds two things to
+   check here: the coverage line is a second `.relnote` in a section that previously had
+   one, and relation lists now carry `" · not in <level>"` suffixes on `.ref` buttons whose
+   labels were already the longest in the drawer (**F27**) — a chip reading
+   _"Multi-vector / passage retrieval · not in Core + recommended"_ is the widest thing on a
+   narrow screen, so look at `routing` at logical Recommended, which has seven of them.
 5. **Dark theme.** No new colour tokens are introduced (`writes` reuses `--wire-data`,
-   `confidence` reuses `--gate-request`, and the conditional line reuses `--warn` via the
-   existing `.hc-condline`) — confirm rather than assume. `confidence` is now actually used,
-   so the gate rail and the legend swatch can be looked at rather than reasoned about.
-6. **Three editorial calls to accept or fix, all pre-existing and all surfaced by this plan.**
-   F7: the relation legend lists every kind a level _may_ draw, so at physical Core `updates`
-   has no edge behind it. F19: the drawer lists relations to components the current template
-   does not draw, where the hover card scopes them out. F25: the drawer prints a component's
-   gate but never its `conditional` trigger, at either level — the one call of the three that
-   costs a reader something concrete, because below 700px the hover card is hidden and the
-   trigger is then unreachable. Phase 6.1 introduces the copy that would fix F19 if you want
-   it fixed; F25 is a line beside the gate note rather than a `panel` entry — `DRAWER_SECTIONS`
-   has no `conditional` key, but `setGateNote()` already owns the one place a drawer prints a
-   gate for both components and sources, and `HOVER_BLOCKS.conditional` already has the
-   sentence; F7 needs a decision, not code.
+   `confidence` reuses `--gate-request`, the conditional line reuses `--warn` via the
+   existing `.hc-condline`, and Phase 5 reuses `.relnote` and `.ref.isoff`) — confirm rather
+   than assume. `confidence` is now actually used, so the gate rail and the legend swatch can
+   be looked at rather than reasoned about.
+6. **Two editorial calls left to accept or fix, both pre-existing and both surfaced by this
+   plan.** ~~F19: the drawer lists relations to components the current template does not
+   draw, where the hover card scopes them out.~~ **Fixed in Phase 5** — the relation list
+   marks them rather than hiding them, which keeps the registry's claim visible while
+   stopping it from reading as the wires (**F27**). What remains: F7, the relation legend
+   lists every kind a level _may_ draw, so at physical Core `updates` has no edge behind it;
+   and F25, the drawer prints a component's gate but never its `conditional` trigger, at
+   either level — the costlier of the two, because below 700px the hover card is hidden and
+   the trigger is then unreachable. F25 is a line beside the gate note rather than a `panel`
+   entry — `DRAWER_SECTIONS` has no `conditional` key, but `setGateNote()` already owns the
+   one place a drawer prints a gate for both components and sources, and
+   `HOVER_BLOCKS.conditional` already has the sentence; F7 needs a decision, not code.
 7. **Documentation.**
    - Update `search-query-pipeline-diagram-tool-architecture.md`: the five sources of truth
-     become seven (`PX_WRITES`, `PX_REL_BY_LEVEL`), and the validator wall gains three
-     entries. Also record that **a relation can now be level-scoped**, which is a change to
+     become **eight** (`PX_WRITES`, `PX_REL_BY_LEVEL`, `PX_COVERAGE`), and the validator wall
+     gains three entries. `PX_COVERAGE` is the first registry that is purely _editorial_ —
+     it adds no edge, no node and no baseline row, and its whole job is to describe the
+     registry it sits beside — so say what makes one legitimate: a predicate, never a list
+     (**F28**, **F29**). Record too that the drawer is now redrawn by `renderAll()` rather
+     than by the handlers that change a composition (**F26**); that is a change to how the
+     view refreshes, which the doc's render section currently describes as canvas-only. Also record that **a relation can now be level-scoped**, which is a change to
      the layer model rather than to a registry: `model.relations` is no longer what any
      reader consults and `model.reverseRelations` no longer exists — both go through
      `Model.relations(model, tpl)` / `Model.reverseRelations(model, tpl)` (F14, F15). The

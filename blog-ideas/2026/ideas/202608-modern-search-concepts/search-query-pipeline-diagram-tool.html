@@ -1289,7 +1289,8 @@ function mergeRelations(base,added){
    a level that cannot pass its own rules must not become reachable. */
 function defModel(spec){
   const model = Object.assign({planes:[], planeRelations:{}, writes:{}, steps:null,
-                               relationsByLevel:{}, runtimes:null, crossView:null}, spec);
+                               relationsByLevel:{}, runtimes:null, crossView:null,
+                               coverage:{}}, spec);
 
   model.gateConditions = gateConditionsFor(model.gateOwner);
   model.gateCondition = Object.freeze(Object.fromEntries(
@@ -5774,6 +5775,44 @@ const PX_REL_BY_LEVEL = {
   3:{"px-rewrite": {feeds:["px-embed-cache"]}}
 };
 
+/* Three control relations are drawn to a chosen few rather than to everything
+   they touch, and that is the right editorial call — instrumentation on every
+   hop is exactly the diagram this level is meant to describe rather than
+   commit. What the reader was never told is that the subset is a subset, so
+   each omission read as an oversight.
+
+   The denominator is a predicate over the registry, not a second list: a list
+   maintained beside the wires is a second thing to disagree with them. The
+   count is taken per level, against the components the reader has switched
+   on, so it moves as they climb and is never written down anywhere.
+
+   `of` is deliberately not the sidebar's wording for the same population.
+   The hop metric collapses a concurrent band to one round trip, because a
+   band costs its slowest member; tracing does not — it instruments each
+   service. Two true numbers, so each says which one it is counting. */
+const PX_COVERAGE = Object.freeze({
+  "px-otel|observes": Object.freeze({
+    scope: record=> record.hop && !record.origin,
+    of: "components that are their own network hop",
+    why: "Tracing instruments every one of them in a real deployment. Drawn to the ones that dominate the critical band, because a diagram buried under its own instrumentation is the failure this kind describes rather than one it should commit. The sidebar's hop count is lower: a concurrent band costs one round trip and is counted once, where tracing instruments each service in it."
+  }),
+  /* `record.hop` would be the wrong test here: a rescore clause riding inside
+     the Qdrant call is not its own round trip, but it is a remote call, it
+     carries a budget, and the deadline is drawn to it. The runtime's own hop
+     flag asks the question this relation actually cares about — does it
+     execute off-box — rather than the one the hop metric asks. */
+  "px-deadline|steers": Object.freeze({
+    scope: record=> RUNTIME[record.runtime].hop && !!record.budget,
+    of: "remote calls under the request budget",
+    why: "The deadline is enforced on every call the orchestrator makes. Drawn to the calls whose expiry changes what the user sees; the rest carry their budget on the card."
+  }),
+  "px-appconfig|steers": Object.freeze({
+    scope: record=> !!record.configured,
+    of: "components configured at runtime",
+    why: "Every configured component reads this at start and on change. Drawn to the ones whose configuration changes a ranking."
+  })
+});
+
 /* The write path up to the indexer. These endpoints are stores rather than
    stages, so they are admitted by their planes and cannot be switched off with
    a component. Where the path lands — the indexer's two writes — is in
@@ -6349,7 +6388,7 @@ const PHYSICAL = defModel({
 
   components:PX,           templates:PX_TPL,
   relations:PX_REL,        relationsByLevel:PX_REL_BY_LEVEL,
-  relationDetails:PX_RELATION_DETAILS,
+  relationDetails:PX_RELATION_DETAILS, coverage:PX_COVERAGE,
   gates:PX_GATES,          requires:PX_REQUIRES,
   gateOwner:PX_GATE_OWNER,
   dataSources:PXD,         serving:PX_SERVING,   writes:PX_WRITES,
@@ -6458,11 +6497,18 @@ let drawerOwner = null;
 /* A new subject is a new document: it opens at its top. Re-rendering the same
    one — a level switch, an enable toggle — keeps the reader's place. */
 let drawerSubject = null;
+/* How to redraw the drawer on the subject it is already showing. Half of what
+   it prints answers a question about the current composition — which relations
+   are drawn, which the level has not reached, how much of its population a
+   control relation covers — so whatever changes a composition has to be able to
+   redraw it, wherever the reader changed it from. */
+let reopenDrawer = null;
 function closeDrawer(){
   DRAWER.root.classList.remove("open"); DRAWER.scrim.classList.remove("open");
   drawerOwner?.clearSelection();
   drawerOwner = null;
   drawerSubject = null;
+  reopenDrawer = null;
 }
 
 /* Opening a component in another level's view is the one thing a view does
@@ -6534,6 +6580,20 @@ function isOff(id){ return slice.off[slice.tpl].has(id); }
 function isOn(id){ return !isOff(id); }
 function lockedFor(id){ return S[id].tier==="core"; }
 
+/* Two questions every list of component ids ends up asking, under one answer
+   each, because "present" and "drawn" are different facts and the drawer used
+   to have a word for only one of them. `presentStages` is what the level has
+   reached; `activeStages` is what it draws, which is that minus whatever the
+   reader has switched off. The sidebar's metrics count over the second, and so
+   does every coverage denominator — "active" has to mean one thing. */
+const presentStages = ()=> new Set(tplStages(slice.tpl));
+const activeStages  = ()=> tplStages(slice.tpl).filter(isOn);
+const isDrawn = (present,id)=> present.has(id) && !isOff(id);
+/* Why a component named in a drawer list is not on the canvas. A list that
+   marks neither reason prints an absent component exactly like a drawn one. */
+const absenceMarker = (present,id)=> isDrawn(present,id) ? ""
+  : present.has(id) ? " · off" : " · not in "+TPL[slice.tpl].name;
+
 /* Two ways a stage can use a store, and three questions that care which.
    `consumers` are the readers a store's card counts and names — a store is
    measured by who queries it. `users` adds the stages that write into it,
@@ -6552,12 +6612,12 @@ function sourceIdsForUsers(componentIds){
 }
 
 function templateConsumers(sourceId){
-  const present = new Set(tplStages(slice.tpl));
+  const present = presentStages();
   return sourceConsumers(sourceId).filter(id=>present.has(id));
 }
 
 function templateUsers(sourceId){
-  const present = new Set(tplStages(slice.tpl));
+  const present = presentStages();
   return sourceUsers(sourceId).filter(id=>present.has(id));
 }
 
@@ -6622,7 +6682,7 @@ function setOff(id,off){
 /* The facts every metric reads from, gathered once. What they mean is the
    metrics' business, not this function's. */
 function composition(){
-  const ids = tplStages(slice.tpl).filter(isOn);
+  const ids = activeStages();
   const records = ids.map(id=>S[id]);
   const per = {};
   records.forEach(record=>{
@@ -7907,23 +7967,46 @@ const refButton = (attribute,value,label,off)=>
   '<button class="ref'+(off?" isoff":"")+'" '+attribute+'="'+value+'">'+label+'</button>';
 const refList = html => '<div class="reflist">'+html+'</div>';
 
+/* A relation drawn to a chosen few rather than to everything it touches says
+   so, in the numbers of the diagram in front of the reader: how many of the
+   population it really covers are drawn, out of how many this composition has
+   switched on. Neither number is written down anywhere — the level declares a
+   scope predicate and this counts it — so the line moves as the reader climbs
+   and can never drift away from the wires. */
+function coverageNote(id,kind,live,present){
+  const coverage = model.coverage[id+"|"+kind];
+  /* A wire needs both of its ends. Where the level does not draw the relation's
+     own source — the drawer will still show its card, reached from a level that
+     does — it draws none of them, and a count of what it reaches would describe
+     a diagram that is not on screen. */
+  if(!coverage || !isDrawn(present,id)) return "";
+  const drawn = live.filter(x=>S[x] && isDrawn(present,x)).length;
+  const total = activeStages().filter(x=>coverage.scope(S[x])).length;
+  return '<p class="relnote">Drawn to <b>'+drawn+' of '+total+'</b> '+
+    coverage.of+'. '+coverage.why+'</p>';
+}
+
 /* One relationship kind, in one direction, with the transmission detail where
-   the level has bothered to state it. */
+   the level has bothered to state it. A target the level has not reached is
+   named and marked rather than dropped — the registry's claim outlives any one
+   composition — because a list that marks nothing reads as the wires. */
 function relationSection(id,kind,ids,direction,detailFor){
   const live = ids.filter(x=>S[x]||DATA_SOURCES[x]);
   if(!live.length) return "";
   const relation = RELATION_TYPES[kind];
+  const present = presentStages();
   const offAndNeeded = direction==="rev" ? live.filter(x=>S[x] && isOff(x)) : [];
   return drawerSect(relation[direction==="fwd" ? "fwd" : "rev"],
     '<p class="relnote">'+relation.description+'</p>' +
+    (direction==="fwd" ? coverageNote(id,kind,live,present) : "") +
     refList(list(live,x=>{
       const detail = direction==="fwd" ? detailFor(id,kind,x) : detailFor(x,kind,id);
       const other = S[x] || DATA_SOURCES[x];
-      const off = !!S[x] && isOff(x);
+      const absence = S[x] ? absenceMarker(present,x) : "";
       return refButton(S[x] ? "data-goto" : "data-source", x,
-        other.name + (off?" · off":"") +
+        other.name + absence +
         (detail ? '<span class="refdetail">'+detail.label+' — '+detail.payload+
-          ' · '+detail.cadence+'</span>' : ""), off);
+          ' · '+detail.cadence+'</span>' : ""), !!absence);
     })) +
     (offAndNeeded.length && kind==="trains"
       ? '<p class="reldep">'+S[id].name+' is trained from data '+
@@ -8033,13 +8116,11 @@ const DRAWER_SECTIONS = {
   serves:{title:"Serves", render:(record,id)=>{
     const consumers = SERVING_REL[id] || [];
     if(!consumers.length) return "";
-    const present = new Set(tplStages(slice.tpl));
+    const present = presentStages();
     return '<p class="relnote">Components that query or hydrate from this logical source.</p>'+
       refList(list(consumers,componentId=>{
-        const missing = !present.has(componentId), off = !missing && isOff(componentId);
-        return refButton("data-goto",componentId,
-          S[componentId].name + (missing ? " · not in "+TPL[slice.tpl].name : off ? " · off" : ""),
-          missing || off);
+        const absence = absenceMarker(present,componentId);
+        return refButton("data-goto",componentId,S[componentId].name+absence, !!absence);
       }));
   }},
   appears:{title:"Appears in", render:(record,id)=>
@@ -8069,20 +8150,21 @@ function renderSections(spec,id,record){
   }).join("");
 }
 
-/* Every link a rendered section can produce, wired in one place. */
-function wireDrawerLinks(reopen){
+/* Every link a rendered section can produce, wired in one place. A level link
+   only sets the level; redrawing the drawer afterwards belongs to renderAll,
+   which does it for every composition change rather than for this one. */
+function wireDrawerLinks(){
   $$(".ref[data-goto]",DRAWER.body).forEach(b=> b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
   $$(".ref[data-source]",DRAWER.body).forEach(b=> b.addEventListener("click",()=> openSourceDrawer(b.dataset.source)));
   $$(".ref[data-cross]",DRAWER.body).forEach(b=> b.addEventListener("click",()=>
     revealInModel(model.crossView.model.id, b.dataset.cross)));
-  $$(".ref[data-tpl],.ref[data-source-tpl]",DRAWER.body).forEach(b=> b.addEventListener("click",()=>{
-    setTpl(+(b.dataset.tpl || b.dataset.sourceTpl));
-    reopen();
-  }));
+  $$(".ref[data-tpl],.ref[data-source-tpl]",DRAWER.body).forEach(b=> b.addEventListener("click",()=>
+    setTpl(+(b.dataset.tpl || b.dataset.sourceTpl))));
 }
 
-function showDrawer(id){
+function showDrawer(id,reopen){
   drawerOwner = view;
+  reopenDrawer = reopen;
   const subject = model.id+"/"+id;
   if(subject !== drawerSubject){ DRAWER.body.scrollTop = 0; drawerSubject = subject; }
   DRAWER.root.classList.add("open"); DRAWER.scrim.classList.add("open");
@@ -8123,11 +8205,11 @@ function openDrawer(id){
     b.addEventListener("click",()=> openDrawer(b.dataset.goto)));
 
   DRAWER.body.innerHTML = renderSections(model.panel,id,s);
-  wireDrawerLinks(()=>openDrawer(id));
+  wireDrawerLinks();
   const tg = DRAWER.toggle;
-  if(tg && !locked) tg.addEventListener("click", ()=>{ setOff(id, isOn(id)); renderAll(); openDrawer(id); });
+  if(tg && !locked) tg.addEventListener("click", ()=>{ setOff(id, isOn(id)); renderAll(); });
 
-  showDrawer(id);
+  showDrawer(id,()=>openDrawer(id));
 }
 
 function openSourceDrawer(id){
@@ -8159,8 +8241,8 @@ function openSourceDrawer(id){
       : '<span class="chip">Derives <b>'+derived.length+'</b></span>');
 
   DRAWER.body.innerHTML = renderSections(model.sourcePanel,id,source);
-  wireDrawerLinks(()=>openSourceDrawer(id));
-  showDrawer(id);
+  wireDrawerLinks();
+  showDrawer(id,()=>openSourceDrawer(id));
 }
 
 /* The drawer is a document singleton; closing it is handled once, outside.
@@ -8401,7 +8483,6 @@ function renderCompList(){
       if(ev.shiftKey){ openDrawer(id); return; }
       setOff(id, isOn(id));
       renderAll();
-      if(slice.sel===id) openDrawer(id);
     });
   });
 }
@@ -8412,6 +8493,12 @@ function renderCompList(){
 function renderAll(){
   hideHover(); renderGateLegend(); renderRuntimeLegend(); renderCanvas();
   renderComposition(); renderCompList(); renderPlaneToggles();
+  /* An open drawer is a rendered view of this composition and goes stale with
+     the rest of it: what is drawn, what the level has not reached, how much of
+     its population a control relation covers. It is redrawn here rather than
+     at each of the places that change a composition, because those are three
+     and this is one. The subject is unchanged, so the reader keeps their place. */
+  if(drawerOwner===view) reopenDrawer?.();
 }
 
 /* One row per condition present in the active template. Conditions the current
@@ -8456,9 +8543,10 @@ function renderRelationLegend(){
 }
 
 function setTpl(t){
-  if(slice.tpl===t){ renderAll(); return; }
-  slice.prevTpl = slice.tpl; slice.tpl = t;
-  $$(".seg button").forEach(b=> b.setAttribute("aria-pressed", String(+b.dataset.tpl===t)));
+  if(slice.tpl!==t){
+    slice.prevTpl = slice.tpl; slice.tpl = t;
+    $$(".seg button").forEach(b=> b.setAttribute("aria-pressed", String(+b.dataset.tpl===t)));
+  }
   renderAll();
 }
 /* =======================================================================
