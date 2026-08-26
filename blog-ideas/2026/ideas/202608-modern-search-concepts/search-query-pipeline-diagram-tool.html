@@ -310,6 +310,25 @@ a{color:var(--accent)}
 .row.parallel-row .cell.center{
   box-sizing:border-box;padding:16px 88px 16px 20px
 }
+/* A parallel band is wider than a spine node, and a left aside is placed
+   against a spine node's edge — so on a row that has both, the band runs in
+   under the aside. Capping the band's width is what resolves it, because the
+   aside's column is the fixed thing: every other aside in the canvas sits on
+   it, and moving this one row's aside out of line to clear the band trades a
+   collision for a jog.
+
+   486px is the width at which the band's boundary box clears the aside by
+   34px. That clearance is the same at every canvas width and in both plane
+   states, because the aside and the band are both placed from the centre of
+   the same track: widening the canvas moves the two by the same half-pixel.
+   The band's members give up the difference — two 250px cards become two
+   180px ones — which is the right thing to spend, since a band member is
+   read as one of a set and a spine node is read on its own.
+
+   No logical row has both, so this selector never matches there. */
+.row.parallel-row:has(.cell.left .node) .cell.center{
+  justify-self:center;width:100%;max-width:486px
+}
 .row .cell.left{
   justify-content:flex-end;
   transform:translateX(max(-80px,calc(50cqw - 277px - var(--left-spine-gap))))
@@ -321,23 +340,22 @@ a{color:var(--accent)}
   width:calc(100% + 118px);margin-left:-118px
 }
 .canvas.with-data-sources .cell.data{grid-column:1;align-self:stretch;justify-content:flex-start}
+/* An aside is 250px wide in a 154px track, so it overhangs by 96px into the
+   canvas margin — and the data column is that margin. The row that had both
+   used to give the overhang up and drop back into its own track, which fixed
+   the collision and broke the column: the same card sat at one x on a row
+   with a store and another x on the row below it, so showing the stores
+   appeared to move the encoders. The pull is unconditional again, with a
+   floor instead: 96px is where the aside's left edge meets the gap after the
+   data column, the point past which pulling it towards the spine would start
+   covering something. */
 .canvas.with-data-sources .cell.left{
   grid-column:2;
-  transform:translateX(max(-80px,calc(50cqw - 353px - var(--left-spine-gap))))
+  transform:translateX(max(96px,calc(50cqw - 353px - var(--left-spine-gap))))
 }
 .canvas.with-data-sources .cell.center{grid-column:4}
 .canvas.with-data-sources .cell.right{grid-column:5}
 .canvas.with-data-sources .cell:empty{display:none}
-/* A left aside and a data card reach for the same edge of the canvas: the
-   aside borrows width from the margin, and the data column is that margin.
-   On a row that has both — the retrieval row, once the physical level's
-   stores are shown — the aside gives up the borrowed width and sits in its
-   own track. No row at the logical level has both, which is why the pull was
-   unconditional until now. */
-.canvas.with-data-sources .row:has(.cell.data .data-source-node) .cell.left{transform:none}
-.canvas.with-data-sources .row:has(.cell.data .data-source-node) .cell.left > .node{
-  width:100%;min-width:0;max-width:100%
-}
 
 /* ---------- node ---------- */
 .node{
@@ -397,6 +415,11 @@ a{color:var(--accent)}
 .data-source-column{
   display:flex;flex-direction:column;justify-content:center;gap:9px;width:206px;max-width:100%;min-width:0
 }
+/* The write path draws wires between stores stacked in this column, and their
+   labels have nowhere to go but the gaps between the cards. Nine pixels is
+   narrower than a label, so every one of them landed on a card border. Only
+   the column that carries the write path pays for the extra room. */
+.data-source-column:has(.write-path){gap:28px}
 .data-source-node{
   --source-line:var(--data-line);
   position:relative;display:flex;flex-direction:column;align-items:stretch;
@@ -753,7 +776,8 @@ table.mini .met{color:var(--accent)}
   .row .cell.left > .node{width:100%;min-width:0;max-width:none}
   .row .cell:empty{display:none}
   .row .cell.center > .node{flex:1 1 100%}
-  .row.parallel-row .cell.center{padding:0}
+  .row.parallel-row .cell.center,
+  .row.parallel-row:has(.cell.left .node) .cell.center{padding:0;max-width:none}
   .node{max-width:none;width:100%}
   .canvas.with-data-sources .data-source-column{display:flex;width:100%;gap:9px}
   .data-source-node{width:100%;max-width:none;padding:17px 12px 12px}
@@ -7202,15 +7226,40 @@ function drawWires(){
     }
     paths += wirePathMarkup(e,edgeIndex,d,style);
     if(e.label) labels.push({edgeIndex,text:e.label,loop:e.kind==="loop",branch:e.kind==="branch",color:style.color});
-    if(e.detail) labels.push({edgeIndex,text:e.detail.label,relation:true,color:style.color,position:.56});
+    /* A relation's detail label repeats the edge's own label whenever the two
+       were written to say the same thing — as the recovery loop's do. Drawn
+       twice it is two labels 35px apart on one wire, which reads as two
+       relationships. One label, drawn once. */
+    if(e.detail && e.detail.label!==e.label)
+      labels.push({edgeIndex,text:e.detail.label,relation:true,color:style.color,position:.56});
   });
   wires.innerHTML = defs + paths;
   renderStageBoundaries();
+  /* A label is opaque and paints above the cards, so one that lands on a node
+     hides the thing the wire connects to — the recovery loop's label sat on
+     the encoder aside, and the write path's on the store it writes. The
+     intended position is still tried first: a label only moves when it has
+     somewhere clear to move to, and a wire with no clear midpoint keeps the
+     midpoint rather than sliding to a spot that means nothing. */
+  const occupied = $$(".node,.data-source-node",rowsEl)
+    .concat($$(".stage-boundary .boundary-title,.stage-boundary .boundary-note",canvas))
+    .map(el=>rectOf(el)).map(r=>({l:r.x, r:r.x+r.w, t:r.y, b:r.y+r.h}));
+  const LABEL_OFFSETS = [0,.06,-.06,.12,-.12,.19,-.19,.27,-.27,.35,-.35,.42,-.42];
+  /* Three pixels, not zero: a label that merely touches a card's border reads
+     as attached to it. */
+  const LABEL_CLEARANCE = 3;
+  const clearAt = (point,w,h)=>{
+    const box = {l:point.x-w/2, r:point.x+w/2, t:point.y-h/2, b:point.y+h/2};
+    return occupied.every(o=>
+      box.r<=o.l-LABEL_CLEARANCE || box.l>=o.r+LABEL_CLEARANCE ||
+      box.b<=o.t-LABEL_CLEARANCE || box.t>=o.b+LABEL_CLEARANCE);
+  };
   labels.forEach(l=>{
     const path = l.edgeIndex==null ? null :
       wires.querySelector('path[data-edge-index="'+l.edgeIndex+'"][data-edge-kind]');
     if(!l.point && !path) return;
-    const point = l.point || path.getPointAtLength(path.getTotalLength()*(l.position||.5));
+    const at = position => path.getPointAtLength(path.getTotalLength()*position);
+    let point = l.point || at(l.position||.5);
     const el = document.createElement("span");
     el.className = "elabel" + (l.loop?" loop":"") + (l.branch?" branch":"")+
       (l.bus?" bus":"")+(l.port?" port":"")+(l.relation?" relation":"");
@@ -7218,6 +7267,24 @@ function drawWires(){
     el.style.left = point.x+"px"; el.style.top = point.y+"px";
     el.textContent = String(l.text).toLowerCase();
     canvas.appendChild(el);
+    const w = el.offsetWidth, h = el.offsetHeight;
+    /* A wire label walks its own path, because any point on it still names the
+       same wire. A bus or port label is pinned to the point it annotates, so it
+       steps away from the line instead — far enough to clear, near enough to
+       still belong to it. */
+    const candidates = l.point
+      ? [[0,0],[.6,0],[-.6,0],[1.1,0],[-1.1,0],[0,-1],[0,1],[0,-2],[0,2]]
+          .map(([dx,dy])=>({x:point.x+dx*w, y:point.y+dy*(h+6)}))
+      : LABEL_OFFSETS.map(offset=>(l.position||.5)+offset)
+          .filter(position=>position>=.06 && position<=.94).map(at);
+    const found = candidates.find(candidate=>clearAt(candidate,w,h));
+    if(found){
+      point = found;
+      el.style.left = point.x+"px"; el.style.top = point.y+"px";
+    }
+    /* A placed label is an obstacle for the next one, so two labels on
+       crossing wires do not stack into an unreadable pile. */
+    occupied.push({l:point.x-w/2, r:point.x+w/2, t:point.y-h/2, b:point.y+h/2});
   });
 }
 
