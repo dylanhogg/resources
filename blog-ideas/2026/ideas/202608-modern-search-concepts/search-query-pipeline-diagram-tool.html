@@ -304,6 +304,12 @@ a{color:var(--accent)}
   grid-template-columns:minmax(0,128px) minmax(0,1fr) minmax(0,176px);
   gap:12px;align-items:center;margin-bottom:34px;z-index:1
 }
+/* A dashed stage boundary is drawn 28px outside its members and hangs its
+   title and note pills 12px further out again, so the standard row rhythm
+   leaves it touching the rows above and below. The rows on either side of a
+   boundary give it the clearance instead — carried on one margin so it never
+   collapses against its neighbour's. */
+.row.stage-group-clearance{margin-bottom:60px}
 .row .cell{display:flex;gap:11px;flex-wrap:wrap;min-width:0}
 .row .cell.center{justify-content:center;column-gap:17px;row-gap:14px}
 .row .cell.center > .node{flex:1 1 154px}
@@ -511,7 +517,6 @@ a{color:var(--accent)}
   border:1px solid var(--border);border-radius:6px;padding:2px 7px;white-space:nowrap
 }
 .hovercard .hc-group{color:var(--text-3)}
-.hovercard .hc-cond{color:var(--warn)}
 .hovercard .hc-gate{
   margin:0 0 8px;font-size:11.5px;line-height:1.45;color:var(--text-2);
   border-left:3px solid var(--gate-color,var(--gate-request));padding-left:8px
@@ -771,6 +776,7 @@ table.mini .met{color:var(--accent)}
   .side{order:2;border-bottom:0;border-top:1px solid var(--border)}
   .canvas{padding-left:0}
   .row{grid-template-columns:1fr;gap:10px;margin-bottom:26px;position:relative}
+  .row.stage-group-clearance{margin-bottom:26px}
   .row .cell{justify-content:center!important}
   .row .cell.left{transform:none}
   .row .cell.left > .node{width:100%;min-width:0;max-width:none}
@@ -865,7 +871,7 @@ table.mini .met{color:var(--accent)}
     <span class="sub" id="headerSub"></span>
   </div>
   <div class="tabs" role="tablist" aria-label="Views">
-    <button role="tab" id="tab-pipe" aria-controls="view-pipe" aria-selected="true" data-view="pipe">Pipelines</button>
+    <button role="tab" id="tab-pipe" aria-controls="view-pipe" aria-selected="true" data-view="pipe">Logical architecture</button>
     <button role="tab" id="tab-phys" aria-controls="view-phys" aria-selected="false" data-view="phys">Physical architecture</button>
     <button role="tab" id="tab-build" aria-controls="view-build" aria-selected="false" data-view="build">Build order</button>
     <button role="tab" id="tab-about" aria-controls="view-about" aria-selected="false" data-view="about">About</button>
@@ -6157,10 +6163,14 @@ const drawerSect = (title,body,rail)=>
 /* Whichever view opened the drawer clears its own selection when it shuts,
    even if the reader has since changed tabs. */
 let drawerOwner = null;
+/* A new subject is a new document: it opens at its top. Re-rendering the same
+   one — a level switch, an enable toggle — keeps the reader's place. */
+let drawerSubject = null;
 function closeDrawer(){
   DRAWER.root.classList.remove("open"); DRAWER.scrim.classList.remove("open");
   drawerOwner?.clearSelection();
   drawerOwner = null;
+  drawerSubject = null;
 }
 
 /* Opening a component in another level's view is the one thing a view does
@@ -6668,12 +6678,14 @@ function renderCanvas(){
      stages is one store, and drawing it three times would make the wires lie. */
   const placed = new Set();
   const markers = stageGroupMarkers();
+  const clearance = stageGroupClearanceRows();
 
   TPL[t].rows.forEach((r,i)=>{
     if(markers.has(i)) rowsEl.appendChild(mobileStageMarker(markers.get(i)));
     const row = document.createElement("div");
     const parallel = (r.c||[]).some(id=>S[id].parallel);
-    row.className = "row" + (parallel ? " parallel-row" : "");
+    row.className = "row" + (parallel ? " parallel-row" : "") +
+      (clearance.has(i) ? " stage-group-clearance" : "");
     if(parallel) row.dataset.parallelGroup = S[(r.c||[]).find(id=>S[id].parallel)].parallel;
     row.dataset.row = i;
     const rowSourceIds = !planes ? [] : sourceIdsFor(rowMembers(r)).filter(id=>{
@@ -7074,6 +7086,23 @@ function activeStageGroups(){
   return Object.entries(STAGE_GROUPS)
     .map(([id,spec])=>({id,spec,members:spec.members.filter(memberId=>present.has(memberId))}))
     .filter(group=>group.members.length>=2);
+}
+
+/* The rows that carry a stage boundary's outside clearance: the one before a
+   group's first member row, and the group's last member row. */
+function stageGroupClearanceRows(){
+  const rows=TPL[slice.tpl].rows;
+  const carriers=new Set();
+  activeStageGroups().forEach(({members})=>{
+    const indices=members
+      .map(memberId=>rows.findIndex(row=>rowMembers(row).includes(memberId)))
+      .filter(index=>index>=0);
+    if(!indices.length) return;
+    const first=Math.min(...indices);
+    if(first>0) carriers.add(first-1);
+    carriers.add(Math.max(...indices));
+  });
+  return carriers;
 }
 
 /* Row index -> the stage group that starts there, for the narrow layout. */
@@ -7496,7 +7525,7 @@ const DRAWER_SECTIONS = {
   }},
   departure:{title:"Departure from logical", rail:"warn",
     render:record=> record.departure ? '<p class="departure">'+record.departure+'</p>' : ""},
-  decisions:{title:"What you are choosing", render:record=> list(record.decisions, d=>
+  decisions:{title:"Design decisions", render:record=> list(record.decisions, d=>
     '<div class="dec"><div class="q">'+d.q+'</div><ul>'+
     list(d.opts, o=>'<li>'+o+'</li>')+'</ul>'+
     '<div class="def"><b>Default:</b> '+d.def+'<br>'+d.why+'</div></div>')},
@@ -7610,8 +7639,10 @@ function wireDrawerLinks(reopen){
   }));
 }
 
-function showDrawer(){
+function showDrawer(id){
   drawerOwner = view;
+  const subject = model.id+"/"+id;
+  if(subject !== drawerSubject){ DRAWER.body.scrollTop = 0; drawerSubject = subject; }
   DRAWER.root.classList.add("open"); DRAWER.scrim.classList.add("open");
   DRAWER.root.setAttribute("aria-modal","false");
 }
@@ -7654,7 +7685,7 @@ function openDrawer(id){
   const tg = DRAWER.toggle;
   if(tg && !locked) tg.addEventListener("click", ()=>{ setOff(id, isOn(id)); renderAll(); openDrawer(id); });
 
-  showDrawer();
+  showDrawer(id);
 }
 
 function openSourceDrawer(id){
@@ -7687,7 +7718,7 @@ function openSourceDrawer(id){
 
   DRAWER.body.innerHTML = renderSections(model.sourcePanel,id,source);
   wireDrawerLinks(()=>openSourceDrawer(id));
-  showDrawer();
+  showDrawer(id);
 }
 
 /* The drawer is a document singleton; closing it is handled once, outside.
@@ -7724,10 +7755,7 @@ const HOVER_BLOCKS = {
   /* What kind of thing this is at the logical level: which family, and how
      much work it is to build. */
   pills:s=> '<div class="hc-top"><span class="hc-pill hc-group">'+s.group+'</span>'+
-    '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span>'+
-    /* Orthogonal to the gate, exactly as on the node card: when a stage runs,
-       and what it costs on the requests where it does. */
-    (s.conditional ? '<span class="hc-pill hc-cond">Conditional</span>' : "")+'</div>',
+    '<span class="hc-pill">Complexity '+(s.cx||0)+'/5</span></div>',
   /* And at the physical level: where it runs, and on what. */
   runtimePills:s=>{
     const runtime = RUNTIMES[s.runtime];
