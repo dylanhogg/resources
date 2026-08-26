@@ -23,7 +23,7 @@
   --wire-observe:#7b8794;
   --wire-feed:#7c3aed; --wire-train:#0f766e; --wire-update:#be185d; --wire-data:#53657d;
   --data-bg:#f7f9fc; --data-line:#7b8798; --data-text:#344054;
-  --rt-edge:#64748b; --rt-inproc:#2563eb; --rt-service:#0f766e; --rt-gpu:#b45309;
+  --rt-edge:#64748b; --rt-inproc:#991b9f; --rt-service:#0f766e; --rt-gpu:#b45309;
   --rt-fm:#7c3aed; --rt-engine:#be123c; --rt-store:#0369a1; --rt-stream:#4d7c0f; --rt-ctrl:#6d7789;
   --warn:#b45309; --warn-bg:#fef3c7;
   --ok:#15803d;
@@ -47,7 +47,7 @@
       --wire-observe:#8b96a8;
       --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
       --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
-      --rt-edge:#93a0b5; --rt-inproc:#6ea0ff; --rt-service:#2dd4bf; --rt-gpu:#e0a94a;
+      --rt-edge:#93a0b5; --rt-inproc:#f0abfc; --rt-service:#2dd4bf; --rt-gpu:#e0a94a;
       --rt-fm:#a78bfa; --rt-engine:#fb7185; --rt-store:#38bdf8; --rt-stream:#a3e635; --rt-ctrl:#7d8798;
       --warn:#e0a94a; --warn-bg:#332a17;
       --ok:#4ea96e;
@@ -69,7 +69,7 @@
   --wire-observe:#8b96a8;
   --wire-feed:#a78bfa; --wire-train:#2dd4bf; --wire-update:#f472b6; --wire-data:#9aabc2;
   --data-bg:#18202b; --data-line:#6f7f95; --data-text:#c4cedc;
-  --rt-edge:#93a0b5; --rt-inproc:#6ea0ff; --rt-service:#2dd4bf; --rt-gpu:#e0a94a;
+  --rt-edge:#93a0b5; --rt-inproc:#f0abfc; --rt-service:#2dd4bf; --rt-gpu:#e0a94a;
   --rt-fm:#a78bfa; --rt-engine:#fb7185; --rt-store:#38bdf8; --rt-stream:#a3e635; --rt-ctrl:#7d8798;
   --warn:#e0a94a; --warn-bg:#332a17;
   --ok:#4ea96e;
@@ -738,6 +738,9 @@ table.mini .met{color:var(--accent)}
   padding:1px 6px;border-radius:20px;border:1px solid var(--rt-color,var(--text-3));
   color:var(--rt-color,var(--text-3));opacity:.9
 }
+/* Keep this significant runtime label at full strength while leaving the
+   card's border to communicate tier or control-plane role as before. */
+.node[data-runtime="inproc"] .rtchip{opacity:1}
 .node .lvlchip{
   font-size:9px;font-weight:650;letter-spacing:.03em;
   padding:1px 6px;border-radius:20px;border:1px dashed var(--border-strong);color:var(--text-3)
@@ -1290,7 +1293,15 @@ function mergeRelations(base,added){
 function defModel(spec){
   const model = Object.assign({planes:[], planeRelations:{}, writes:{}, steps:null,
                                relationsByLevel:{}, runtimes:null, crossView:null,
-                               coverage:{}}, spec);
+                               runtimeContainment:null, coverage:{}}, spec);
+
+  if(model.runtimeContainment){
+    const {container,runtime}=model.runtimeContainment;
+    assertComponent(model,container,"runtime containment");
+    if(!model.runtimes?.[runtime]){
+      throw new Error("Unknown contained runtime: "+runtime);
+    }
+  }
 
   model.gateConditions = gateConditionsFor(model.gateOwner);
   model.gateCondition = Object.freeze(Object.fromEntries(
@@ -4014,7 +4025,7 @@ defPhys({
 /* ---------- band 2 · orchestration ---------- */
 defPhys({
   id:"px-orch", name:"Search orchestrator", group:"Orchestration", tier:"core", intro:1,
-  runtime:"service", cx:3, sub:"the process every in-process stage runs inside",
+  runtime:"service", cx:3, sub:"the container process every «chevron» marked in-process stage runs in",
   realises:[], departure:"The logical view has no orchestrator because it has no processes — it is a description of stages, not of where they run. Physically almost every logical stage is a function call inside this one task, and saying so is the single most useful thing this view does: the diagram's box count is not the system's service count.",
   purpose:"Owns the request. Every component drawn with an in-process runtime is a function call inside this task; every other component is a network call it makes. It also owns the deadline, the cancellation and the trace.",
   substrate:{on:["fargate"], service:"Amazon ECS on Fargate", unit:"service, rolling deployment",
@@ -6398,6 +6409,9 @@ const PHYSICAL = defModel({
 
   subtitle:"The same pipeline on AWS \u00b7 OpenSearch for sparse, Qdrant for dense, fusion in neither \u00b7 network hops, deadlines and the write path",
   runtimes:RUNTIME,
+  runtimeContainment:Object.freeze({
+    container:"px-orch", runtime:"inproc", label:"In-process container"
+  }),
 
   example:LOGICAL.example,
   collapseGroups:[{members:PX_ENCODERS,     label:"query encoders", min:3},
@@ -6967,11 +6981,15 @@ function nodeEl(id, newIds, logical){
      engines gain branches as the pipeline grows, and the card should say so. */
   const level = s.byLevel?.[slice.tpl] || {};
   const runtime = RUNTIMES?.[s.runtime];
+  const containedRuntime = model.runtimeContainment?.container===id
+    ? RUNTIMES[model.runtimeContainment.runtime]
+    : null;
   const el = document.createElement("button");
   el.className = "node " + (s.control ? "control" : s.tier) +
                  (s.decision ? " decision":"") + (s.io ? " io":"") + (gate ? " gated":"");
   el.dataset.id = id;
   el.dataset.on = isOn(id) ? "1" : "0";
+  if(runtime) el.dataset.runtime = s.runtime;
   if(gate){
     el.dataset.executionGate = gate.label;
     el.dataset.gateKind      = gate.kind;
@@ -6991,6 +7009,11 @@ function nodeEl(id, newIds, logical){
       ? '<span class="rtchip" style="--rt-color:'+runtime.color+'" title="'+
           escapeAttribute(runtime.label)+'">'+runtime.chip+'</span>'
       : '<span class="groupchip">'+s.group+'</span>') +
+    (containedRuntime
+      ? '<span class="rtchip" style="--rt-color:'+containedRuntime.color+'" title="'+
+          escapeAttribute("Contains every "+containedRuntime.chip+" component")+'">'+
+          model.runtimeContainment.label+'</span>'
+      : "") +
     (level.chips||[]).map(chip=>'<span class="lvlchip">'+chip+'</span>').join("") +
     /* Gating and cost are orthogonal — when a stage runs, and how much work it
        does on the requests where it does. VLM rerank is both, so neither chip
@@ -7000,8 +7023,9 @@ function nodeEl(id, newIds, logical){
     (s.conditional ? '<span class="condchip" title="'+escapeAttribute(CONDITIONAL_NOTE)+
       '">conditional</span>' : "");
   const sub = level.sub || s.sub;
+  const name = s.runtime==="inproc" ? "«"+s.name+"»" : s.name;
   el.innerHTML =
-    '<div class="nm">'+s.name+'</div>' +
+    '<div class="nm">'+name+'</div>' +
     (sub ? '<div class="sb">'+sub+'</div>' : "") +
     '<div class="meta">'+meta+'</div>' +
     (s.control ? mobileDependencyChips(id,logical) : "")+

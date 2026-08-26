@@ -17,7 +17,7 @@ Note: this list is for humans, not for AI agents.
 `In the search exploration tool search-query-pipeline-diagram-tool.html physical architecture diagram...`
 
 - Update logical pipeline "Candidate union" to "Candidate union, dedupe" to better represent what it does.
-- In the physical architecture, would it be helpful to have dashed process boundaries? e.g. around Union, Sufficiency, Prune and Fuse in the physical pipeline to indicate it can be 1 process? What other process boundaries could be drawn?
+- wip: In the physical architecture, would it be helpful to have dashed process boundaries? e.g. around Union, Sufficiency, Prune and Fuse in the physical pipeline to indicate it can be 1 process? What other process boundaries could be drawn?
 - Keep the same template option selected when changing from logical to physical pipeline view
 - Component hover popup should display on left or right side depending on
 - Embedding could be on GPU or CPU depending on model selcted.
