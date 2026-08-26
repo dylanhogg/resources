@@ -6,7 +6,8 @@ Companion reading: `search-query-pipeline-diagram-tool-architecture.md` (point-i
 validator-wall contract and the recipes are still accurate**). That doc's closing line
 "There is no persistence and no URL state (both are open TODOs)" is what this plan retires.
 
-**Status:** Not started. Written on top of `0474e2f` (plan 007 phases 1–5).
+**Status:** **Phases 1–6 done** (uncommitted, 26 Aug 2026). Written on top of `0474e2f`
+(plan 007 phases 1–5); the plan itself landed in `22075d3`.
 Update this line as each phase lands, in the style of plans 006 and 007
 (`Phase N done (<sha>, <date>)`).
 
@@ -39,12 +40,35 @@ dropping it.
 
 | Phase                       | What it does                                                                                                                                                 | On screen         | Depends on | Status      |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- | ---------- | ----------- |
-| **1 — The codec**           | New `PAGE STATE IN THE URL` section: vocabulary tables, `serialiseState`, `parseState`, slug helpers, load-time validators, diagnostics handle. No wiring.   | Nothing changes   | —          | Not started |
-| **2 — Read on load**        | `applyUrlState()` before the views are built, plus a three-line `<head>` script so a `th=dark` link does not flash light. Sanitisation and canonicalisation. | Links restore     | 1          | Not started |
-| **3 — Write on change**     | `syncUrl()` with rAF coalescing, wired to eight call sites. `file:` hash fallback.                                                                           | URL goes live     | 2          | Not started |
-| **4 — Drawer deep link**    | The `d` param: restore path that opens a card without moving the level, and model inference from the id.                                                     | Deep links work   | 3          | Not started |
-| **5 — Copy-link button**    | `#shareBtn`, clipboard write with an `execCommand` fallback, "Copied" feedback.                                                                              | New header chrome | 3          | Not started |
-| **6 — Verification & docs** | Round-trip sweep, both levels × three templates × every plane combination, narrow screens, dark theme, then `TODO.md` and the architecture doc.              | Nothing changes   | 1–5        | Not started |
+| **1 — The codec**           | New `PAGE STATE IN THE URL` section: vocabulary tables, `serialiseState`, `parseState`, slug helpers, load-time validators, diagnostics handle. No wiring.   | Nothing changes   | —          | Done        |
+| **2 — Read on load**        | `applyUrlState()` before the views are built, plus a three-line `<head>` script so a `th=dark` link does not flash light. Sanitisation and canonicalisation. | Links restore     | 1          | Done        |
+| **3 — Write on change**     | `syncUrl()` with rAF coalescing, wired to eight call sites. `file:` hash fallback.                                                                           | URL goes live     | 2          | Done        |
+| **4 — Drawer deep link**    | The `d` param: restore path that opens a card without moving the level, and model inference from the id.                                                     | Deep links work   | 3          | Done        |
+| **5 — Copy-link button**    | `#shareBtn`, clipboard write with an `execCommand` fallback, "Copied" feedback.                                                                              | New header chrome | 3          | Done        |
+| **6 — Verification & docs** | Round-trip sweep, both levels × three templates × every plane combination, narrow screens, dark theme, then `TODO.md` and the architecture doc.              | Nothing changes   | 1–5        | Done        |
+
+### As built — where the implementation departs from the plan
+
+Four small deviations, each because the plan's shape did not survive contact:
+
+- **`planeCombinations` moved onto `Model`.** It was view-local, and both `layoutSweep`
+  and the round-trip sample need it. It is a pure query over a model, which is what
+  `Model` is for.
+- **The level segment syncs from state.** `setTpl` wrote `aria-pressed` on the `.seg`
+  buttons from the click that changed the level, so a level arriving from the URL drew the
+  right diagram under the wrong pressed button. Now `renderAll` syncs it from the slice,
+  like every other control in the sidebar.
+- **`p` is explicit when present.** The plan's `merge(defaults, parsed.p)` cannot express
+  "a `defaultOn:true` plane switched off". A present key now lists exactly the on planes;
+  an absent key means the defaults. Today every plane defaults off, so the two readings
+  agree — but the grammar no longer has a hole in it.
+- **`d` is written from `showDrawer`.** That is the shared tail of `openDrawer` and
+  `openSourceDrawer`, so one call site covers both, on the same argument that puts `t`,
+  `p` and `off` in `renderAll`. Seven call sites rather than eight.
+
+One plan example is wrong about the vocabulary and the codec correctly rejects it:
+`px.f=cap:visual` — `visual` is a _logical_ capability; the physical level's capabilities
+are the operational concerns (`degrade`, `parity`, `tail`, …).
 
 ---
 

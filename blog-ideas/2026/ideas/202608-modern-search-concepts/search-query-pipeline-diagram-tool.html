@@ -7,6 +7,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+/* Theme is the one piece of page state that has to land before first paint:
+   <html> carries data-theme="light" as its hard default, so a th=dark link
+   would otherwise paint the whole page light and flip at the end of <body>.
+   The only duplicated parsing in the file, and the alternative is moving the
+   whole script into <head>. The codec re-applies the same attribute from the
+   same source, idempotently. */
+{const theme = (location.search+location.hash).match(/[?&]th=(dark|light)/);
+ if(theme) document.documentElement.setAttribute("data-theme", theme[1]);}
+</script>
 <style>
 /* ---------- tokens ---------- */
 :root{
@@ -109,6 +119,11 @@ a{color:var(--accent)}
   border-radius:8px;display:grid;place-items:center;font-size:14px
 }
 .icon-btn:hover{background:var(--surface-2)}
+.hdr-actions{display:flex;gap:8px}
+.sr-only{
+  position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0
+}
 
 /* ---------- context bar ---------- */
 .ctxbar{
@@ -900,7 +915,11 @@ table.mini .met{color:var(--accent)}
     <button role="tab" id="tab-build" aria-controls="view-build" aria-selected="false" data-view="build">Build order</button>
     <button role="tab" id="tab-about" aria-controls="view-about" aria-selected="false" data-view="about">About</button>
   </div>
-  <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle colour theme">◐</button>
+  <div class="hdr-actions">
+    <button class="icon-btn" id="shareBtn" title="Copy a link to this view" aria-label="Copy a link to this view">🔗</button>
+    <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle colour theme">◐</button>
+  </div>
+  <span class="sr-only" id="shareStatus" role="status" aria-live="polite"></span>
 </header>
 
 <!-- ================= PIPELINE VIEW ================= -->
@@ -1134,6 +1153,16 @@ const Model = {
     model.templates[templateId].rows.forEach(row=>
       (row.l||[]).concat(row.c||[],row.r||[]).forEach(id=>out.push(id)));
     return out;
+  },
+
+  /* Every combination of optional planes a level declares, minus the ones a
+     reader cannot reach: a plane that depends on another is never on alone. */
+  planeCombinations(model){
+    return model.planes
+      .reduce((combinations,plane)=>combinations.flatMap(combination=>
+        [{...combination,[plane.id]:false},{...combination,[plane.id]:true}]), [{}])
+      .filter(combination=>model.planes.every(plane=>
+        !combination[plane.id] || !plane.requires || combination[plane.requires]));
   },
 
   /* The gate on a component, once the level is far enough along to draw it. */
@@ -6449,6 +6478,13 @@ LOGICAL.crossView = {
 /* =======================================================================
    VIEW STATE
    ======================================================================= */
+/* Which level a tab draws. A tab with no entry here is prose. Declared with
+   the state it describes, because the URL codec below maps tab names onto it
+   before any view exists. */
+const VIEW_MODEL = {pipe:"logical", phys:"physical"};
+const MODEL_VIEW = Object.fromEntries(
+  Object.entries(VIEW_MODEL).map(([viewId,modelId])=>[modelId,viewId]));
+
 /* Which tab is showing, and one independent slice of composition state per
    level — switching tabs must never reset the other view. */
 const state = {
@@ -6463,6 +6499,302 @@ const state = {
 
 const $  = (s,r)=> (r||document).querySelector(s);
 const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
+
+/* =======================================================================
+   PAGE STATE IN THE URL
+
+   The query string is a projection of `state`, never a second source of
+   truth: it is written from `state` and parsed into `state`, and no renderer,
+   validator or view ever reads `location`. Copying the address bar hands
+   someone else the diagram on screen — level, planes, what is switched off,
+   what is traced, which card is open.
+
+   Only non-defaults are written, so the default page has no query string at
+   all. `,` and `:` are legal unencoded in a query component and every browser
+   shows them as typed, so the string is built by hand; it is read back with
+   URLSearchParams, which decodes %2C and %3A transparently.
+   ======================================================================= */
+/* Tab names a reader can guess, and the level prefix the codebase already
+   uses for the physical model. */
+const URL_VIEW = Object.freeze({...MODEL_VIEW, build:"build", about:"about"});
+const URL_VIEW_NAME = Object.freeze(Object.fromEntries(
+  Object.entries(URL_VIEW).map(([name,viewId])=>[viewId,name])));
+const URL_MODEL_PREFIX = Object.freeze({logical:"", physical:"px."});
+const URL_DEFAULTS = Object.freeze({view:"pipe", theme:"light", tpl:1});
+
+/* Every focus kind's vocabulary in one place: the parse check, the load-time
+   drift check and the round-trip sample all read from here. */
+const URL_FOCUS = Object.freeze({
+  facet:   model=> model.facets.map(facet=>facet.id),
+  cap:     model=> model.capabilities.map(capability=>capability.id),
+  phase:   model=> model.phases.map(phase=>phase.id),
+  gate:    model=> model.gateConditions.map(condition=>condition.label),
+  runtime: model=> Object.keys(model.runtimes || {})
+});
+const URL_FOCUS_KINDS = Object.freeze(Object.keys(URL_FOCUS));
+
+/* Gate focus ids are condition labels, and labels contain spaces. Every other
+   kind is already a slug. */
+const slugifyCondition = label => label.replace(/\s+/g,"-");
+const focusSlug  = (kind,id)=> kind==="gate" ? slugifyCondition(id) : id;
+const focusIdFor = (model,kind,slug)=>
+  URL_FOCUS[kind]?.(model).find(id=> focusSlug(kind,id)===slug) ?? null;
+
+/* Which level owns an id, looked up rather than read off the `px-` prefix so
+   a renaming cannot quietly break a link. */
+const entityOwner = id => Object.keys(URL_MODEL_PREFIX)
+  .find(modelId=> !!(PIPELINE_MODELS[modelId].components[id] ||
+                     PIPELINE_MODELS[modelId].dataSources[id])) || null;
+
+const splitList = value => value.split(",").filter(Boolean);
+
+/* A dependent follows its parent down, exactly as setOff does, so a
+   hand-edited URL cannot name a composition the UI itself never builds. */
+function cascadeOff(model, ids){
+  const off = new Set(ids);
+  for(let grew=true; grew; ){
+    grew = false;
+    Object.entries(model.requires).forEach(([id,parent])=>{
+      if(off.has(parent) && !off.has(id)){ off.add(id); grew = true; }
+    });
+  }
+  return off;
+}
+
+/* -----------------------------------------------------------------------
+   Write
+   ----------------------------------------------------------------------- */
+/* Emitted in a fixed order, because replaceState fires on every change and an
+   unstable key order would make the address bar flicker. Sets are ordered by
+   the template's own row order for the same reason. */
+function serialiseState(){
+  const pairs = [];
+  const add = (key,value)=> pairs.push(key+"="+value);
+
+  if(state.view !== URL_DEFAULTS.view) add("v", URL_VIEW_NAME[state.view]);
+  const theme = document.documentElement.getAttribute("data-theme");
+  if(theme && theme !== URL_DEFAULTS.theme) add("th", theme);
+
+  Object.entries(URL_MODEL_PREFIX).forEach(([modelId,prefix])=>{
+    const model = PIPELINE_MODELS[modelId], slice = state.models[modelId];
+
+    if(slice.tpl !== URL_DEFAULTS.tpl) add(prefix+"t", slice.tpl);
+
+    const on = model.planes.filter(plane=> slice.planes[plane.id]).map(plane=>plane.id);
+    const byDefault = model.planes.filter(plane=> plane.defaultOn).map(plane=>plane.id);
+    if(String(on) !== String(byDefault)) add(prefix+"p", on);
+
+    Object.keys(model.templates).map(Number).forEach(level=>{
+      const off = Model.stages(model,level).filter(id=> slice.off[level].has(id));
+      if(off.length) add(prefix+"off", level+":"+off);
+    });
+
+    const {kind,id} = slice.focus || {};
+    if(kind) add(prefix+"f", kind+":"+focusSlug(kind,id));
+  });
+
+  /* The drawer is a document singleton, so `d` is page-level. `sel` outlives
+     the drawer — it also carries the narrow layout's selection panel — so the
+     key is written only while a card is actually on screen. */
+  const open = state.models[VIEW_MODEL[state.view]]?.sel;
+  if(open && DRAWER.root.classList.contains("open")) add("d", open);
+
+  return pairs.join("&");
+}
+
+/* -----------------------------------------------------------------------
+   Read
+   ----------------------------------------------------------------------- */
+/* The only place in this file that treats its input as untrusted. The
+   validator wall throws at load because internal drift is a bug; a mangled
+   URL is user input, and blanking the page over one is the wrong answer, so
+   every value is checked against the live registries and silently dropped. */
+function parseState(search){
+  const query = new URLSearchParams(search);
+  const parsed = {models:{}};
+
+  const view = query.get("v");
+  if(URL_VIEW[view]) parsed.v = view;
+
+  const theme = query.get("th");
+  if(theme==="dark" || theme==="light") parsed.th = theme;
+
+  const drawer = query.get("d");
+  if(drawer && entityOwner(drawer)) parsed.d = drawer;
+
+  Object.entries(URL_MODEL_PREFIX).forEach(([modelId,prefix])=>{
+    const model = PIPELINE_MODELS[modelId];
+    const values = parsed.models[modelId] = {};
+
+    const tpl = query.get(prefix+"t");
+    if(model.templates[tpl]) values.t = +tpl;
+
+    /* A plane with `requires` brings its parent on, exactly as setPlane does. */
+    const planes = query.get(prefix+"p");
+    if(planes !== null){
+      values.p = {};
+      splitList(planes).forEach(id=>{
+        for(let plane = model.planes.find(entry=>entry.id===id); plane; ){
+          values.p[plane.id] = true;
+          plane = plane.requires && model.planes.find(entry=>entry.id===plane.requires);
+        }
+      });
+    }
+
+    /* Core components are locked, so an injected core id would be a state no
+       click can reach. */
+    query.getAll(prefix+"off").forEach(entry=>{
+      const [level,list=""] = entry.split(":");
+      if(!model.templates[level]) return;
+      const stages = Model.stages(model,+level);
+      const off = cascadeOff(model, splitList(list).filter(id=> stages.includes(id)));
+      const ids = stages.filter(id=> off.has(id) && model.components[id].tier!=="core");
+      if(ids.length) (values.off = values.off || {})[+level] = ids;
+    });
+
+    /* Not optional politeness: FOCUS[kind].describe does FACETS.find(...).label
+       with no guard, so an unvalidated f=cap:bogus throws into the sidebar. */
+    const focus = query.get(prefix+"f");
+    const split = focus ? focus.indexOf(":") : -1;
+    if(split > 0){
+      const kind = focus.slice(0,split), id = focusIdFor(model, kind, focus.slice(split+1));
+      if(id !== null) values.f = {kind, id};
+    }
+  });
+
+  return parsed;
+}
+
+/* -----------------------------------------------------------------------
+   Apply
+   ----------------------------------------------------------------------- */
+/* One id held aside for the bootstrap tail: a hidden canvas measures as zero,
+   so the deep-linked card cannot open until its tab is on screen. */
+let pendingDrawer = null;
+
+function applyPageState(parsed){
+  /* An explicit tab always wins; a bare ?d=px-vlm pasted into prose infers
+     one from the id, which is exactly how these links get written by hand. */
+  const owner = parsed.d && entityOwner(parsed.d);
+  state.view = URL_VIEW[parsed.v] || (owner && MODEL_VIEW[owner]) || URL_DEFAULTS.view;
+  document.documentElement.setAttribute("data-theme", parsed.th || URL_DEFAULTS.theme);
+
+  Object.entries(parsed.models).forEach(([modelId,values])=>{
+    const model = PIPELINE_MODELS[modelId], slice = state.models[modelId];
+    slice.tpl = values.t || URL_DEFAULTS.tpl;
+    model.planes.forEach(plane=>{
+      slice.planes[plane.id] = values.p ? !!values.p[plane.id] : plane.defaultOn;
+    });
+    Object.keys(slice.off).forEach(level=>{
+      slice.off[level] = new Set(values.off?.[level] || []);
+    });
+    slice.focus = values.f || null;
+  });
+
+  pendingDrawer = parsed.d || null;
+}
+
+/* A bad link must degrade to the default page, never to a blank one — the
+   opposite of what the validator wall deliberately does for internal drift. */
+function applyUrlState(){
+  try{ applyPageState(parseState(urlQuery())); }
+  catch(err){ console.warn("Ignoring unreadable page state in the URL:", err); }
+}
+
+/* -----------------------------------------------------------------------
+   The address bar
+   ----------------------------------------------------------------------- */
+/* A file: document has an opaque origin, where replaceState with a query
+   string can throw SecurityError. Assigning to location.hash never navigates
+   and never throws, so hash mode is a full peer rather than a stub: the same
+   URLs work in both, only the separator differs. */
+let urlMode = location.protocol === "file:" ? "hash" : "search";
+
+function urlQuery(){
+  const hash = location.hash.slice(1);
+  return location.search || (hash.startsWith("?") ? hash : "");
+}
+
+function writeUrl(query){
+  if(query === urlQuery().replace(/^\?/,"")) return;
+  if(urlMode === "search"){
+    try{
+      history.replaceState(null, "", query ? "?"+query : location.pathname);
+      return;
+    }catch(err){ urlMode = "hash"; }   // one failure flips the session for good
+  }
+  location.hash = query ? "?"+query : "";
+}
+
+/* Nothing is written until the page has finished restoring: the views render
+   several times on the way up and a deep-linked card opens a frame later
+   still, so one canonicalising write at the end says what took effect. */
+let urlSyncReady = false, urlSyncQueued = false;
+
+/* One click can reach here through both a handler and renderAll, setOff
+   cascades over dependents in a loop, and layoutSweep drives renderAll through
+   a dozen synthetic compositions before restoring the reader's own. The sweep
+   is synchronous and restores state before it returns, so the single coalesced
+   write that follows it is already correct. */
+function syncUrl(){
+  if(!urlSyncReady || urlSyncQueued) return;
+  urlSyncQueued = true;
+  requestAnimationFrame(()=>{ urlSyncQueued = false; writeUrl(serialiseState()); });
+}
+
+/* Opens the deep-linked card, then hands the page over to the address bar. */
+function restorePageState(){
+  const id = pendingDrawer;
+  pendingDrawer = null;
+  const finish = ()=>{ urlSyncReady = true; syncUrl(); };
+  if(!id) return finish();
+  setTimeout(()=>{ restoreDrawer(id); finish(); }, 60);
+}
+
+function restoreDrawer(id){
+  const modelId = entityOwner(id);
+  /* A card whose level is not the tab on screen would float over the build
+     ladder with nothing behind it. Dropped; the next write removes the key. */
+  if(VIEW_MODEL[state.view] !== modelId) return;
+  const view = VIEWS[modelId];
+  /* Never revealComponent: that helper is for cross-tab navigation and sets
+     the level to where the component first appears, which would override the
+     level the URL just restored. Two things that look alike and are not. */
+  if(PIPELINE_MODELS[modelId].dataSources[id]) view.openSourceDrawer(id);
+  else { view.openDrawer(id); view.revealNode(id); }
+}
+
+/* -----------------------------------------------------------------------
+   Load-time validators, in the spirit of the wall
+   ----------------------------------------------------------------------- */
+/* A reserved character in an id, or two gate conditions that slug the same
+   way, would break the grammar silently — the reader's selection would just
+   disappear. Cheap to check, so check it. */
+const URL_RESERVED = /[&=,:;?#]/;
+Object.keys(URL_MODEL_PREFIX).forEach(modelId=>{
+  const model = PIPELINE_MODELS[modelId];
+  Object.keys(model.components)
+    .concat(Object.keys(model.dataSources), Object.keys(model.templates),
+            model.planes.map(plane=>plane.id))
+    .forEach(token=>{
+      if(URL_RESERVED.test(token)){
+        throw new Error("Id is not URL-safe in "+modelId+": "+token);
+      }
+    });
+  const slugs = URL_FOCUS.gate(model).map(slugifyCondition);
+  if(new Set(slugs).size !== slugs.length){
+    throw new Error("Gate condition slugs collide in "+modelId);
+  }
+});
+$$(".tabs button").forEach(button=>{
+  if(!URL_VIEW_NAME[button.dataset.view]){
+    throw new Error("Tab has no URL name: "+button.dataset.view);
+  }
+});
+
+/* Read once, before the views are built, so each one's first and only render
+   already shows the restored composition: no flash, no wasted drawWires. */
+applyUrlState();
 
 /* =======================================================================
    SHARED PAGE FURNITURE — one drawer, one hover card, one page. Views fill
@@ -6502,6 +6834,7 @@ function closeDrawer(){
   drawerOwner = null;
   drawerSubject = null;
   reopenDrawer = null;
+  syncUrl();
 }
 
 /* Opening a component in another level's view is the one thing a view does
@@ -7853,6 +8186,12 @@ const FOCUS = {
   }
 };
 
+/* Adding a sixth focus kind and forgetting the codec would silently drop the
+   reader's selection from every link they share. */
+if(String(Object.keys(FOCUS).sort()) !== String([...URL_FOCUS_KINDS].sort())){
+  throw new Error("URL focus kinds have drifted from FOCUS in "+model.id);
+}
+
 /* Stages the given condition gates in the active template. */
 function gatedStagesFor(label){
   return tplStages(slice.tpl).filter(id=> executionGate(id,slice.tpl)?.label===label);
@@ -7869,6 +8208,7 @@ function setFocus(kind, id){
   slice.focus = same ? null : {kind, id};
   applyFocus();
   syncFocusUI();
+  syncUrl();
 }
 
 /* Focus is a toggle, so clearing it is re-selecting what is already selected. */
@@ -8187,6 +8527,8 @@ function showDrawer(id,reopen){
   if(subject !== drawerSubject){ DRAWER.body.scrollTop = 0; drawerSubject = subject; }
   DRAWER.root.classList.add("open"); DRAWER.scrim.classList.add("open");
   DRAWER.root.setAttribute("aria-modal","false");
+  /* Both open paths end here, so `d` is written in one place rather than two. */
+  syncUrl();
 }
 
 function openDrawer(id){
@@ -8267,6 +8609,7 @@ function openSourceDrawer(id){
    What is left here is this view's own selection state. */
 function clearSelection(){
   slice.sel = null;
+  syncUrl();
   $$(".node,.data-source-node").forEach(el=>el.classList.remove("selected"));
   $$(".mobile-selection",rowsEl).forEach(panel=>panel.remove());
   $$(".mobile-connected",rowsEl).forEach(el=>el.classList.remove("mobile-connected"));
@@ -8515,7 +8858,7 @@ function renderCompList(){
    WIRING
    ======================================================================= */
 function renderAll(){
-  hideHover(); renderGateLegend(); renderRuntimeLegend(); renderCanvas();
+  hideHover(); syncLevelButtons(); renderGateLegend(); renderRuntimeLegend(); renderCanvas();
   renderComposition(); renderCompList(); renderPlaneToggles();
   /* An open drawer is a rendered view of this composition and goes stale with
      the rest of it: what is drawn, what the level has not reached, how much of
@@ -8523,6 +8866,9 @@ function renderAll(){
      at each of the places that change a composition, because those are three
      and this is one. The subject is unchanged, so the reader keeps their place. */
   if(drawerOwner===view) reopenDrawer?.();
+  /* setTpl, setPlane, the component toggles and the reset button all funnel
+     through here, so this one call covers every composition change. */
+  syncUrl();
 }
 
 /* One row per condition present in the active template. Conditions the current
@@ -8566,11 +8912,17 @@ function renderRelationLegend(){
     .join("");
 }
 
+/* The level control reads its pressed state from the slice rather than from
+   the click that changed it, so a level arriving from the URL lands on the
+   right button too. Every other control in the sidebar is already re-rendered
+   from state on each pass; this was the last one that was not. */
+function syncLevelButtons(){
+  $$(".seg button").forEach(button=>
+    button.setAttribute("aria-pressed", String(+button.dataset.tpl===slice.tpl)));
+}
+
 function setTpl(t){
-  if(slice.tpl!==t){
-    slice.prevTpl = slice.tpl; slice.tpl = t;
-    $$(".seg button").forEach(b=> b.setAttribute("aria-pressed", String(+b.dataset.tpl===t)));
-  }
+  if(slice.tpl!==t){ slice.prevTpl = slice.tpl; slice.tpl = t; }
   renderAll();
 }
 /* =======================================================================
@@ -8668,16 +9020,6 @@ function layoutReport(scrollY = window.scrollY){
   return report;
 }
 
-/* Every combination of optional planes this level declares, minus the ones a
-   reader cannot reach: a plane that depends on another is never on alone. */
-function planeCombinations(){
-  return model.planes
-    .reduce((combinations,plane)=>combinations.flatMap(combination=>
-      [{...combination,[plane.id]:false},{...combination,[plane.id]:true}]), [{}])
-    .filter(combination=>model.planes.every(plane=>
-      !combination[plane.id] || !plane.requires || combination[plane.requires]));
-}
-
 /* Every level crossed with every plane combination, at whatever width the
    window currently has. Wires are drawn synchronously here because the render
    path defers them to the next frame. */
@@ -8685,7 +9027,7 @@ function layoutSweep(scrollY = 0){
   const resume = {tpl:slice.tpl, planes:{...slice.planes}, focus:slice.focus};
   const settle = ()=>{ renderAll(); drawWires(); };
   const combinations = [];
-  Object.keys(TPL).map(Number).forEach(tpl=>planeCombinations().forEach(planes=>{
+  Object.keys(TPL).map(Number).forEach(tpl=>Model.planeCombinations(model).forEach(planes=>{
     Object.assign(slice,{tpl});
     Object.assign(slice.planes,planes);
     settle();
@@ -8728,11 +9070,6 @@ return view;
    VIEWS AND PAGE CHROME — one pipeline view per level that has one, plus
    the tabs, theme and keyboard handling they all share.
    ======================================================================= */
-/* Which level a tab draws. A tab with no entry here is prose. */
-const VIEW_MODEL = {pipe:"logical", phys:"physical"};
-const MODEL_VIEW = Object.fromEntries(
-  Object.entries(VIEW_MODEL).map(([viewId,modelId])=>[modelId,viewId]));
-
 /* The second view's markup is the first one's, stamped before either is
    built. One copy to maintain, and no way for the two to drift apart. */
 $("#view-phys").innerHTML = $("#view-pipe").innerHTML;
@@ -8764,6 +9101,7 @@ function setView(v){
     }
     requestAnimationFrame(view.drawWires);
   }
+  syncUrl();
 }
 
 /* Open a component in the view that draws its level, at the level where it
@@ -8830,6 +9168,43 @@ $("#themeBtn").addEventListener("click", ()=>{
     : window.matchMedia("(prefers-color-scheme: dark)").matches;
   document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
   requestAnimationFrame(()=> activeView()?.drawWires());
+  syncUrl();
+});
+
+/* The share button is not a second source of truth: it copies location.href,
+   which syncUrl has already made correct.
+
+   navigator.clipboard needs a secure context — https, localhost and, in
+   Chrome, file: — but not http://192.168.x.x, which is a realistic way to
+   read this on a phone, so the deprecated path stays behind it. */
+async function copyLink(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    return true;
+  }catch(err){
+    const field = Object.assign(document.createElement("textarea"),
+      {value:text, readOnly:true});
+    field.style.cssText = "position:fixed;top:-100px;opacity:0";
+    document.body.appendChild(field);
+    field.select();
+    const copied = document.execCommand("copy");
+    field.remove();
+    return copied;
+  }
+}
+
+const shareBtn = $("#shareBtn");
+let shareTimer;
+shareBtn.addEventListener("click", async ()=>{
+  const copied = await copyLink(location.href);
+  clearTimeout(shareTimer);
+  shareBtn.textContent = copied ? "\u2713" : "\u26a0";
+  $("#shareStatus").textContent = copied
+    ? "Link copied" : "Copy failed \u2014 the address bar holds the link";
+  shareTimer = setTimeout(()=>{
+    shareBtn.textContent = "\ud83d\udd17";
+    $("#shareStatus").textContent = "";
+  }, 1400);
 });
 
 /* A width change can cross the narrow-layout boundary, which is a re-render
@@ -8852,6 +9227,61 @@ if(document.fonts && document.fonts.ready){
    DIAGNOSTICS — a stable, geometry-free handle on what the page believes,
    for the checks that run in a console rather than at load.
    ======================================================================= */
+/* Every axis the URL grammar has, varied one at a time against the default
+   page, plus the one genuine cross product: level and plane combination, which
+   interact. Each entry is parse-shaped, so it can be applied directly. */
+function urlSamples(){
+  const samples = [{models:{}}];
+  const only = (modelId,values,page)=> samples.push({...page, models:{[modelId]:values}});
+
+  ["dark","light"].forEach(th=> samples.push({th, models:{}}));
+  Object.keys(URL_VIEW).forEach(v=> samples.push({v, models:{}}));
+
+  Object.keys(URL_MODEL_PREFIX).forEach(modelId=>{
+    const model = PIPELINE_MODELS[modelId];
+    Object.keys(model.templates).map(Number).forEach(t=>{
+      Model.planeCombinations(model).forEach(p=> only(modelId,{t,p}));
+      const optional = Model.stages(model,t).filter(id=> model.components[id].tier!=="core");
+      /* Cascaded, because the sample has to be a composition the UI itself
+         could build — switching a parent off takes its dependents with it. */
+      [[], optional.slice(0,1), optional].forEach(ids=>
+        only(modelId,{t, off:{[t]:[...cascadeOff(model,ids)]}}));
+    });
+    URL_FOCUS_KINDS.forEach(kind=>{
+      const ids = URL_FOCUS[kind](model);
+      [ids[0], ids[ids.length-1]].filter(id=>id!=null)
+        .forEach(id=> only(modelId,{f:{kind,id}}));
+    });
+  });
+  return samples;
+}
+
+/* parse(write(s)) must reproduce s. Checked as a fixpoint on the query string
+   itself, which is what an unstable key order, a dropped vocabulary or an id
+   carrying a reserved character all show up as. `d` is only ever written while
+   the drawer is open, so it is checked by parsing instead. */
+function urlRoundTrip(){
+  const resume = parseState(serialiseState()), failures = [];
+  const samples = urlSamples();
+
+  samples.forEach(sample=>{
+    applyPageState(sample);
+    const written = serialiseState();
+    applyPageState(parseState(written));
+    const reparsed = serialiseState();
+    if(written !== reparsed) failures.push({written, reparsed});
+  });
+
+  Object.values(PIPELINE_MODELS).forEach(model=>
+    Object.keys(model.components).concat(Object.keys(model.dataSources)).forEach(id=>{
+      if(parseState("d="+id).d !== id) failures.push({drawer:id});
+    }));
+
+  applyPageState(resume);
+  Object.values(VIEWS).forEach(view=> view.render());
+  return {samples:samples.length, failures, ok:!failures.length};
+}
+
 window.dependencyDiagnostics = Object.freeze({
   models:PIPELINE_MODELS,
   view:id=>VIEWS[id],
@@ -8862,11 +9292,19 @@ window.dependencyDiagnostics = Object.freeze({
   ladderValidation:LOGICAL.validation.ladder,
   emitBaseline:(modelId="logical")=>emitBaseline(PIPELINE_MODELS[modelId]),
   layout:(modelId="logical",...args)=>VIEWS[modelId].layoutReport(...args),
-  layoutSweep:(modelId="logical",...args)=>VIEWS[modelId].layoutSweep(...args)
+  layoutSweep:(modelId="logical",...args)=>VIEWS[modelId].layoutSweep(...args),
+  url:Object.freeze({
+    write:serialiseState,
+    read:(search=urlQuery())=>parseState(search),
+    roundTrip:urlRoundTrip
+  })
 });
 
+/* `state.view` is already restored, so at bootstrap previousView === v and
+   setView's level-copy never fires: both levels survive the load intact. */
 setView(state.view);
 renderBuild();
+restorePageState();
 </script>
 </body>
 </html>

@@ -16,6 +16,7 @@ Note: this list is for humans, not for AI agents.
 
 `In the search exploration tool search-query-pipeline-diagram-tool.html physical architecture diagram...`
 
+- In the physical diagram, add a concern for "In-process container"
 - Embedding could be on GPU or CPU depending on model selcted.
 - Apply the formatting of component hover popup to the RHS info panel so that the same information in both is presented in the same way. Hover popup is the preferred UI.
 - Add link from Text query to Query expansion?
@@ -34,8 +35,6 @@ Note: this list is for humans, not for AI agents.
 - Add GA
 
 - Write a Python interface stub file that outlines the physical pipeline Orchestrator
-
-- Enable diagram state to be managed via url query params for sharing and bookmarking.
 
 - Enable diagram to be exported to mermaid code (or similar) for sharing and editing in other tools.
 

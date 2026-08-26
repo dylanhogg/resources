@@ -143,7 +143,10 @@ the `document.fonts.ready` re-draw. Any change that alters node size must end in
 
 `state` is a single plain object: `{view, tpl, prevTpl, showServing, off:{1:Set,2:Set,3:Set},
 collapsedGroups, sel, focus}`. Note `off` is **per template** — switching levels preserves
-each level's composition. There is no persistence and no URL state (both are open TODOs).
+each level's composition. There is no persistence, but the query string is a **projection of
+`state`** — written from it, parsed into it, and never read by a renderer, a validator or a
+view. The grammar, the codec and its load-time validators live in one place, the
+`PAGE STATE IN THE URL` section.
 
 CSS is minimal-contract: theme tokens on `:root` with a `[data-theme="dark"]` override,
 tier and wire colours as variables (`--core-bg`, `--wire-train`, `--gate-request`, …).
@@ -169,9 +172,10 @@ Check the browser console first when the page looks empty.
   built twice, each step's `t` matches the highest `intro` it introduces. `q-text` is the
   sole exempt component (the query arrives; it is not built).
 
-`window.dependencyDiagnostics` exposes `inventory()`, the three validation summaries, and
-`layoutReport()` / `layoutSweep()` for geometry snapshots. Use it from the console rather
-than reading the SVG.
+`window.dependencyDiagnostics` exposes `inventory()`, the three validation summaries,
+`layoutReport()` / `layoutSweep()` for geometry snapshots, and `url.write()` /
+`url.read(search)` / `url.roundTrip()` for the query-string codec. Use it from the console
+rather than reading the SVG.
 
 ## Recipes
 
@@ -208,6 +212,16 @@ Update the baseline fixture, since edge _kinds_ are part of the asserted invento
 **Add a data source.** Add to `DATA_SOURCES`, map it in `SERVING_REL` to its consumers,
 then update `DEPENDENCY_BASELINE`'s `serves` list and the expected source/edge counts. Do
 not set the source's `tier`/`intro` — they are derived from its consumers.
+
+**Put a piece of state in the URL.** Five steps, all inside `PAGE STATE IN THE URL`:
+declare its key (page-level, or model-scoped and therefore prefixed via
+`URL_MODEL_PREFIX`); emit it from `serialiseState`, only when it differs from its default,
+at a fixed position in the order; read it back in `parseState`, **validated against the
+live registries and silently dropped if it fails** — that function is the only place in the
+file that treats its input as untrusted; apply it in `applyPageState`; and add a
+`syncUrl()` call at the _intent_ site that changes it, not at the render site. Then extend
+`urlSamples()` so `dependencyDiagnostics.url.roundTrip()` covers it. If the new value is an
+id, the load-time validator that rejects reserved characters already covers it.
 
 ## Gotchas
 
