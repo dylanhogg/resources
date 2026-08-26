@@ -2671,6 +2671,16 @@ const GATE_KINDS = Object.freeze({
 const CONDITIONAL_NOTE =
   "Cost varies with how much work this stage does on the requests where it runs.";
 
+/* How a named decider is allowed to reach what it gates. `steers` is the
+   usual form: a control node bending a stage it is not otherwise connected
+   to. A gate whose decider is an in-band stage grants the same authority by
+   `feeds` — px-qu does not steer the LLM pass, it hands over the extraction
+   it was not confident in, on exactly the condition the gate names, and a
+   steering wire beside that one would be drawn straight over the top of it.
+   A decider connected by neither is claiming an authority nothing in the
+   relationship model backs. */
+const GATE_AUTHORITY_KINDS = Object.freeze(["steers","feeds"]);
+
 /* What a gate means is shared vocabulary; *who* decides it is not. The logical
    level routes with `routing`, the physical one with `px-router`, and a
    deployment gate has no owner at either. A level therefore names its owners
@@ -3215,10 +3225,11 @@ function validateRelationshipModel(model){
     if(!tplStages(gate.from).includes(id)){
       throw new Error("Gated component is absent from its first gated template: "+id);
     }
-    /* A named decider must actually steer what it gates, or the card claims an
-       authority the relationship model does not grant it. */
-    if(gate.decidedBy && !(REL[gate.decidedBy]?.steers||[]).includes(id)){
-      throw new Error("Gate decider does not steer its gated component: "+id);
+    /* A named decider must actually reach what it gates, or the card claims
+       an authority the relationship model does not grant it. */
+    if(gate.decidedBy && !GATE_AUTHORITY_KINDS.some(kind=>
+        (REL[gate.decidedBy]?.[kind]||[]).includes(id))){
+      throw new Error("Gate decider does not reach its gated component: "+id);
     }
   });
   Object.entries(REL).forEach(([from,relations])=>{
@@ -4975,7 +4986,8 @@ defPhys({
 /* ---------- band 9 · final ranking ---------- */
 defPhys({
   id:"px-personal", name:"Personalisation", group:"Final ranking", tier:"optional", intro:3,
-  runtime:"store", cx:3, sub:"one profile read · a few slots adjusted",
+  runtime:"store", cx:3, sub:"one profile read · a few slots adjusted", conditional:true,
+  conditionalOn:"Runs only where the request carries a known subject — an anonymous search skips it entirely.",
   realises:["personalisation"],
   purpose:"Reads the user's durable profile and adjusts a small number of result slots, leaving the rest unpersonalised on purpose.",
   substrate:{on:["dynamodb"], service:"Amazon DynamoDB", unit:"profile item, single read",
@@ -5888,7 +5900,7 @@ const PX_GATE_OWNER = Object.freeze({route:"px-router", intent:"px-router",
 const defPhysGate = gatesDecidedBy(PX_GATE_OWNER);
 
 const PX_GATES = Object.freeze({
-  "px-bedrock-qu":  defPhysGate(3,"config","optional pass"),
+  "px-bedrock-qu":  defPhysGate(3,"confidence","classifier uncertain"),
   "px-expand":      defPhysGate(3,"route","route selected"),
   "px-embed-image": defPhysGate(3,"intent","image query"),
   "px-embed-sparse":defPhysGate(3,"route","route selected"),
@@ -5896,7 +5908,7 @@ const PX_GATES = Object.freeze({
   "px-semrerank":   defPhysGate(3,"config","optional pass"),
   "px-vlm":         defPhysGate(3,"intent","visual intent"),
   "px-ltr":         defPhysGate(3,"config","optional pass"),
-  "px-personal":    defPhysGate(3,"config","optional pass")
+  "px-personal":    defPhysGate(3,"config","optional stage")
 });
 
 /* Components that cannot exist without a parent. */
@@ -6301,8 +6313,9 @@ const PHYSICAL_SIDEBAR = {
              "The count is what moves: click one to see who owns it."},
   legendNote:
     "Flow moves the request or its candidates; a gated stage runs only when its condition holds. "+
-    "Retrieval routing owns every request gate, while a deployment gate is a standing configuration "+
-    "choice with no runtime owner \u2014 a gate on an aside shows as a chip on the card rather than a dashed wire. "+
+    "A request gate is owned by whatever produces the fact it turns on \u2014 routing for route and intent, "+
+    "query understanding for its own confidence \u2014 while a deployment gate is a standing configuration "+
+    "choice with no runtime owner; a gate on an aside shows as a chip on the card rather than a dashed wire. "+
     "Branches select a decision outcome; returns retry an earlier stage. "+
     "Control-plane components steer without touching candidates, and observes carries traces out: "+
     "it can fail without failing the request, which is why it is drawn as the quietest line here. "+
@@ -6350,7 +6363,7 @@ const PHYSICAL = defModel({
   sourcePanel:["crossView","departure","servingContract","implementation","substrate",
                "decisions","dials","gotchas","scaling","cost","notes",
                "planeRelations","serves","writtenBy","writes","appearsWith"],
-  hover:["runtimePills","gate","purpose","crossView","budget","gotcha"],
+  hover:["runtimePills","gate","conditional","purpose","crossView","budget","gotcha"],
 
   baseline:PHYSICAL_BASELINE,
   expectedCounts:PHYSICAL_COUNTS,

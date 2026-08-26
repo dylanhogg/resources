@@ -5,14 +5,15 @@ Companion reading: `search-query-pipeline-diagram-tool-architecture.md` (point-i
 25 Aug 2026 — the region table has drifted since plan 006 added the physical level, but the
 **layer model, the validator-wall contract and the recipes are still accurate**).
 
-**Status:** **Phases 1–2 done** (`7d093e6`, 26 Aug 2026), **Phase 3 done** (uncommitted,
-26 Aug 2026) — the vocabulary is installed (`writes`, `confidence`, `"optional stage"`,
-`configured`), candidate generation is split so the spine reads
-`engines → union → sufficiency → fuse`, and every request-path stage but the two held items
-now has a visible input. The fixture was re-emitted, diffed and read at each phase; hops,
-units and `cx` did not move in Phase 3. Phases 4–8 outstanding. Written on top of `f8d8d29`
-(plan 006 phases 1–4). Update this line as each phase lands, in the style of plan 006
-(`Phase N done (<sha>, <date>)`).
+**Status:** **Phases 1–2 done** (`7d093e6`, 26 Aug 2026), **Phase 3 done** (`1b46328`,
+26 Aug 2026), **Phase 4 done** (uncommitted, 26 Aug 2026) — the vocabulary is installed
+(`writes`, `confidence`, `"optional stage"`, `configured`), candidate generation is split so
+the spine reads `engines → union → sufficiency → fuse`, every request-path stage but the two
+held items now has a visible input, and the two contradicted gates now carry the kinds their
+own cards claim. The fixture was re-emitted, diffed and read at each phase; hops, units and
+`cx` did not move in Phase 3, and Phase 4 moved no edge at all (**F23**). Phases 5–8
+outstanding. Written on top of `f8d8d29` (plan 006 phases 1–4). Update this line as each
+phase lands, in the style of plan 006 (`Phase N done (<sha>, <date>)`).
 
 Where implementing a phase turns up something this plan did not predict, the finding is
 recorded in that phase under **"What Phase N found"** — the later phases are written against
@@ -25,7 +26,7 @@ those, not against the original guess.
 | **1 — Registry groundwork**             | Installs vocabulary only: `writes` relation kind, `updates` restored to one meaning, `confidence` gate kind, an `"optional stage"` config condition, the `configured` marker. No node moves, no edge added.                    | Re-emitted and read — 8 edges retagged, 158 total unchanged    | —              | **Done**    |
 | **2 — Split candidate generation**      | Splits `px-fuse` into `px-union` + `px-fuse` and puts `px-sufficiency` between them, so the spine reads `engines → union → sufficiency → fuse` as its own card claims. Count-neutral on hops and units; +1 component.          | Re-emitted and read — 7 out, 10 in, 158 → 161                  | 1              | **Done**    |
 | **3 — The missing request-path inputs** | The user-visible fix: adds `px-qu → px-bedrock-qu`, gives the encoder band an input, and adds `PX_REL_BY_LEVEL` for level-scoped relations. Two of four orphans; two held.                                                     | Re-emitted and compared byte-for-byte — 0 out, 4 in, 161 → 165 | 2 (order only) | **Done**    |
-| **4 — Gate reassignment**               | `px-bedrock-qu` becomes a `confidence` gate; `px-personal` gains a config gate plus conditional chip. No structural churn, but edge kinds are asserted.                                                                        | Re-emit                                                        | 1.3, 1.4       | Not started |
+| **4 — Gate reassignment**               | `px-bedrock-qu` becomes a `confidence` gate; `px-personal` gains a config gate plus conditional chip. The gate-authority check widens to admit a decider that feeds what it gates, and the physical legend stops naming one owner. | Re-emitted and compared character-for-character — no change    | 1.3, 1.4       | **Done**    |
 | **5 — Coverage notes**                  | Adds a derived "drawn to N of M" line to the three partial control-plane relations (`px-otel observes`, `px-deadline steers`, `px-appconfig steers`), computed from a scope predicate so it cannot drift.                      | No change                                                      | 1.5            | Not started |
 | **6 — Cross-view fidelity**             | Level-filters the REALISES list, records departures for the two retargets, and applies/documents the four proposed logical-side changes (L1 required, L2 applied, L3 documented, L4 deferred).                                 | Logical baseline re-emitted for L2                             | 2, 3, 4        | Not started |
 | **7 — Invariants**                      | Three validators that would have caught this whole class of defect — every request-path stage has an input, a departure is owed both ways, coverage notes must describe something — each throwing when it becomes unnecessary. | No change                                                      | everything     | Not started |
@@ -702,8 +703,12 @@ Appears in`, and the complementary-not-alternative note renders above it.
 
 Uses the vocabulary installed in Phase 1 — `confidence`/`"classifier uncertain"` and
 `config`/`"optional stage"` are both defined and owned already, so this phase is two lines in
-`PX_GATES` plus the fixture. **No structural churn — `PX_GATES` changes gate
-_kinds_, and edge kinds are part of the asserted inventory, so the baseline still moves.**
+`PX_GATES` plus the fixture. ~~**No structural churn — `PX_GATES` changes gate
+_kinds_, and edge kinds are part of the asserted inventory, so the baseline still moves.**~~
+**Wrong on the second half: the baseline does not move** (**F23**). An edge is `gated` because
+its target is gated at all, not because of _which_ kind gates it, so a re-kinding is invisible
+to `Model.dependencies`. What it does move is a validator and a legend sentence — see **F21**
+and **F24**.
 
 ### 4.1 `px-bedrock-qu`
 
@@ -737,20 +742,102 @@ pair in both directions. Two small follow-ons:
   `"conditional"` after `"gate"` so the hover card carries it, matching the logical hover.
 - `px-personal` is the first physical component to use `conditional`, so check the node chip
   renders (the chip site is shared between levels, so it should — verify, do not assume).
+  It does, at both widths — see **F25**, which is also where the drawer's silence on
+  `conditional` is recorded.
 
 `px-session` already steers `px-personal`, which is what tells the request whether a subject
 is known. The two now agree.
 
+### What Phase 4 found
+
+**F21 · The gate-decider validator demanded `steers`, and `confidence` is the first gate whose
+decider _feeds_ what it gates.** Assigning the kind threw on the first reload —
+`Gate decider does not steer its gated component: px-bedrock-qu`. `PX_GATE_OWNER.confidence`
+was installed in Phase 1 and sat inert until this phase used it (F5), so the check had never
+been exercised against a decider that is a request-path stage rather than a control node. The
+rule it encodes is right — _"a named decider must actually reach what it gates, or the card
+claims an authority the relationship model does not grant it"_ — but it was written when every
+decider was `px-router` or `routing`, and it mistook the usual form of that authority for the
+only one.
+
+**F22 · The obvious fix draws a wire on top of another wire, and the page said so.** Declaring
+`px-qu steers px-bedrock-qu` satisfies the old check and was tried first. Both kinds route
+`side`, at curve `.4` and `.45`, between two adjacent nodes — and the drawn paths came back
+with the same endpoints on the same horizontal line, where the control points make no visible
+difference at all:
+
+```
+steers  M370.5,652.68 C296.7,652.68 280.3,652.68 206.5,652.68
+feeds   M370.5,652.68 C304.9,652.68 272.1,652.68 206.5,652.68
+```
+
+Two wires, one visible, the hidden one asserting a relationship the fixture would then carry
+for ever. Rejected on the measurement rather than on taste. So the check was widened instead
+of the model padded:
+
+```js
+const GATE_AUTHORITY_KINDS = Object.freeze(["steers","feeds"]);
+```
+
+with the error reworded to _"does not reach its gated component"_. `steers` remains the usual
+form — a control node bending a stage it is not otherwise connected to — and `feeds` is how an
+in-band decider grants the same authority: `px-qu` does not steer the LLM pass, it hands over
+the extraction it was not confident in, on exactly the condition the gate names. A decider
+connected by neither still throws. **This is the contract Phase 7 should extend rather than
+re-narrow.**
+
+**F23 · The fixture did not move, and that is proved rather than assumed.** `Model.dependencies`
+picks `gated` over `flow` from `Model.gate(model,to,tpl)` being truthy — it never reads the
+kind or the condition — so re-kinding a gate is invisible to the dependency set, and the
+`gated` pairs in the fixture carry no gate label to go stale either. Re-emitted anyway, under
+Phase 3's F17 method: `baseline:null`, reload, `emitBaseline("physical")`, then have the page
+fetch its own source, slice out the `PHYSICAL_BASELINE` literal and compare the two
+character-for-character. **165 pairs, byte-identical, nothing added and nothing removed.** The
+round trip is not _required_ for a phase that only re-kinds a gate — but running it is the only
+thing that establishes that, and it costs one reload.
+
+**F24 · The physical legend asserted the exact thing this phase falsified.**
+`PHYSICAL_SIDEBAR.legendNote` opened _"Retrieval routing owns every request gate"_ — true until
+`confidence` was assigned to `px-qu`, false the moment it was, and no validator watches prose.
+Rewritten to state the rule instead of the one owner:
+
+> A request gate is owned by whatever produces the fact it turns on — routing for route and
+> intent, query understanding for its own confidence — while a deployment gate is a standing
+> configuration choice with no runtime owner…
+
+The **logical** `legendNote` carries the same original sentence and stays true: logical
+declares `confidence:"understand"` but no logical stage gates on it (F5, and L3 in Phase 6).
+The two legends now differ in this one sentence deliberately — recorded in 6.3.
+
+**F25 · The drawer has no `conditional` section; the node chip and the hover card carry it.**
+Adding `"conditional"` to `PHYSICAL.hover` works — `px-personal`'s hover card reads
+_"optional stage gate — … · Conditional — Runs only where the request carries a known
+subject…"_ — and the node renders both chips, `OPTIONAL STAGE · CONDITIONAL`, at 1280px and at
+600px. But neither model's `panel` list has a conditional entry, so the drawer shows the gate
+and stays silent about the trigger, on the logical side too (`relax`, `crossenc`). Pre-existing
+and level-wide, same family as F7 and F19: an editorial call for Phase 8, not a defect this
+phase introduced.
+
 ### Exit criteria — Phase 4
 
-- `px-bedrock-qu`'s drawer no longer describes a cascade tier passing candidates through.
-- `px-personal` shows a config gate _and_ a conditional chip.
-- Gate legend at Full lists **six conditions across four kinds** — route selected · visual
-  intent · image query · classifier uncertain · optional pass · optional stage. (The plan
-  originally said "four across three", which is the count _before_ this phase: the legend is
-  usage-filtered, so the two conditions Phase 1 declared appear only once this phase assigns
-  them. See Phase 1 F5.)
-- Baseline re-emitted, read, pasted.
+- ~~`px-bedrock-qu`'s drawer no longer describes a cascade tier passing candidates through.~~
+  Done. It reads _"CLASSIFIER UNCERTAIN · per request · ✓ enabled — Runs only when the
+  in-process classifier's confidence in its own extraction falls below the floor. Decided by
+  Query understanding."_ — agreeing with the purpose line, the design decision, the dial and
+  the wire contract instead of contradicting all four.
+- ~~`px-personal` shows a config gate _and_ a conditional chip.~~ Done, plus the hover card;
+  the drawer is silent on the conditional at both levels (**F25**).
+- ~~Gate legend at Full lists **six conditions across four kinds** — route selected · visual
+  intent · image query · classifier uncertain · optional pass · optional stage.~~ Done, and
+  the usage counts beside them read 3 · 1 · 1 · 1 · 2 · 1, which is the nine gated stages.
+  (The plan originally said "four across three", which is the count _before_ this phase: the
+  legend is usage-filtered, so the two conditions Phase 1 declared appear only once this phase
+  assigns them. See Phase 1 F5.)
+- ~~Baseline re-emitted, read, pasted.~~ Re-emitted and compared character-for-character;
+  **no paste was needed, because nothing changed** (**F23**).
+- Also verified: nine level × plane combinations via `layoutSweep("physical")` — no clipped
+  labels, no overlaps, node and wire counts unmoved — and both models still register on a
+  fresh load.
 
 ---
 
@@ -773,8 +860,9 @@ Three relations are partial, and each one's card is contradicted by its wires:
 
 `configured:true` is already on the six components Phase 1 named, documented beside
 `defPhys` with the other structural markers. Phase 2's split did **not** add a seventh:
-`px-union` has no dial, so the denominator here is still six (F11). What is left is the
-predicate and the count.
+`px-union` has no dial, so the denominator here is still six (F11). Phase 4 did not touch a
+marker either — a gate kind is not a dial — so all three denominators below stand as written.
+What is left is the predicate and the count.
 
 Declare the **scope predicate**, not the count. The count is then computed per active
 template, so it moves as the reader climbs the levels and can never drift.
@@ -871,7 +959,8 @@ one moves the two levels closer.
 | --- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | L1  | `LOGICAL_GATE_OWNER` gains `confidence:"understand"`         | **Required** by Phase 1.3 — `gatesDecidedBy()` throws if any kind lacks an owner at every level.                                                                                                                                                                    | One line. No behaviour change; the logical level declares an owner it does not yet use. |
 | L2  | Add `crossenc` to `behavioural.trains`                       | The physical `px-train trains px-crossenc` asserts a training loop the logical view does not have. If the physical is right — and it is; a cross-encoder is fine-tuned on judgements — the logical view is missing an edge.                                         | `REL` + `DEPENDENCY_BASELINE[3].trains`.                                                |
-| L3  | Leave `personalisation` ungated logically                    | The physical `config` gate is a deployment fact ("do we ship personalisation"), not a retrieval decision. The logical view is right to omit it; Phase 4's `conditional` marker carries the per-request half.                                                        | None — document the asymmetry in `px-personal`'s notes.                                 |
+| L3  | Leave `personalisation` ungated logically                    | The physical `config` gate is a deployment fact ("do we ship personalisation"), not a retrieval decision. The logical view is right to omit it; Phase 4's `conditional` marker carries the per-request half, and now does — `"Runs only where the request carries a known subject — an anonymous search skips it entirely."` | None — **still owed**: document the asymmetry in `px-personal`'s notes.                  |
+| L5  | Leave the logical `legendNote` sentence alone                | Phase 4 rewrote the *physical* legend because assigning `confidence` made "Retrieval routing owns every request gate" false there (F24). Logical declares `confidence:"understand"` and gates nothing on it, so the original sentence is still true at that level. | None — record the asymmetry rather than syncing the two strings.                        |
 | L4  | Consider `experiment steers fusion` alongside `fusionpolicy` | Would make the logical view agree with the physical retarget in 6.2 rather than needing a departure to excuse it. **Recommend deferring** — the indirection through the policy component is defensible at the logical level, and a departure is the cheaper record. | Deferred.                                                                               |
 
 Note what Phase 2 did _for free_ here: splitting `px-fuse` **reduced** divergence. The
@@ -947,6 +1036,11 @@ For each `PX_COVERAGE` entry: every drawn target must be inside the scope predic
 a typo), and the drawn set must be a **strict** subset of the scope at the fullest template.
 If someone later completes the relation, the note becomes a lie and the validator says so.
 
+**Do not re-narrow `GATE_AUTHORITY_KINDS`.** Phase 4 widened the gate-decider check from
+`steers` to `steers | feeds` on the evidence that the `steers` wire would have been drawn
+directly over the `feeds` one (F21, F22). It is the tighter-looking rule that is wrong here,
+and a Phase 7 invariant that reinstates it would fail on `px-bedrock-qu`.
+
 ~~Also validate `PX_REL_BY_LEVEL`: every key is a real template id, every endpoint exists,
 and every endpoint is active at that level.~~ **Done in Phase 3**, in
 `validateRelationshipModel`, with a fourth rule the plan did not ask for: a level-scoped
@@ -957,6 +1051,7 @@ staleness at every level as well (F15).
 ### Exit criteria — Phase 7
 
 - Temporarily delete one Phase 3 edge and confirm 7.1 throws naming the component; restore.
+  F20's sweep still stands unchanged after Phase 4 — that phase moved no edge (F23).
 - Temporarily complete `px-appconfig steers` and confirm 7.3 throws; restore.
 - `PX_UNREACHED` contains exactly the two held items.
 
@@ -978,14 +1073,25 @@ staleness at every level as well (F15).
    relationship display usually need doing twice — check the `writes` kind, the coverage
    note and the new `Fed by` sections all appear there. Phase 3 added five annotated
    relations whose chips carry a payload, and `px-bedrock-qu` gained its first `Fed by` of
-   any kind — that is the one to look at first.
+   any kind — that is the one to look at first. Already checked at 600px: both node chips
+   render (`CLASSIFIER UNCERTAIN`, and `OPTIONAL STAGE · CONDITIONAL`). Note that the hover
+   card is `display:none` below 700px, so the conditional trigger has **no** narrow-screen
+   home at all until the drawer grows one — see F25 and item 6.
 5. **Dark theme.** No new colour tokens are introduced (`writes` reuses `--wire-data`,
-   `confidence` reuses `--gate-request`) — confirm rather than assume.
-6. **Two editorial calls to accept or fix, both pre-existing and both surfaced by this plan.**
+   `confidence` reuses `--gate-request`, and the conditional line reuses `--warn` via the
+   existing `.hc-condline`) — confirm rather than assume. `confidence` is now actually used,
+   so the gate rail and the legend swatch can be looked at rather than reasoned about.
+6. **Three editorial calls to accept or fix, all pre-existing and all surfaced by this plan.**
    F7: the relation legend lists every kind a level _may_ draw, so at physical Core `updates`
    has no edge behind it. F19: the drawer lists relations to components the current template
-   does not draw, where the hover card scopes them out. Phase 6.1 introduces the copy that
-   would fix F19 if you want it fixed; F7 needs a decision, not code.
+   does not draw, where the hover card scopes them out. F25: the drawer prints a component's
+   gate but never its `conditional` trigger, at either level — the one call of the three that
+   costs a reader something concrete, because below 700px the hover card is hidden and the
+   trigger is then unreachable. Phase 6.1 introduces the copy that would fix F19 if you want
+   it fixed; F25 is a line beside the gate note rather than a `panel` entry — `DRAWER_SECTIONS`
+   has no `conditional` key, but `setGateNote()` already owns the one place a drawer prints a
+   gate for both components and sources, and `HOVER_BLOCKS.conditional` already has the
+   sentence; F7 needs a decision, not code.
 7. **Documentation.**
    - Update `search-query-pipeline-diagram-tool-architecture.md`: the five sources of truth
      become seven (`PX_WRITES`, `PX_REL_BY_LEVEL`), and the validator wall gains three
