@@ -1103,8 +1103,11 @@ staleness at every level as well (F15).
      nine** — `writes` is `abstraction:["physical"]` (Phase 1 F1), so it is the physical
      count that moves, from ten to eleven. Say which count is which; the current sentence
      does not. The model summary also gained `writeRelations` and `reverseIndexes` went from
-     three to four. The region table needs regenerating
-     for the physical level regardless — it predates plan 006.
+     three to four. Record too that the validator wall's gate-decider entry **widened** in
+     Phase 4: a named decider now grants its authority by `steers` **or** `feeds`
+     (`GATE_AUTHORITY_KINDS`), because `confidence` is the first gate whose decider is a
+     request-path stage rather than a control node (F21, F22). The region table needs
+     regenerating for the physical level regardless — it predates plan 006.
    - `TODO.md`: strike _"Review physical architecture 'Query understanding' and 'LLM query
      understanding' components"_ (Phase 3.1/4.1 answers it — they are **complementary**, and
      the classifier is inside `px-qu`). Note that _"What are the 'Write paths'"_ is partly

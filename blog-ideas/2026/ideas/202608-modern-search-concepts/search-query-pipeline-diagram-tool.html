@@ -299,6 +299,15 @@ a{color:var(--accent)}
 /* ---------- canvas ---------- */
 .canvas{--left-spine-gap:154px;position:relative;padding-left:118px}
 .wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0}
+/* Wires are drawn under the rows, so they pass behind the cards instead of
+   painting over them — which also means a row box swallows every pointer
+   event before it can reach the wire underneath. Only the cards themselves
+   need to be pointable; the grid around them steps out of the way. */
+.row,.row .cell,.data-source-column{pointer-events:none}
+.row .node,.row .data-source-node,.row button{pointer-events:auto}
+/* A 1.4px stroke is a hard thing to point at, so every wire is drawn twice:
+   once visibly, and once as an invisible companion wide enough to hover. */
+.wires .wire-hit{fill:none;stroke:transparent;stroke-width:13;pointer-events:stroke;cursor:default}
 .row{
   position:relative;display:grid;container-type:inline-size;
   grid-template-columns:minmax(0,128px) minmax(0,1fr) minmax(0,176px);
@@ -340,6 +349,11 @@ a{color:var(--accent)}
   transform:translateX(max(-80px,calc(50cqw - 277px - var(--left-spine-gap))))
 }
 .row .cell.left > .node{width:250px;min-width:250px;max-width:250px}
+/* An aside whose own members are wired to each other stacks them 11px apart,
+   which is narrower than the label the wire between them carries — so every
+   "on a miss" landed on a card rather than in the gap. The gap has to clear a
+   label and its own clearance, and only the asides carrying a wire pay for it. */
+.row .cell.wired-stack{row-gap:38px}
 .row .cell.right{justify-content:flex-start}
 .canvas.with-data-sources .row{
   grid-template-columns:minmax(0,206px) minmax(0,154px) 80px minmax(0,1fr) minmax(0,176px);
@@ -410,6 +424,11 @@ a{color:var(--accent)}
 }
 .node.gated.hover-connected:not(.off){box-shadow:inset 4px 0 var(--gate-color,var(--gate-request)),0 0 0 2px var(--accent-soft),0 5px 14px rgba(16,23,37,.10)}
 .wires path.hover-connected{stroke-width:2.2!important;opacity:1!important}
+/* Hovering the wire itself, rather than a card at one end of it: the wire is
+   the thing being pointed at, so it is emphasised harder than a wire merely
+   connected to the card under the pointer, and its label is emphasised with it. */
+.wires path.hover-wire{stroke-width:3.2!important;opacity:1!important}
+.elabel.hover-wire{color:var(--line-label-color,var(--text-2));font-weight:700;box-shadow:0 0 0 1px currentColor}
 .node[data-id="assembly"]{text-align:left}
 
 /* ---------- narrow-screen dependency representation ---------- */
@@ -781,6 +800,8 @@ table.mini .met{color:var(--accent)}
   .row .cell.left{transform:none}
   .row .cell.left > .node{width:100%;min-width:0;max-width:none}
   .row .cell:empty{display:none}
+  .row,.row .cell,.data-source-column{pointer-events:auto}
+  .row .cell.wired-stack{row-gap:11px}
   .row .cell.center > .node{flex:1 1 100%}
   .row.parallel-row .cell.center,
   .row.parallel-row:has(.cell.left .node) .cell.center{padding:0;max-width:none}
@@ -3562,8 +3583,7 @@ const PARALLEL_GROUPS = Object.freeze({
     egressLabel:"candidate fan-in",
     padding:Object.freeze({x:22,y:20}),
     boundary:Object.freeze({
-      title:"Retrieval components",
-      note:"legs run concurrently \u00b7 the group costs its slowest member"
+      title:"Retrieval components"
     }),
     controlPorts:Object.freeze({
       routing:"gates legs and depth",
@@ -5573,8 +5593,7 @@ const PX_PARALLEL_GROUPS = Object.freeze({
     egressLabel:"candidate fan-in",
     padding:Object.freeze({x:22,y:20}),
     boundary:Object.freeze({
-      title:"Search engines",
-      note:"two calls, six logical legs · the band costs its slowest engine"
+      title:"Search engines"
     }),
     controlPorts:Object.freeze({
       "px-router":"gates branches and depth",
@@ -7011,6 +7030,12 @@ function renderCanvas(){
         cell.appendChild(column);
       } else {
         ids.forEach(id=>cell.appendChild(nodeEl(id,newIds,logical)));
+        /* The cache-aside band is the one aside whose members are wired to each
+           other, and a wire between two stacked cards needs a gap wide enough
+           to hold its own label. The cell says so; the stylesheet spends it. */
+        if(ids.length>1 && logical.some(edge=>
+             ids.includes(edge.from) && ids.includes(edge.to)))
+          cell.classList.add("wired-stack");
       }
       row.appendChild(cell);
     });
@@ -7038,6 +7063,9 @@ function rectOf(sel){
 }
 const RENDER_TARGET_TYPES = Object.freeze(["node","group","stage-group","source"]);
 let parallelLayoutCache = new Map();
+/* Edge index -> the components at both of its ends, recorded while the wire is
+   drawn so hovering the wire can light them without re-deriving the edge list. */
+let wireEndpoints = new Map();
 
 function paddedBounds(rects,padding={x:0,y:0}){
   const left=Math.min(...rects.map(rect=>rect.x))-padding.x;
@@ -7287,7 +7315,11 @@ function parallelFlowGeometry(edge,a,b){
     const label=gated ? spec?.ingressGatedLabel : spec?.ingressLabel;
     return {
       directional:'M'+a.cx+','+sy+' C'+a.cx+','+(sy+dy)+' '+portX+','+(bounds.y-dy)+' '+portX+','+bounds.y,
-      label:label ? {text:label,point:{x:portX+(gated ? 66 : -66),y:(sy+bounds.y)/2}} : null
+      /* The two ingress wires leave the same point and arrive at ports 110px
+         apart, so the further along a caption sits the further it is from the
+         other one. Both ride down to where the wires have separated — which on
+         the short run into the band is the only place two captions fit. */
+      label:label ? {text:label,position:.82} : null
     };
   }
 
@@ -7297,7 +7329,7 @@ function parallelFlowGeometry(edge,a,b){
   const label=spec?.egressLabel;
   return {
     directional:'M'+portX+','+outY+' C'+portX+','+(outY+dy)+' '+b.cx+','+(b.y-dy)+' '+b.cx+','+b.y,
-    label:label ? {text:label,point:{x:Math.max(portX,b.cx)+70,y:(outY+b.y)/2}} : null
+    label:label ? {text:label,position:.5} : null
   };
 }
 
@@ -7384,6 +7416,33 @@ function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,lane,parallel
     ' L'+laneX+','+upperY+' C'+laneX+','+ty+' '+laneX+','+ty+' '+tx+','+ty;
 }
 
+/* Two cards in one column with a third standing between them cannot be joined
+   by a straight drop: the wire would run down through whatever is in the way.
+   The cache-aside band is exactly that shape — one lookup above three encoders
+   — so a wire counts what it would have to pass through, and steps out of the
+   column when the answer is not zero. */
+function stackedPassCount(a,b){
+  const top=Math.min(a.y+a.h,b.y+b.h), bottom=Math.max(a.y,b.y);
+  if(bottom-top<2) return 0;
+  return $$(".node,.data-source-node",rowsEl).map(el=>rectOf(el))
+    .filter(rect=> rect.y>=top-2 && rect.y+rect.h<=bottom+2 &&
+      rect.x < Math.max(a.x+a.w,b.x+b.w) && rect.x+rect.w > Math.min(a.x,b.x)).length;
+}
+
+/* Out of the column and back again, one lane deeper for every card passed, so
+   three misses read as three nested arcs rather than one line drawn through the
+   stack. It leaves on the side facing the spine: an aside sits against the
+   canvas edge, and the gutter towards the centre is the only one wide enough to
+   hold an arc and the label on it at every canvas width. */
+function stackedDetourPath(a,b,passes){
+  const outward = a.cx < canvas.clientWidth/2 ? 1 : -1;
+  /* Deep enough that the caption riding the arc clears the column it is
+     stepping around, and one label-height deeper for each further card. */
+  const reach = (50+(passes-1)*26)*outward;
+  const sx = outward>0 ? a.x+a.w : a.x, tx = outward>0 ? b.x+b.w : b.x;
+  return "M"+sx+","+a.cy+" C"+(sx+reach)+","+a.cy+" "+(tx+reach)+","+b.cy+" "+tx+","+b.cy;
+}
+
 /* The stage groups the active level actually draws. Fewer than two members on
    screen is not a group, which is also why the cascade does not appear at the
    level where only its cross-encoder has arrived. */
@@ -7453,7 +7512,28 @@ function renderStageBoundaries(){
   });
 }
 
+/* Every drawn wire gets an invisible companion with a stroke wide enough to
+   point at, laid over the visible ones so the topmost thing under the pointer
+   near a wire is that wire. They carry `data-hit-edge` rather than the drawn
+   wires' `data-edge-index`, so nothing that styles or measures the diagram
+   picks them up. */
+function addWireHitAreas(){
+  const hits = document.createElementNS("http://www.w3.org/2000/svg","g");
+  hits.setAttribute("class","wire-hits");
+  $$('path[data-edge-index]',wires).forEach(path=>{
+    const hit = document.createElementNS("http://www.w3.org/2000/svg","path");
+    hit.setAttribute("class","wire-hit");
+    hit.setAttribute("d",path.getAttribute("d"));
+    hit.setAttribute("data-hit-edge",path.dataset.edgeIndex);
+    hits.appendChild(hit);
+  });
+  wires.appendChild(hits);
+}
+
 function drawWires(){
+  /* Every wire and label on the canvas is about to be replaced, so a highlight
+     on one of them is already stale — as is the card it was pointing at. */
+  hideHover();
   $$(".stage-boundary",canvas).forEach(boundary=>boundary.remove());
   if(window.innerWidth<=700){ wires.innerHTML=""; $$(".elabel").forEach(e=>e.remove()); return; }
   const W = canvas.scrollWidth, H = canvas.scrollHeight;
@@ -7472,9 +7552,11 @@ function drawWires(){
     '<path d="M0,0 L8,4 L0,8 z" style="fill:'+color+'"/></marker>').join("") + '</defs>';
 
   let paths = "", labels = [];
+  wireEndpoints = new Map();
   edgeList().forEach((e,edgeIndex)=>{
     const a = renderTargetRect(e.from), b = renderTargetRect(e.to);
     if(!a||!b) return;
+    wireEndpoints.set(edgeIndex, renderTargetIds(e.from).concat(renderTargetIds(e.to)));
     const relation = RELATION_TYPES[e.kind];
     let d, style=relation;
 
@@ -7482,7 +7564,10 @@ function drawWires(){
       const geometry=parallelFlowGeometry(e,a,b);
       if(!geometry) return;
       paths+=wirePathMarkup(e,edgeIndex,geometry.directional,relation,e.geometry);
-      if(geometry.label) labels.push({...geometry.label,bus:true,color:relation.color});
+      /* The caption rides its own wire like every other one. Pinned beside the
+         port it had to be pushed a whole label-width sideways whenever the port
+         was crowded, and it landed in open canvas naming nothing. */
+      if(geometry.label) labels.push({edgeIndex,...geometry.label,bus:true,color:relation.color});
       return;
     }
 
@@ -7520,7 +7605,10 @@ function drawWires(){
       // centres, not widths: a narrow card overlaps a wide group box without
       // sharing its column.
       const stacked = Math.abs(a.cx-b.cx) < 8;
-      if(stacked){
+      const passes = stacked ? stackedPassCount(a,b) : 0;
+      if(passes){
+        d = stackedDetourPath(a,b,passes);
+      } else if(stacked){
         const above = a.cy < b.cy;
         const sx=a.cx, sy=above?a.y+a.h:a.y, tx=b.cx, ty=above?b.y:b.y+b.h;
         const dy=Math.max(14,Math.abs(ty-sy)*relation.curve)*(above?1:-1);
@@ -7569,25 +7657,41 @@ function drawWires(){
       labels.push({edgeIndex,text:e.detail.label,relation:true,color:style.color,position:.56});
   });
   wires.innerHTML = defs + paths;
+  addWireHitAreas();
   renderStageBoundaries();
   /* A label is opaque and paints above the cards, so one that lands on a node
      hides the thing the wire connects to — the recovery loop's label sat on
-     the encoder aside, and the write path's on the store it writes. The
-     intended position is still tried first: a label only moves when it has
-     somewhere clear to move to, and a wire with no clear midpoint keeps the
-     midpoint rather than sliding to a spot that means nothing. */
+     the encoder aside, and the write path's on the store it writes. Placement
+     is therefore a search: the intended point first, then points along the same
+     wire, then a line or two clear of it, scored on what each would cover and
+     on how far it is from where the label meant to be. */
   const occupied = $$(".node,.data-source-node",rowsEl)
     .concat($$(".stage-boundary .boundary-title,.stage-boundary .boundary-note",canvas))
     .map(el=>rectOf(el)).map(r=>({l:r.x, r:r.x+r.w, t:r.y, b:r.y+r.h}));
   const LABEL_OFFSETS = [0,.06,-.06,.12,-.12,.19,-.19,.27,-.27,.35,-.35,.42,-.42];
+  /* Whole label heights clear of the wire, tried only after every point on the
+     wire itself has been. Two is as far as a caption may go: past that it is
+     closer to the row above than to the wire it names. */
+  const LABEL_STEPS = [0,-1,1,-2,2];
+  /* Moving is not free. A clear spot 60px from the wire names nothing, while a
+     caption that clips the padding of the two cards it runs between still reads
+     as belonging to the wire between them. Distance is therefore priced in
+     square pixels — the same currency as the overlap it buys off — and priced
+     as a square, so a few pixels of shuffling is all but free and a flight
+     across the canvas has to uncover a whole label to be worth it. */
+  const LABEL_DISTANCE_COST = .25;
   /* Three pixels, not zero: a label that merely touches a card's border reads
      as attached to it. */
   const LABEL_CLEARANCE = 3;
-  const clearAt = (point,w,h)=>{
-    const box = {l:point.x-w/2, r:point.x+w/2, t:point.y-h/2, b:point.y+h/2};
-    return occupied.every(o=>
-      box.r<=o.l-LABEL_CLEARANCE || box.l>=o.r+LABEL_CLEARANCE ||
-      box.b<=o.t-LABEL_CLEARANCE || box.t>=o.b+LABEL_CLEARANCE);
+  /* How much of what is already on the canvas a label at this point would
+     cover, in square pixels. Zero is clear; anything else ranks the candidate,
+     because a wire whose every candidate is covered still has a best one. */
+  const overlapCost = (point,w,h)=>{
+    const box = {l:point.x-w/2-LABEL_CLEARANCE, r:point.x+w/2+LABEL_CLEARANCE,
+                 t:point.y-h/2-LABEL_CLEARANCE, b:point.y+h/2+LABEL_CLEARANCE};
+    return occupied.reduce((cost,o)=>cost+
+      Math.max(0,Math.min(box.r,o.r)-Math.max(box.l,o.l))*
+      Math.max(0,Math.min(box.b,o.b)-Math.max(box.t,o.t)), 0);
   };
   labels.forEach(l=>{
     const path = l.edgeIndex==null ? null :
@@ -7598,6 +7702,8 @@ function drawWires(){
     const el = document.createElement("span");
     el.className = "elabel" + (l.loop?" loop":"") + (l.branch?" branch":"")+
       (l.bus?" bus":"")+(l.port?" port":"")+(l.relation?" relation":"");
+    /* A label belongs to a wire, so hovering the wire can light it too. */
+    if(l.edgeIndex!=null) el.dataset.edgeIndex = l.edgeIndex;
     if(l.color) el.style.setProperty("--line-label-color",l.color);
     el.style.left = point.x+"px"; el.style.top = point.y+"px";
     el.textContent = String(l.text).toLowerCase();
@@ -7610,13 +7716,31 @@ function drawWires(){
     const candidates = l.point
       ? [[0,0],[.6,0],[-.6,0],[1.1,0],[-1.1,0],[0,-1],[0,1],[0,-2],[0,2]]
           .map(([dx,dy])=>({x:point.x+dx*w, y:point.y+dy*(h+6)}))
-      : LABEL_OFFSETS.map(offset=>(l.position||.5)+offset)
-          .filter(position=>position>=.06 && position<=.94).map(at);
-    const found = candidates.find(candidate=>clearAt(candidate,w,h));
-    if(found){
-      point = found;
-      el.style.left = point.x+"px"; el.style.top = point.y+"px";
-    }
+      /* Walking the path is not enough for a wire that runs between two cards
+         standing side by side: it is shorter than its own caption, so every
+         point on it is covered. Those labels step off the wire instead, one
+         line at a time, into the gutter directly above or below the arrow —
+         near enough to still belong to it. Along the path first, so a wire with
+         room on it never leaves it. */
+      : LABEL_STEPS.flatMap(step=>LABEL_OFFSETS
+          .map(offset=>(l.position||.5)+offset)
+          .filter(position=>position>=.06 && position<=.94)
+          .map(position=>{ const on=at(position); return {x:on.x, y:on.y+step*(h+6)}; }));
+    /* The intended point is the first candidate, and the search stops at the
+       first clear one, so a label only moves when moving uncovers it. Where
+       nothing is clear it takes the least-covered spot instead of keeping a
+       midpoint that is hidden completely — the old behaviour, and the reason a
+       few labels sat squarely on the cards they were meant to run between. */
+    const home = point;
+    let best = {point, cost:Infinity};
+    candidates.some(candidate=>{
+      const moved = Math.hypot(candidate.x-home.x, candidate.y-home.y);
+      const cost = overlapCost(candidate,w,h) + moved*moved*LABEL_DISTANCE_COST;
+      if(cost < best.cost) best = {point:candidate, cost};
+      return cost===0;
+    });
+    point = best.point;
+    el.style.left = point.x+"px"; el.style.top = point.y+"px";
     /* A placed label is an obstacle for the next one, so two labels on
        crossing wires do not stack into an unreadable pile. */
     occupied.push({l:point.x-w/2, r:point.x+w/2, t:point.y-h/2, b:point.y+h/2});
@@ -8053,7 +8177,7 @@ function clearSelection(){
    only, and never while the drawer is open so the two cannot compete.
    ======================================================================= */
 
-let hoverTimer = null, hoverId = null;
+let hoverTimer = null, hoverId = null, hoverEdge = null;
 
 /* The relationships worth previewing, in the order the card lists them. The
    drawer renders these in full; here they collapse to names, because the card
@@ -8151,12 +8275,29 @@ function showHoverConnections(id){
     path.classList.toggle("hover-connected", connectedEdges.has(+path.dataset.edgeIndex)));
 }
 
+/* The same idea from the other end: point at the wire rather than at a card,
+   and the wire lights along with the two things it joins. A wire between two
+   collapsed groups lights every member of both, because that is what the one
+   wire on screen actually stands for. */
+function showWireConnections(edgeIndex){
+  const ends = new Set(wireEndpoints.get(edgeIndex) || []);
+  $$(".node",rowsEl).forEach(node=>
+    node.classList.toggle("hover-connected", ends.has(node.dataset.id)));
+  $$(".data-source-node",rowsEl).forEach(card=>
+    card.classList.toggle("hover-connected", ends.has(card.dataset.sourceId)));
+  $$("path[data-edge-index]",wires).forEach(path=>
+    path.classList.toggle("hover-wire", +path.dataset.edgeIndex===edgeIndex));
+  $$(".elabel",canvas).forEach(label=>
+    label.classList.toggle("hover-wire", +label.dataset.edgeIndex===edgeIndex));
+}
+
 function clearHoverConnections(){
   $$(".hover-connected",canvas).forEach(el=>el.classList.remove("hover-connected"));
+  $$(".hover-wire",canvas).forEach(el=>el.classList.remove("hover-wire"));
 }
 
 function hideHover(){
-  clearTimeout(hoverTimer); hoverTimer = null; hoverId = null;
+  clearTimeout(hoverTimer); hoverTimer = null; hoverId = null; hoverEdge = null;
   hoverCard.hidden = true;
   clearHoverConnections();
 }
@@ -8204,6 +8345,27 @@ rowsEl.addEventListener("mouseout", e=>{
   const el = e.target.closest(".node,.data-source-node");
   if(!el || el.contains(e.relatedTarget)) return;
   hideHover();
+});
+
+/* A wire is hovered through its hit companion, which is why the pointer can be
+   13px off the stroke and still find it. No hover card: a relationship's detail
+   is a sentence, and the two cards it has just lit are where that sentence
+   belongs. */
+wires.addEventListener("mouseover", e=>{
+  if(!finePointer() || DRAWER.root.classList.contains("open")) return;
+  const hit = e.target.closest && e.target.closest(".wire-hit");
+  if(!hit) return;
+  const edgeIndex = +hit.dataset.hitEdge;
+  if(edgeIndex === hoverEdge) return;
+  hideHover();
+  hoverEdge = edgeIndex;
+  showWireConnections(edgeIndex);
+});
+wires.addEventListener("mouseout", e=>{
+  if(!e.target.closest || !e.target.closest(".wire-hit")) return;
+  if(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest(".wire-hit")) return;
+  hoverEdge = null;
+  clearHoverConnections();
 });
 window.addEventListener("scroll", hideHover, {passive:true});
 
@@ -8383,7 +8545,7 @@ function layoutReport(scrollY = window.scrollY){
       nodes:$$(".node",rowsEl).length,
       dataSourceNodes:$$(".data-source-node",rowsEl).length,
       rows:$$(".row",rowsEl).length,
-      wires:$$("path",wires).length,
+      wires:$$("path[data-edge-index]",wires).length,
       relationTypes:$$("[data-relation-kind]",ui("relationLegend")).length,
       capabilities:$$(".cap",ui("caps")).length
     },
