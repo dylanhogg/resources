@@ -16,18 +16,18 @@ Note: this list is for humans, not for AI agents.
 
 `In the search exploration tool search-query-pipeline-diagram-tool.html physical architecture diagram...`
 
-- Make all components text left aligned (some are centered)
-- Update logical pipeline "Candidate union" to "Candidate union, dedupe" to better represent what it does.
-- Component hover popup should display on left or right side depending on
+- xMake all components text left aligned (some are centered)
+- xUpdate logical pipeline "Candidate union" to "Candidate union, dedupe" to better represent what it does.
+- xComponent hover popup should display on left or right side depending on
+- xRemove "Build & run complexity" and "Operational burden" in LHS panel (it's obvious from the pipelines)
+- xCan Final ranking passes in physical pipeline address Freshness, Near dedupe, Diversity, and Business ranking somehow in the component subtitle?
+- xRename "Deduplication" component in logical view to "Near duplicate collapse" to be truer to its function. Update subtitle accordingly to not be the same text.
+- xKeep the same template option selected when changing from logical to physical pipeline view
 - Embedding could be on GPU or CPU depending on model selcted.
-- Remove "Build & run complexity" and "Operational burden" in LHS panel (it's obvious from the pipelines)
-- Can Final ranking passes in physical pipeline address Freshness, Deduplication, Diversity, and Business ranking somehow in the component subtitle?
-- Rename "Deduplication: component in logical view to "Near duplicate collapse" to be truer to its function. Update subtitle accordingly to not be the same text.
-- Review physical architecture "Query understanding" and "LLM query understanding" components - are they hooked up correctly? Surely "LLM query understanding" needs input from "Search orchestrator" similar to "Query understanding"? Also, are they alternatives or complementary components at Full surface?
 - Apply the formatting of component hover popup to the RHS info panel so that the same information in both is presented in the same way. Hover popup is the preferred UI.
 - Add link from Text query to Query expansion?
 - Review all steered by, steers info are correct on component popup & RHS panel
-- Keep the same template option selected when changing from logical to physical pipeline view
+
 - (?) Ordering the sidebar by PHASES
 - (?) Only show line labels on highlighting a source or target node for that line.
 - (?) Hover over (or click?) a line pops up a tooltip with the line label, source and target node labels, and short description of the relationship.

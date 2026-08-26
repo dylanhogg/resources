@@ -412,7 +412,7 @@ a{color:var(--accent)}
 .node.gated{box-shadow:inset 4px 0 var(--gate-color,var(--gate-request)),var(--shadow)}
 .node.gated:hover{box-shadow:inset 4px 0 var(--gate-color,var(--gate-request)),0 3px 6px rgba(16,23,37,.10),0 10px 22px rgba(16,23,37,.10)}
 .node.decision{border-radius:22px}
-.node.io{min-width:132px;text-align:center}
+.node.io{min-width:132px;text-align:left}
 .node.io .nm{font-size:12px}
 .node.selected{outline:2px solid var(--accent);outline-offset:2px}
 .node.off{opacity:.32;filter:grayscale(.85)}
@@ -1027,7 +1027,7 @@ table.mini .met{color:var(--accent)}
         </article>
         <article class="about-card">
           <h4>Composable pipeline variants</h4>
-          <p>Switch non-core components on or off to test a pipeline shape. The sidebar updates the phase mix, build-and-run complexity, request-path model count, and capability coverage.</p>
+          <p>Switch non-core components on or off to test a pipeline shape. The sidebar updates the phase mix, request-path model count, and capability coverage.</p>
         </article>
         <article class="about-card">
           <h4>Query-facet and capability tracing</h4>
@@ -1088,7 +1088,7 @@ table.mini .met{color:var(--accent)}
     <div class="about-note">
       <b>Interpretation guardrail.</b> This is a logical architecture explorer, not a vendor recommendation,
       ingestion or index-building pipeline, deployment topology, capacity model, or performance predictor.
-      One service may host several logical indexes. The complexity index is a comparative prompt; benchmark the
+      One service may host several logical indexes. Component complexity labels are comparative prompts; benchmark the
       selected design against your own traffic, index, hardware, models, and quality targets.
     </div>
   </main>
@@ -1226,18 +1226,6 @@ const Model = {
    knows what it counts, so a level adds a metric by declaring one rather than
    by editing the panel. A reading is {value, note, fill}; `fill` is a 0..1 bar
    and a metric without one is a number and a sentence. */
-const sumField = (records,field)=> records.reduce((total,record)=>total+(record[field]||0),0);
-const bandFor  = (bands,value)=> (bands.find(([limit])=>value<=limit) || bands[bands.length-1])[1];
-
-/* The one reading both levels want, under two names. `cx` is build-and-run
-   complexity at the logical level and operational burden at the physical one:
-   the same sum over different meanings, which is exactly why each level
-   brings its own bands rather than sharing a scale. */
-const cxMetric = (name,note)=> Object.freeze({name, note, read:(enabled,model)=>{
-  const cx = sumField(enabled,"cx");
-  return {value:bandFor(model.cxBands,cx)+" \u00b7 "+cx, fill:cx/model.maxCx};
-}});
-
 /* True of any endpoint that belongs to a plane rather than to the request
    path. Switching a plane on may add these edges and must add nothing else —
    the invariant that keeps the baseline fixture from doubling per plane. */
@@ -1368,7 +1356,6 @@ function defModel(spec){
     });
   });
 
-  model.maxCx = Object.values(model.components).reduce((a,s)=>a+(s.cx||0),0);
   model.servesPlanes = model.planes.filter(plane=>plane.serves).map(plane=>plane.id);
   model.validation = validateModel(model);
 
@@ -1822,7 +1809,7 @@ def({
 
 /* ---------- candidate generation ---------- */
 def({
-  id:"union", name:"Candidate union", group:"Candidate generation", tier:"core", intro:1,
+  id:"union", name:"Candidate union, dedupe", group:"Candidate generation", tier:"core", intro:1,
   sub:"merge by doc_id, keep per-leg ranks", cx:1,
   purpose:"Merge the per-leg result sets into one candidate set keyed by document, preserving where each candidate came from.",
   decisions:[{
@@ -2089,8 +2076,8 @@ def({
 });
 
 def({
-  id:"dedup", name:"Deduplication", group:"Final ranking", tier:"recommended", intro:2,
-  sub:"near-duplicate collapse", cx:2,
+  id:"dedup", name:"Near duplicate collapse", group:"Final ranking", tier:"recommended", intro:2,
+  sub:"keep the best representative per similarity group", cx:2,
   purpose:"Collapse near-identical documents so the page shows distinct options, keeping the highest-ranked representative.",
   decisions:[{
     q:"What is the duplicate key?",
@@ -3669,11 +3656,9 @@ const LOGICAL_INVARIANTS = [
   }
 ];
 
-/* What the sidebar reads out about this level. Two metrics beyond the phase
-   legend: how much there is to build, and how much of it has to be learned. */
+/* What the sidebar reads out about this level. The pipeline already makes its
+   relative complexity visible, so the panel keeps only the learned-model count. */
 const LOGICAL_METRICS = [
-  cxMetric("Build & run complexity",
-    "Relative index over enabled components \u2014 for comparing variants, not an estimate of effort."),
   {name:"Models in the request path", read:enabled=>{
     /* Two retrieval legs may share one dual tower; the reader wants the number
        of models to train and serve, not the number of stages that call one. */
@@ -3735,7 +3720,6 @@ const LOGICAL = defModel({
   planes:[{id:"serving", label:"Show data sources", key:"data plane", serves:true, defaultOn:false}],
 
   sidebar:LOGICAL_SIDEBAR,
-  cxBands:[[18,"Lean"],[32,"Moderate"],[50,"Substantial"],[Infinity,"Heavy"]],
 
   /* The drawer, in order. A section renders only where the field is there. */
   panel:["decisions","contract","dials","notes","failures","example","refs",
@@ -5053,7 +5037,7 @@ defPhys({
 
 defPhys({
   id:"px-final", name:"Final ranking passes", group:"Final ranking", tier:"recommended", configured:true, intro:2,
-  runtime:"inproc", cx:3, sub:"four ordered passes, one traversal",
+  runtime:"inproc", cx:3, sub:"freshness \u00b7 near dedupe \u00b7 diversity \u00b7 business ranking",
   realises:["freshness","dedup","diversity","business"],
   departure:"Four logical stages, one physical component: four re-sorts of one array in a fixed order, in one process. The panel keeps the order explicit rather than hiding it, because the audit trail depends on it — 'why is this result here' is answerable only if the sequence of adjustments is known and stable.",
   purpose:"Applies the last adjustments in the order the logical view fixed: freshness decay, near-duplicate removal, per-attribute diversity capping, then hard business rules. Each records what it did.",
@@ -6321,9 +6305,8 @@ const PHYSICAL_COUNTS = {planeNodes:{1:5,2:7,3:8}, planeEdges:{1:7,2:10,3:16}};
 /* =======================================================================
    THE DEPLOYMENT SHAPE — what the sidebar reads out about this level.
 
-   The logical panel counts what there is to build. This one counts what
-   there is to run: round trips, services, provisioned endpoints, and the
-   operational burden of keeping them all alive.
+   The physical panel counts what there is to run: round trips, services and
+   provisioned endpoints.
    ======================================================================= */
 
 /* The headline number, and the two adjustments that make it honest. Calls the
@@ -6372,10 +6355,7 @@ const endpointMetric = Object.freeze({
 const PHYSICAL_SIDEBAR = {
   shape:"Deployment shape",
   phases:"Components by phase",
-  metrics:[hopMetric, unitMetric, endpointMetric,
-    cxMetric("Operational burden",
-      "What this shape costs to run, patch and be paged about \u2014 not the logical view's build index. "+
-      "Two stateful engines score high here and low there, so the two numbers are not comparable.")],
+  metrics:[hopMetric, unitMetric, endpointMetric],
   cxChip:"Operational burden",
   caps:{title:"Concerns", count:true,
         note:"Every concern is raised at Core, because the components that own it are already there. "+
@@ -6425,7 +6405,6 @@ const PHYSICAL = defModel({
            requires:"data", defaultOn:false}],
 
   sidebar:PHYSICAL_SIDEBAR,
-  cxBands:[[40,"Lean"],[75,"Moderate"],[95,"Substantial"],[Infinity,"Heavy"]],
 
   /* The drawer, in order. `departure` sits second on purpose: the reader
      arriving from the logical view is owed the difference before the detail. */
@@ -8444,9 +8423,15 @@ function showHover(el, id){
   hoverCard.hidden = false;          // must be visible before it can be measured
   const r = el.getBoundingClientRect();
   const cw = hoverCard.offsetWidth, ch = hoverCard.offsetHeight, gap = 12, pad = 8;
-  let x = r.right + gap;
-  if(x + cw > window.innerWidth - pad) x = r.left - cw - gap;   // flip to the left
-  if(x < pad) x = Math.max(pad, window.innerWidth - cw - pad);
+  const spaceLeft = r.left - gap - pad;
+  const spaceRight = window.innerWidth - r.right - gap - pad;
+  const preferLeft = spaceLeft > spaceRight;
+  const leftPosition = r.left - cw - gap;
+  const rightPosition = r.right + gap;
+  const x = Math.min(
+    Math.max(pad, preferLeft ? leftPosition : rightPosition),
+    window.innerWidth - cw - pad
+  );
   let y = Math.min(r.top, window.innerHeight - ch - pad);
   hoverCard.style.left = x + "px";
   hoverCard.style.top  = Math.max(pad, y) + "px";
@@ -8766,12 +8751,19 @@ const VIEW_SUBTITLE = {
 };
 
 function setView(v){
+  const previousView = state.view;
   state.view = v;
   $$(".view").forEach(section=> section.classList.toggle("on", section.id==="view-"+v));
   $$(".tabs button").forEach(b=> b.setAttribute("aria-selected", String(b.dataset.view===v)));
   $("#headerSub").textContent = VIEW_SUBTITLE[v] || "";
   const view = activeView();
-  if(view) requestAnimationFrame(view.drawWires);
+  if(view){
+    const previousModelId = VIEW_MODEL[previousView];
+    if(previousModelId && previousModelId!==VIEW_MODEL[v]){
+      view.setTpl(state.models[previousModelId].tpl);
+    }
+    requestAnimationFrame(view.drawWires);
+  }
 }
 
 /* Open a component in the view that draws its level, at the level where it
