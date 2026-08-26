@@ -16,9 +16,8 @@ Note: this list is for humans, not for AI agents.
 
 `In the search exploration tool search-query-pipeline-diagram-tool.html physical architecture diagram...`
 
+- Make all components text left aligned (some are centered)
 - Update logical pipeline "Candidate union" to "Candidate union, dedupe" to better represent what it does.
-- wip: In the physical architecture, would it be helpful to have dashed process boundaries? e.g. around Union, Sufficiency, Prune and Fuse in the physical pipeline to indicate it can be 1 process? What other process boundaries could be drawn?
-- Keep the same template option selected when changing from logical to physical pipeline view
 - Component hover popup should display on left or right side depending on
 - Embedding could be on GPU or CPU depending on model selcted.
 - Remove "Build & run complexity" and "Operational burden" in LHS panel (it's obvious from the pipelines)
@@ -28,6 +27,7 @@ Note: this list is for humans, not for AI agents.
 - Apply the formatting of component hover popup to the RHS info panel so that the same information in both is presented in the same way. Hover popup is the preferred UI.
 - Add link from Text query to Query expansion?
 - Review all steered by, steers info are correct on component popup & RHS panel
+- Keep the same template option selected when changing from logical to physical pipeline view
 - (?) Ordering the sidebar by PHASES
 - (?) Only show line labels on highlighting a source or target node for that line.
 - (?) Hover over (or click?) a line pops up a tooltip with the line label, source and target node labels, and short description of the relationship.

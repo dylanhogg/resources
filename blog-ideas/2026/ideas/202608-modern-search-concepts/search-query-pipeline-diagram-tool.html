@@ -4570,38 +4570,38 @@ defPhys({
 
 defPhys({
   id:"px-qdrant-search", name:"Qdrant query", group:"Candidate retrieval", tier:"core", intro:1,
-  runtime:"engine", cx:4, sub:"one Query API call · named vectors · prefetch branches", parallel:"retrieval",
+  runtime:"engine", cx:4, sub:"one batch request · named vectors · independent rank lists", parallel:"retrieval",
   realises:["textvec","textimagevec","imageimagevec","multivec"],
-  departure:"Four logical retrieval legs become one network call. Qdrant's Query API takes several prefetch branches in one request, each over a different named vector on the same points, sharing one payload filter. The legs are still four distinct queries — they just stop being four round trips. The panel's branch list keeps them visible.",
-  purpose:"Runs everything dense. Text-to-text, text-to-image, image-to-image and late-interaction branches over named vectors on the same points, all scoped by the same compiled payload filter.",
+  departure:"Several logical dense searches share one network request, but remain independent Query API specifications submitted through Qdrant's batch operation. Qdrant returns one ranked point list per specification; prefetch remains an internal staging mechanism for any specification that uses it. Image and passage points carry a canonical listing_id and are rolled up per leg before cross-leg fusion in the orchestrator.",
+  purpose:"Runs the active text-to-text, text-to-image, image-to-image and late-interaction queries, all scoped by the same compiled payload filter, and returns their ranked point lists separately. It does not perform final cross-leg RRF or image-to-listing rollup.",
   substrate:{on:["qdrant"], service:"Qdrant Cloud Hybrid (BYOC)", unit:"collection",
     sizing:["shards ≈ 2× nodes","replication factor 2","gRPC, not REST","data plane stays in the customer VPC"]},
   byLevel:{
-    1:{sub:"one branch · text_dense", chips:["1 prefetch branch"]},
-    2:{sub:"two branches · text_dense, image_clip", chips:["2 prefetch branches"]},
-    3:{sub:"four branches · + image-to-image, multivector", chips:["4 prefetch branches"]}
+    1:{sub:"one query · text_dense", chips:["1 ranked list"]},
+    2:{sub:"batched queries · text_dense, image_clip", chips:["independent lists"]},
+    3:{sub:"routed batch · + image-to-image, multivector", chips:["independent lists"]}
   },
   decisions:[{
-    q:"One call with prefetch branches, or one call per leg?",
-    opts:["One call per leg","One call, N prefetch branches","Server-side fusion in Qdrant"],
-    def:"One call, N prefetch branches, fused in the orchestrator",
-    why:"Per-leg calls multiply the round trip and the tail: the leg you wait on becomes the slowest of N independent network calls rather than the slowest of N concurrent index scans. Qdrant can also fuse the branches server-side with RRF, and you still should not let it — the OpenSearch ranks are not in that request, so a server-side fusion produces a confident ranking over half the candidates."
+    q:"How do independent Qdrant rankings reach the orchestrator?",
+    opts:["One request per query","One batch request with independent results","Server-side fusion and grouping in Qdrant"],
+    def:"One batch request; roll up and fuse in the orchestrator",
+    why:"Qdrant prefetches are intermediate inputs to one main query; their rankings are not returned as separate results. The batch operation preserves independent rank lists in one transport round trip, so image hits can be rolled up to listing_id per leg before RRF and the OpenSearch ranking can join the same fusion."
   },{
     q:"How is the hard predicate applied?",
     opts:["Payload filter with payload indexes","Post-filter the top-k","Pre-fetch ids from OpenSearch"],
     def:"Payload filter, with a payload index on every filtered field",
     why:"Without a payload index Qdrant cannot use the filterable-HNSW path and degrades toward a scan; with one it prunes inside the graph traversal. Post-filtering a truncated top-k is the failure the logical view already warns about, arriving here as a config omission rather than a design choice."
   }],
-  contract:{in:"query vectors + compiled Qdrant Filter + per-branch limits",
-    out:"points with id, score, branch and a minimal payload subset"},
+  contract:{in:"independent query specifications + compiled Qdrant Filter + per-query limits",
+    out:"ranked lists of point_id, listing_id, score and leg provenance"},
   dials:[{n:"HNSW m / ef_construct",v:"16 / 128",note:"Raise m for high-dimensional or high-recall collections. It costs memory permanently and cannot be changed without a rebuild."},
          {n:"ef (search)",v:"128",note:"The recall-versus-work dial. Tune it against exact search until the logical target — recall@100 ≥ 0.95 — holds at production filter selectivity, not on an unfiltered benchmark."},
          {n:"Quantization",v:"scalar int8, rescore on, oversampling 2×"},
          {n:"Vectors on disk",v:"mmap, quantized vectors resident"},
          {n:"Transport",v:"gRPC"}],
   budget:{deadline:"the retrieval band's allocation, shared with the OpenSearch call",
-    timeout:"deadline plus one round trip",
-    onExpiry:"drop the branches the router marked optional, keep text_dense",
+    timeout:"one request-level timeout for the Qdrant batch",
+    onExpiry:"treat the batch as unavailable and continue with OpenSearch; omit optional queries before dispatch",
     retry:"none inside the band — a retry cannot fit in a deadline that has already expired"},
   optimisation:[{o:"A payload index on every field the predicate can name",
     when:"Always. This is not an optimisation; it is what makes filtered ANN work at all."},
@@ -4618,9 +4618,9 @@ defPhys({
     {g:"Recall measured unfiltered",
     why:"Filtered HNSW recall at 1% selectivity is a different number from unfiltered recall, and it is the one production experiences.",
     fix:"Benchmark ef against exact search at the selectivity your predicates actually produce."},
-    {g:"Point id space diverges from the OpenSearch _id",
-    why:"RRF fuses rank lists by document id. If the engines disagree about identity, fusion silently ranks two half-populated lists and the symptom is mediocre relevance rather than an error.",
-    fix:"One canonical id assigned upstream in the indexer, used verbatim as both the Qdrant point id and the OpenSearch _id. Qdrant ids are UUID or unsigned integer, so a string business key needs a deterministic UUIDv5 derivation."},
+    {g:"Point identity is confused with fusion identity",
+    why:"Image and passage points need distinct Qdrant point ids, but fusion must join on their parent listing_id. Point-level RRF followed by grouping cannot combine evidence from different images of the same listing.",
+    fix:"Put the canonical OpenSearch document id in listing_id on every Qdrant point. Roll up to listing_id within each leg, retain the best evidence point, and use listing_id as the union and fusion key."},
     {g:"Quantized search returns without rescore",
     why:"Ranking changes with no error, no latency signal and no obvious symptom.",
     fix:"Rescore on, oversampling set, and recall@100 against exact search on the CI fixture as the gate."}],
@@ -4628,8 +4628,8 @@ defPhys({
     response:"More shards, and quantization before more RAM. Resharding is a rebuild, so overshard slightly at the start."},
     {axis:"QPS grows",
     response:"Replication factor, then read spread. Each replica costs the full index in memory."},
-    {axis:"Branches grow",
-    response:"Cost is roughly additive per branch within one call; the call itself does not get more expensive. This is why four legs here cost so much less than four legs would anywhere else."}],
+    {axis:"Queries grow",
+    response:"Vector work and response size remain roughly additive. Batching saves transport round trips; it does not make the searches free."}],
   cost:"Memory-dominated. Vector count × dimensions × replication, mitigated by quantization.",
   alternatives:[{a:"OpenSearch k-NN for the dense legs too, retiring Qdrant",
     when:"The corpus is small enough that one engine's operational simplicity outweighs ANN control, or the team cannot run a second stateful system. It removes the entire filter-parity class of gotcha — the strongest argument against this design's own central choice, and it is stated here on purpose."},
@@ -4642,7 +4642,7 @@ defPhys({
     {f:"Quantized search returns without rescore",
     s:"Ranking quality drops with no error and no latency change",
     m:"recall@100 against exact search, on the CI fixture"}],
-  example:"Carries the constraint-stripped text — 'quiet waterfront cabin with a wood fireplace' — as text_dense, the same text against image_clip, and the compiled beds/price/geo predicate as the payload filter on every branch."
+  example:"Batches text_dense with the routed image queries and applies the compiled predicate to each. Every image hit carries listing_id; the orchestrator takes the best image per listing within each leg before fusing those listing ranks with OpenSearch."
 });
 
 defPhys({
