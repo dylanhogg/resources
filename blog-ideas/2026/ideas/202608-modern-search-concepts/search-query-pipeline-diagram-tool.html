@@ -1170,6 +1170,13 @@ const Model = {
       if(!shown(sourceId)) return;
       consumers.forEach(to=>{ if(active(to)) add(sourceId,to,"serves"); });
     });
+    /* The same admission rule with the endpoints swapped. A writer may be a
+       stage or, on the write path, another source, so each end is admitted by
+       whichever rule owns it. */
+    Object.entries(model.writes).forEach(([from,stores])=>{
+      if(!(model.dataSources[from] ? shown(from) : active(from))) return;
+      stores.forEach(to=>{ if(shown(to)) add(from,to,"writes"); });
+    });
     /* Relationships between sources themselves — a write path feeding the
        stores it derives. They belong to no component, so they are admitted by
        their endpoints' planes and by nothing else. */
@@ -1224,7 +1231,7 @@ function validateModel(model){
    reaches a renderer half-built. Validation runs here for the same reason:
    a level that cannot pass its own rules must not become reachable. */
 function defModel(spec){
-  const model = Object.assign({planes:[], planeRelations:{}, steps:null,
+  const model = Object.assign({planes:[], planeRelations:{}, writes:{}, steps:null,
                                runtimes:null, crossView:null}, spec);
 
   model.gateConditions = gateConditionsFor(model.gateOwner);
@@ -1243,6 +1250,13 @@ function defModel(spec){
     (model.reverseServing[componentId] = model.reverseServing[componentId] || []).push(sourceId);
   }));
 
+  /* `writes` runs the other way round to `serving` — keyed on the writer, not
+     on the store — so its reverse is the one a store's own card reads from. */
+  model.reverseWrites = {};
+  Object.keys(model.writes).forEach(from=> model.writes[from].forEach(sourceId=>{
+    (model.reverseWrites[sourceId] = model.reverseWrites[sourceId] || []).push(from);
+  }));
+
   model.reversePlaneRelations = {};
   Object.keys(model.planeRelations).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
     (model.planeRelations[from][kind]||[]).forEach(to=>{
@@ -1250,23 +1264,25 @@ function defModel(spec){
       (model.reversePlaneRelations[to][kind] = model.reversePlaneRelations[to][kind] || []).push(from);
     })));
 
-  /* A source is introduced by its earliest consumer: nothing can be drawn
-     before something asks it for data. A source may declare a later level of
-     its own, for the case where the capability it adds arrives after the
-     component that will use it — at Core the volatile fields live in the
-     index's own _source, and only later move to a store of their own. It may
-     not declare an earlier one, because there would be nothing to draw.
-     A source no component queries at all — a write-path node — has only what
-     it declares, and must declare it. */
+  /* A source is introduced by the earliest stage that uses it — reading it or
+     writing into it — because nothing can be drawn before something reaches
+     for it. A source may declare a later level of its own, for the case where
+     the capability it adds arrives after the component that will use it — at
+     Core the volatile fields live in the index's own _source, and only later
+     move to a store of their own. It may not declare an earlier one, because
+     there would be nothing to draw. A source no stage touches at all — a
+     write-path node, reached only from another source — has only what it
+     declares, and must declare it. */
   const defaultPlane = (model.planes.find(plane=>plane.serves)||{}).id;
   Object.keys(model.dataSources).forEach(sourceId=>{
     const source = model.dataSources[sourceId];
-    const consumers = model.serving[sourceId]||[];
-    const earliest = consumers.length
-      ? Math.min(...consumers.map(componentId=>model.components[componentId].intro))
+    const users = (model.serving[sourceId]||[])
+      .concat((model.reverseWrites[sourceId]||[]).filter(id=>model.components[id]));
+    const earliest = users.length
+      ? Math.min(...users.map(componentId=>model.components[componentId].intro))
       : null;
     if(earliest===null && !source.intro){
-      throw new Error("Source has no consumer to be introduced by and declares no level: "+sourceId);
+      throw new Error("Source has no stage to be introduced by and declares no level: "+sourceId);
     }
     if(earliest!==null && source.intro && source.intro<earliest){
       throw new Error("Source is introduced before anything asks it for data: "+sourceId);
@@ -2590,10 +2606,21 @@ const GATE_KINDS = Object.freeze({
       "image query":"Runs only when the request supplies an image to match against."
     })
   }),
+  /* Uncertainty is a property of the query, resolved per request like route
+     and intent — but by the stage that produced the extraction rather than by
+     the router, which is why it is its own kind and not a fourth condition
+     under `route`. */
+  confidence: Object.freeze({
+    decidedAt:"request", color:"var(--gate-request)",
+    conditions:Object.freeze({
+      "classifier uncertain":"Runs only when the in-process classifier's confidence in its own extraction falls below the floor."
+    })
+  }),
   config: Object.freeze({
     decidedAt:"deployment", color:"var(--gate-config)",
     conditions:Object.freeze({
-      "optional pass":"A cascade tier kept only when the corpus or available training data justifies it \u2014 a deployment choice rather than a per-query decision. Skipped, it passes candidates through."
+      "optional pass":"A cascade tier kept only when the corpus or available training data justifies it \u2014 a deployment choice rather than a per-query decision. Skipped, it passes candidates through.",
+      "optional stage":"A stage kept only when the product calls for it \u2014 a deployment choice rather than a per-query decision."
     })
   })
 });
@@ -2641,7 +2668,11 @@ function gateConditionsFor(owners){
   ));
 }
 
-const LOGICAL_GATE_OWNER = Object.freeze({route:"routing", intent:"routing", config:null});
+/* The logical level names an owner for `confidence` without yet gating on it.
+   That is what the map is for: it is this level's claim about who *could*
+   decide a kind, not a record of which stages do. */
+const LOGICAL_GATE_OWNER = Object.freeze({route:"routing", intent:"routing",
+                                          confidence:"understand", config:null});
 const defGate = gatesDecidedBy(LOGICAL_GATE_OWNER);
 
 const GATED_EXECUTION = Object.freeze({
@@ -2772,6 +2803,21 @@ const RELATION_TYPES = Object.freeze({
     color:"var(--wire-data)", dash:"1 5", linecap:"round", marker:"data", opacity:.82, width:1.5,
     route:"source", componentRelation:false,
     legend:{visible:true,label:"serves — external data"}
+  },
+  /* The same wire as `serves`, read the other way: a store answering a stage,
+     against something keeping that store current. Marker and colour are shared
+     on purpose — one plane, one arrowhead, and the direction is the whole
+     difference — so opacity and the legend label are what separate them.
+     Restricted to the physical level for the reason `observes` is: a write
+     path is a property of a deployment, and the logical view is right to have
+     no word for one. */
+  writes:{
+    fwd:"Writes to", rev:"Written by",
+    description:"A stage or write-path node writing durable state into a store, off the request path.",
+    aria:"Durable write",
+    color:"var(--wire-data)", dash:"1 5", linecap:"round", marker:"data", opacity:.9, width:1.5,
+    route:"source", componentRelation:false, abstraction:["physical"],
+    legend:{visible:true,label:"writes — durable state"}
   },
   /* Telemetry, and the only kind restricted to one level: tracing is a
      property of a deployment, so the logical view is right to have no word
@@ -3071,13 +3117,15 @@ function validateDependencyBaseline(model){
 function validateRelationshipModel(model){
   const {components:S, templates:TPL, relations:REL, gates:GATED_EXECUTION,
          relationDetails:RELATION_DETAILS, dataSources:DATA_SOURCES,
-         serving:SERVING_REL, planeRelations:PLANE_REL, reverseRelations:RREL,
-         reverseServing:RSERVING, reversePlaneRelations:RPLANE} = model;
+         serving:SERVING_REL, writes:WRITES, planeRelations:PLANE_REL,
+         reverseRelations:RREL, reverseServing:RSERVING,
+         reverseWrites:RWRITES, reversePlaneRelations:RPLANE} = model;
   const tplStages = templateId=>Model.stages(model,templateId);
   const templateIds = Object.keys(TPL).map(Number);
   const usedKinds = new Set(["flow","gated","serves"]);
   const componentRelations = [];
   const servingRelations = [];
+  const writeRelations = [];
   const planeRelations = [];
 
   const requireComponent = (id,context)=>assertComponent(model,id,context);
@@ -3167,7 +3215,21 @@ function validateRelationshipModel(model){
   });
   assertUnique(planeRelations,"plane");
 
-  const drawnKeys = new Set(componentRelations.concat(planeRelations)
+  /* The write path, keyed on the writer. A store is always the target — that
+     is what makes this the reverse of serving rather than another feed — while
+     the writer may be a stage or another source, and the pair must be one or
+     the other or the edge has no admission rule. */
+  Object.entries(WRITES).forEach(([from,stores])=>{
+    if(!S[from] && !DATA_SOURCES[from]) throw new Error("Unknown writer: "+from);
+    stores.forEach(to=>{
+      requireSource(to,"write target");
+      usedKinds.add("writes");
+      writeRelations.push({from,to,kind:"writes"});
+    });
+  });
+  assertUnique(writeRelations,"write");
+
+  const drawnKeys = new Set(componentRelations.concat(planeRelations,writeRelations)
     .map(({from,to,kind})=>[from,kind,to].join("|")));
   templateIds.forEach(templateId=>(TPL[templateId].extra||[]).forEach(([from,to,,kind])=>{
     requireComponent(from,"template "+templateId+" extra source");
@@ -3183,9 +3245,12 @@ function validateRelationshipModel(model){
   });
 
   /* A source nothing reaches would be drawn floating. Serving a component is
-     the usual way; being written by another source is the other one. */
+     the usual way; being written into, or feeding the node that writes it, are
+     the others. */
   Object.keys(DATA_SOURCES).forEach(sourceId=>{
     const connected = (SERVING_REL[sourceId]||[]).length ||
+                      (WRITES[sourceId]||[]).length ||
+                      (RWRITES[sourceId]||[]).length ||
                       Object.keys(PLANE_REL[sourceId]||{}).length ||
                       Object.keys(RPLANE[sourceId]||{}).length;
     if(!connected) throw new Error("Source is connected to nothing: "+sourceId);
@@ -3230,6 +3295,9 @@ function validateRelationshipModel(model){
   const expectedRSERVING = {};
   servingRelations.forEach(({from,to})=>
     (expectedRSERVING[to] = expectedRSERVING[to] || []).push(from));
+  const expectedRWRITES = {};
+  writeRelations.forEach(({from,to})=>
+    (expectedRWRITES[to] = expectedRWRITES[to] || []).push(from));
   const normalized = index=>JSON.stringify(Object.fromEntries(
     Object.entries(index).sort(([a],[b])=>a.localeCompare(b)).map(([id,relations])=>[
       id,
@@ -3241,6 +3309,7 @@ function validateRelationshipModel(model){
   if(normalized(RREL)!==normalized(expectedRREL)) throw new Error("RREL is stale");
   if(normalized(RPLANE)!==normalized(expectedRPLANE)) throw new Error("Reverse plane index is stale");
   if(normalized(RSERVING)!==normalized(expectedRSERVING)) throw new Error("RSERVING is stale");
+  if(normalized(RWRITES)!==normalized(expectedRWRITES)) throw new Error("Reverse write index is stale");
 
   const markerColors = new Map();
   usedKinds.forEach(kind=>{
@@ -3254,16 +3323,17 @@ function validateRelationshipModel(model){
   /* Rules only this level can state. The checks above prove the relationship
      model is coherent; these prove this particular pipeline says what it means. */
   (model.invariants||[]).forEach(rule=>
-    rule(model,{componentRelations,servingRelations,planeRelations,usedKinds}));
+    rule(model,{componentRelations,servingRelations,writeRelations,planeRelations,usedKinds}));
 
   return Object.freeze({
     relationTypes:usedKinds.size,
     componentRelations:componentRelations.length,
     annotatedRelations:Object.keys(RELATION_DETAILS).length,
     servingRelations:servingRelations.length,
+    writeRelations:writeRelations.length,
     planeRelations:planeRelations.length,
     gatedStages:Object.keys(GATED_EXECUTION).length,
-    reverseIndexes:3
+    reverseIndexes:4
   });
 }
 
@@ -3696,6 +3766,13 @@ function defPhysical(registry, record){
   registry[id] = record;
 }
 
+/* Markers a record may carry, all structural rather than editorial:
+   `control` and `decision` say what kind of box it is, `io` and `origin` where
+   the request enters and leaves, `parallel` what it is drawn beside, and
+   `configured` that its behaviour is set by remote configuration rather than
+   compiled in. The last is the denominator AppConfig's coverage is counted
+   against — px-appconfig and px-experiment are unmarked because they are the
+   control plane rather than readers of it. */
 const defPhys  = record=> defPhysical(PX,  record);
 /* Plane nodes reuse the logical data-source record — representation,
    filtering, updates, implementation — because those four questions are
@@ -4109,7 +4186,7 @@ defPhys({
 });
 
 defPhys({
-  id:"px-router", name:"Retrieval router", group:"Constraint handling", tier:"recommended", control:true, intro:2,
+  id:"px-router", name:"Retrieval router", group:"Constraint handling", tier:"recommended", control:true, configured:true, intro:2,
   runtime:"inproc", cx:3, sub:"static rules from AppConfig",
   realises:["routing"],
   purpose:"Decides which legs run, which encoders are needed and which rerank passes are eligible, from static rules on the intent class. A config object, not a model.",
@@ -4449,7 +4526,7 @@ defPhys({
 });
 
 defPhys({
-  id:"px-deadline", name:"Deadline controller", group:"Candidate retrieval", tier:"recommended", control:true, intro:2,
+  id:"px-deadline", name:"Deadline controller", group:"Candidate retrieval", tier:"recommended", control:true, configured:true, intro:2,
   runtime:"inproc", cx:4, sub:"budget, hedging, breakers, drop order",
   realises:["degradation"],
   purpose:"Owns what happens when the budget runs out. Holds the per-band allocation, decides what to drop and in what order, and opens the breakers that keep a failing dependency from becoming a failing request.",
@@ -4498,9 +4575,40 @@ defPhys({
   example:"On a slow request, drops the visual verification pass first and keeps the six-facet ranking rather than failing it."
 });
 
-/* ---------- band 7 · candidate generation ---------- */
+/* ---------- band 7 · candidate generation ----------
+   The join and the fusion are two components rather than one because the
+   sufficiency check belongs between them: its floors are calibrated per leg
+   against the joined set, and pruning first would hide the shortfall they
+   exist to catch. At Core there is no check and the two boxes sit adjacent,
+   which is honest — they are still distinct passes — and it means the reader
+   who switches to Recommended sees the check appear in the gap rather than
+   the spine re-ordering underneath them. */
 defPhys({
-  id:"px-sufficiency", name:"Sufficiency check", group:"Candidate generation", tier:"recommended", decision:true, intro:2,
+  id:"px-union", name:"Candidate union", group:"Candidate generation", tier:"core", intro:1,
+  runtime:"inproc", cx:2, sub:"one join, on the canonical id",
+  realises:["union"],
+  purpose:"Joins the two engines' rank lists into one candidate set keyed on a shared document id, keeping each leg's rank and evidence so nothing downstream has to ask an engine again.",
+  substrate:{on:[], service:"In-process", unit:"one join over two rank lists",
+    sizing:["joined on the canonical id the indexer assigns","per-leg ranks, raw scores and evidence carried on the candidate"]},
+  decisions:[{
+    q:"What joins the two rank lists?",
+    opts:["A canonical id assigned upstream","The engines' native ids","A URL or business key"],
+    def:"A canonical id, assigned once in the indexer",
+    why:"Fusion is a join. If the two engines disagree about identity, the join half-fails and the result is two partially-populated lists ranked confidently against each other — mediocre relevance with no error and nothing in the logs. This is the most consequential three lines of code in the indexer."
+  }],
+  contract:{in:"two engines' rank lists",
+    out:"one candidate set with per-leg ranks and provenance"},
+  gotchas:[{g:"Document identity diverges between the engines",
+    why:"Detailed on px-qdrant-search, and it lands here: the join silently half-fails. Nothing errors, nothing is slow, and relevance is quietly worse than either engine alone.",
+    fix:"One canonical id from the indexer, and a CI assertion that a fixture document is retrievable by the same id from both engines."}],
+  cost:"CPU, linear in candidates, inside a task you already run.",
+  caps:["identity","observe"],
+  failures:[{f:"Id mismatch between the engines",s:"Fusion ranks two half-populated lists",m:"overlap rate between the two legs' id sets on a fixture query"}],
+  example:"Joins the OpenSearch list that found 'cabin' and 'waterfront' with the Qdrant list that found the fireplace photo, on one shared listing id."
+});
+
+defPhys({
+  id:"px-sufficiency", name:"Sufficiency check", group:"Candidate generation", tier:"recommended", decision:true, configured:true, intro:2,
   runtime:"inproc", cx:2, sub:"per-leg floors, after union and before pruning",
   realises:["sufficiency"],
   purpose:"Decides whether the candidate set is worth ranking. Applies calibrated per-leg floors to the unioned set and routes to recovery when it is not.",
@@ -4519,7 +4627,7 @@ defPhys({
 });
 
 defPhys({
-  id:"px-recovery", name:"Recovery controller", group:"Candidate generation", tier:"recommended", intro:2,
+  id:"px-recovery", name:"Recovery controller", group:"Candidate generation", tier:"recommended", configured:true, intro:2,
   runtime:"inproc", cx:3, sub:"bounded relaxation · two passes, hard-capped",
   realises:["relax","zerofallback"],
   departure:"Two logical stages, one physical controller — they are two branches of the same bounded loop with one pass counter. The loop's target also moves: logically relaxation returns to pre-filtering, but physically it must return to the predicate compiler, because a relaxed constraint has to be recompiled into both engine dialects before either can be re-queried.",
@@ -4555,35 +4663,27 @@ defPhys({
 });
 
 defPhys({
-  id:"px-fuse", name:"Union, prune and fuse", group:"Candidate generation", tier:"core", intro:1,
+  id:"px-fuse", name:"Prune and fuse", group:"Candidate generation", tier:"core", configured:true, intro:1,
   runtime:"inproc", cx:3, sub:"RRF, k = 60 · ranks only, never scores",
-  realises:["union","prune","fusion"],
-  departure:"Three logical stages, one physical component: three passes over one array in one process. Drawing three boxes for three loops would be dishonest at this abstraction level — but the reason they can merge is worth stating, because it is the design's whole argument. Fusion runs here rather than in either engine, because reciprocal rank fusion needs both rank lists in one process and neither engine can see the other's.",
-  purpose:"Unions the two engines' rank lists on a shared document id, prunes per leg, and produces one ordering by reciprocal rank fusion. This is the component that makes two engines into one search system.",
-  substrate:{on:[], service:"In-process", unit:"one pass over the candidate array",
+  realises:["prune","fusion"],
+  departure:"Two logical stages, one physical component: two passes over one array in one process. They merge because pruning and fusion are the same traversal; the union does not, because the sufficiency check has to see the joined set before anything is pruned from it. Fusion runs here rather than in either engine, because reciprocal rank fusion needs both rank lists in one process and neither engine can see the other's.",
+  purpose:"Cuts the joined candidate set to the depth the rerank tier is configured for, then scores what remains into one ordering by reciprocal rank fusion. This is the component that makes two engines into one search system.",
+  substrate:{on:[], service:"In-process", unit:"two passes over the candidate array",
     sizing:["k = 60","per-leg top-N with conservative floors","per-leg ranks and evidence retained to the end"]},
   decisions:[{
     q:"Ranks or scores across the engine boundary?",
     opts:["Normalise and combine scores","Combine ranks (RRF)","Train a fusion model"],
     def:"Ranks, via RRF with k = 60",
     why:"BM25 scores and cosine similarities have no common scale, and calibrating them across two engines is a standing maintenance cost that changes every time either engine's scoring does. RRF needs no calibration, so no raw score ever crosses the engine boundary and no score-normalisation service exists anywhere in this design. That absence is the single largest simplification the physical view inherits from a logical default."
-  },{
-    q:"What joins the two rank lists?",
-    opts:["A canonical id assigned upstream","The engines' native ids","A URL or business key"],
-    def:"A canonical id, assigned once in the indexer",
-    why:"Fusion is a join. If the two engines disagree about identity, the join half-fails and the result is two partially-populated lists ranked confidently against each other — mediocre relevance with no error and nothing in the logs. This is the most consequential three lines of code in the indexer."
   }],
-  contract:{in:"two engines' rank lists + per-leg ranks and evidence",
+  contract:{in:"the unioned candidate set with per-leg ranks and evidence",
     out:"one fused ordering with fused_score, per-leg ranks and provenance retained"},
   dials:[{n:"RRF k",v:"60",note:"Results are insensitive between roughly 20 and 100. Tuning it is time not spent on rerank depth, which does move nDCG."},
          {n:"Per-leg top-N",v:"conservative floors — this is what sizes the cross-encoder batch"},
          {n:"Leg weights",v:"equal for lexical and dense; text-to-image down-weighted"}],
   optimisation:[{o:"Keep per-leg provenance on the candidate to the end",
     when:"Always. It is what makes a degraded response explainable and a relevance regression diagnosable, and it costs a few fields."}],
-  gotchas:[{g:"Document identity diverges between the engines",
-    why:"Detailed on px-qdrant-search, and it lands here: the join silently half-fails. Nothing errors, nothing is slow, and relevance is quietly worse than either engine alone.",
-    fix:"One canonical id from the indexer, and a CI assertion that a fixture document is retrievable by the same id from both engines."},
-    {g:"A missing leg treated as a shorter list",
+  gotchas:[{g:"A missing leg treated as a shorter list",
     why:"When degradation drops a leg, the fused ordering is not the same list minus some documents — every rank below the missing leg's contributions changes. It is a different ranking, and it should be disclosed as one.",
     fix:"Record which legs contributed, disclose it in the response, and never compare a degraded ranking with a complete one in an evaluation."},
     {g:"Fusion treated as a failure when only one leg answers",
@@ -4593,10 +4693,9 @@ defPhys({
   cost:"CPU inside a task you already run. The cheapest important component in the diagram.",
   alternatives:[{a:"Server-side fusion in one engine", when:"Never, in this topology. It is available in both engines and it would rank half the candidates. It becomes correct only in a single-engine design."},
     {a:"Distribution-based score fusion", when:"You need score-aware combination without calibration — but it assumes near-Gaussian score distributions, which BM25's is not, and it must impute scores for single-leg candidates."}],
-  caps:["identity","degrade","replay","observe"],
-  failures:[{f:"Id mismatch between the engines",s:"Fusion ranks two half-populated lists",m:"overlap rate between the two legs' id sets on a fixture query"},
-    {f:"One leg dominates every query",s:"The other engine is decorative",m:"per-leg contribution to the fused top-10, by intent class"}],
-  example:"Joins the OpenSearch list that found 'cabin' and 'waterfront' with the Qdrant list that found the fireplace photo, on one shared listing id."
+  caps:["degrade","replay","observe"],
+  failures:[{f:"One leg dominates every query",s:"The other engine is decorative",m:"per-leg contribution to the fused top-10, by intent class"}],
+  example:"Cuts each leg to its top-N, then ranks the listing both engines returned above the one only Qdrant found."
 });
 
 /* ---------- band 8 · the rerank cascade ---------- */
@@ -4832,7 +4931,7 @@ defPhys({
 });
 
 defPhys({
-  id:"px-final", name:"Final ranking passes", group:"Final ranking", tier:"recommended", intro:2,
+  id:"px-final", name:"Final ranking passes", group:"Final ranking", tier:"recommended", configured:true, intro:2,
   runtime:"inproc", cx:3, sub:"four ordered passes, one traversal",
   realises:["freshness","dedup","diversity","business"],
   departure:"Four logical stages, one physical component: four re-sorts of one array in a fixed order, in one process. The panel keeps the order explicit rather than hiding it, because the audit trail depends on it — 'why is this result here' is answerable only if the sequence of adjustments is known and stable.",
@@ -5455,6 +5554,7 @@ const PX_TPL = {
       {c:["px-qu"]},
       {c:["px-predicate"]},
       {l:["px-embed-text"], c:["px-os-search","px-qdrant-search"]},
+      {c:["px-union"]},
       {c:["px-fuse"]},
       {c:["px-hydrate"]},
       {c:["px-assemble"]}
@@ -5474,6 +5574,7 @@ const PX_TPL = {
       {c:["px-rewrite"]},
       {c:["px-predicate"], r:["px-router"]},
       {l:["px-embed-cache","px-embed-text"], c:["px-os-search","px-qdrant-search"], r:["px-deadline"]},
+      {c:["px-union"]},
       {c:["px-sufficiency"], nextLabel:"sufficient"},
       {l:["px-recovery"], c:["px-fuse"]},
       {c:["px-crossenc"]},
@@ -5498,6 +5599,7 @@ const PX_TPL = {
       {c:["px-predicate"], r:["px-router"]},
       {l:["px-embed-cache","px-embed-text","px-embed-image","px-embed-sparse"]},
       {l:["px-rescore-late"], c:["px-os-search","px-qdrant-search"], r:["px-deadline"]},
+      {c:["px-union"]},
       {c:["px-sufficiency"], nextLabel:"sufficient"},
       {l:["px-recovery"], c:["px-fuse"]},
       {c:["px-semrerank"]},
@@ -5541,7 +5643,7 @@ const PX_REL = {
   "px-embed-sparse":{feeds:["px-os-search"]},
   "px-deadline":    {steers:["px-embed-text","px-os-search","px-qdrant-search",
                              "px-rescore-late","px-crossenc","px-vlm"]},
-  "px-rescore-late":{feeds:["px-fuse"]},
+  "px-rescore-late":{feeds:["px-union"]},
   "px-appconfig":   {steers:["px-router","px-deadline","px-fuse","px-final"]},
   "px-experiment":  {steers:["px-router","px-fuse"], feeds:["px-assemble"]},
   "px-otel":        {observes:["px-orch","px-embed-text","px-os-search","px-qdrant-search","px-crossenc"]},
@@ -5551,12 +5653,21 @@ const PX_REL = {
   "px-train":       {trains:["px-crossenc","px-ltr","px-fuse"]}
 };
 
-/* The write path. These endpoints are stores rather than stages, so they are
-   admitted by their planes and cannot be switched off with a component. */
+/* The write path up to the indexer. These endpoints are stores rather than
+   stages, so they are admitted by their planes and cannot be switched off with
+   a component. Where the path lands — the indexer's two writes — is in
+   PX_WRITES, because the store is the target there and `feeds` cannot say so. */
 const PXI_REL = {
   "pxi-source":  {feeds:["pxi-log"]},
-  "pxi-log":     {feeds:["pxi-indexer"]},
-  "pxi-indexer": {updates:["pxd-os-index","pxd-qdrant-collection"]}
+  "pxi-log":     {feeds:["pxi-indexer"]}
+};
+
+/* Who keeps a store current. Both writers are off the request path and neither
+   reads what it writes, which is exactly what `serves` cannot express: the
+   lake answers px-lake and px-train, and it answers px-events nothing at all. */
+const PX_WRITES = {
+  "px-events":   ["pxd-s3"],
+  "pxi-indexer": ["pxd-os-index","pxd-qdrant-collection"]
 };
 
 /* Which sources answer which components. A source may be queried by more than
@@ -5567,14 +5678,14 @@ const PX_SERVING = {
   "pxd-qdrant-collection": ["px-qdrant-search","px-rescore-late"],
   "pxd-cache":             ["px-embed-cache","px-session"],
   "pxd-ddb":               ["px-hydrate","px-personal","px-session"],
-  "pxd-s3":                ["px-events","px-lake","px-train"]
+  "pxd-s3":                ["px-lake","px-train"]
 };
 
 /* Relationships whose payload the reader cannot infer from the cards. The
    logical level annotates its feedback plane for this reason; here the write
    path and the two ordering departures need it for the same one. */
 const PX_RELATION_DETAILS = Object.freeze({
-  "px-rescore-late|feeds|px-fuse":Object.freeze({
+  "px-rescore-late|feeds|px-union":Object.freeze({
     label:"rescored Qdrant ranks",
     payload:"the dense candidate list already reordered by MaxSim, inside the retrieval call",
     cadence:"per request, before fusion rather than after it"
@@ -5589,9 +5700,14 @@ const PX_RELATION_DETAILS = Object.freeze({
     payload:"query, result positions, route, variant and what was degraded",
     cadence:"buffered in-process, flushed asynchronously"
   }),
+  /* Drawn component to component, because that is the edge that tells the
+     story — behaviour changes ranking — and it mirrors the logical level
+     exactly. Retargeting it at the store would make the loop visible only
+     while the data plane is switched on, so the payload carries the physical
+     truth instead. */
   "px-events|updates|px-personal":Object.freeze({
     label:"profile events",
-    payload:"clicks, saves and enquiries, keyed on the subject",
+    payload:"clicks, saves and enquiries, keyed on the subject — written into the profile store px-personal reads",
     cadence:"asynchronous profile update"
   }),
   "px-events|feeds|px-lake":Object.freeze({
@@ -5614,12 +5730,17 @@ const PX_RELATION_DETAILS = Object.freeze({
     payload:"every change, once, in one order, partitioned by document",
     cadence:"continuous, replayable from any offset"
   }),
-  "pxi-indexer|updates|pxd-os-index":Object.freeze({
+  "px-events|writes|pxd-s3":Object.freeze({
+    label:"impression records",
+    payload:"the impressions the stream buffered, as partitioned Parquet",
+    cadence:"Firehose delivery, off the request path"
+  }),
+  "pxi-indexer|writes|pxd-os-index":Object.freeze({
     label:"analysed documents",
     payload:"the document, its sparse expansion and its _source, written idempotently",
     cadence:"per change · visible after the refresh interval"
   }),
-  "pxi-indexer|updates|pxd-qdrant-collection":Object.freeze({
+  "pxi-indexer|writes|pxd-qdrant-collection":Object.freeze({
     label:"points and payloads",
     payload:"named vectors and the payload the filter reads, keyed on the same canonical id",
     cadence:"per change · visible after the write is acknowledged"
@@ -5636,7 +5757,8 @@ const PX_RELATION_DETAILS = Object.freeze({
    steers both nodes. That is a real fidelity loss from merging two legs
    into one request, and each node's departure text says so.
    ======================================================================= */
-const PX_GATE_OWNER = Object.freeze({route:"px-router", intent:"px-router", config:null});
+const PX_GATE_OWNER = Object.freeze({route:"px-router", intent:"px-router",
+                                     confidence:"px-qu", config:null});
 const defPhysGate = gatesDecidedBy(PX_GATE_OWNER);
 
 const PX_GATES = Object.freeze({
@@ -5775,8 +5897,9 @@ const PHYSICAL_BASELINE = {
       ["px-qu","px-predicate"],
       ["px-predicate","px-os-search"],
       ["px-predicate","px-qdrant-search"],
-      ["px-os-search","px-fuse"],
-      ["px-qdrant-search","px-fuse"],
+      ["px-os-search","px-union"],
+      ["px-qdrant-search","px-union"],
+      ["px-union","px-fuse"],
       ["px-fuse","px-hydrate"],
       ["px-hydrate","px-assemble"]
     ],
@@ -5785,14 +5908,14 @@ const PHYSICAL_BASELINE = {
       ["pxi-source","pxi-log"],
       ["pxi-log","pxi-indexer"]
     ],
-    updates:[
-      ["pxi-indexer","pxd-os-index"],
-      ["pxi-indexer","pxd-qdrant-collection"]
-    ],
     serves:[
       ["pxd-os-index","px-os-search"],
       ["pxd-os-index","px-hydrate"],
       ["pxd-qdrant-collection","px-qdrant-search"]
+    ],
+    writes:[
+      ["pxi-indexer","pxd-os-index"],
+      ["pxi-indexer","pxd-qdrant-collection"]
     ]
   },
   2:{
@@ -5805,8 +5928,9 @@ const PHYSICAL_BASELINE = {
       ["px-rewrite","px-predicate"],
       ["px-predicate","px-os-search"],
       ["px-predicate","px-qdrant-search"],
-      ["px-os-search","px-sufficiency"],
-      ["px-qdrant-search","px-sufficiency"],
+      ["px-os-search","px-union"],
+      ["px-qdrant-search","px-union"],
+      ["px-union","px-sufficiency"],
       ["px-sufficiency","px-fuse","sufficient"],
       ["px-fuse","px-crossenc"],
       ["px-crossenc","px-final"],
@@ -5844,17 +5968,17 @@ const PHYSICAL_BASELINE = {
       ["pxi-source","pxi-log"],
       ["pxi-log","pxi-indexer"]
     ],
-    updates:[
-      ["pxi-indexer","pxd-os-index"],
-      ["pxi-indexer","pxd-qdrant-collection"]
-    ],
     serves:[
       ["pxd-os-index","px-os-search"],
       ["pxd-os-index","px-hydrate"],
       ["pxd-qdrant-collection","px-qdrant-search"],
       ["pxd-cache","px-embed-cache"],
-      ["pxd-s3","px-events"],
       ["pxd-s3","px-lake"]
+    ],
+    writes:[
+      ["px-events","pxd-s3"],
+      ["pxi-indexer","pxd-os-index"],
+      ["pxi-indexer","pxd-qdrant-collection"]
     ],
     observes:[
       ["px-otel","px-orch"],
@@ -5874,8 +5998,9 @@ const PHYSICAL_BASELINE = {
       ["px-rewrite","px-predicate"],
       ["px-predicate","px-os-search"],
       ["px-predicate","px-qdrant-search"],
-      ["px-os-search","px-sufficiency"],
-      ["px-qdrant-search","px-sufficiency"],
+      ["px-os-search","px-union"],
+      ["px-qdrant-search","px-union"],
+      ["px-union","px-sufficiency"],
       ["px-sufficiency","px-fuse","sufficient"],
       ["px-semrerank","px-crossenc"],
       ["px-personal","px-final"],
@@ -5935,7 +6060,7 @@ const PHYSICAL_BASELINE = {
       ["px-embed-text","px-qdrant-search"],
       ["px-embed-image","px-qdrant-search"],
       ["px-embed-sparse","px-os-search"],
-      ["px-rescore-late","px-fuse"],
+      ["px-rescore-late","px-union"],
       ["px-experiment","px-assemble"],
       ["px-assemble","px-events"],
       ["px-events","px-lake"],
@@ -5949,9 +6074,7 @@ const PHYSICAL_BASELINE = {
       ["px-train","px-fuse"]
     ],
     updates:[
-      ["px-events","px-personal"],
-      ["pxi-indexer","pxd-os-index"],
-      ["pxi-indexer","pxd-qdrant-collection"]
+      ["px-events","px-personal"]
     ],
     serves:[
       ["pxd-os-index","px-os-search"],
@@ -5963,9 +6086,13 @@ const PHYSICAL_BASELINE = {
       ["pxd-ddb","px-hydrate"],
       ["pxd-ddb","px-personal"],
       ["pxd-ddb","px-session"],
-      ["pxd-s3","px-events"],
       ["pxd-s3","px-lake"],
       ["pxd-s3","px-train"]
+    ],
+    writes:[
+      ["px-events","pxd-s3"],
+      ["pxi-indexer","pxd-os-index"],
+      ["pxi-indexer","pxd-qdrant-collection"]
     ],
     observes:[
       ["px-otel","px-orch"],
@@ -5976,6 +6103,7 @@ const PHYSICAL_BASELINE = {
     ]
   }
 };
+
 
 const PHYSICAL_COUNTS = {planeNodes:{1:5,2:7,3:8}, planeEdges:{1:7,2:10,3:16}};
 
@@ -6061,7 +6189,8 @@ const PHYSICAL = defModel({
   relations:PX_REL,        relationDetails:PX_RELATION_DETAILS,
   gates:PX_GATES,          requires:PX_REQUIRES,
   gateOwner:PX_GATE_OWNER,
-  dataSources:PXD,         serving:PX_SERVING,   planeRelations:PXI_REL,
+  dataSources:PXD,         serving:PX_SERVING,   writes:PX_WRITES,
+  planeRelations:PXI_REL,
   phases:PX_PHASES,        capabilities:CONCERNS, facets:FACETS,
   parallelGroups:PX_PARALLEL_GROUPS, stageGroups:PX_STAGE_GROUPS,
 
@@ -6086,10 +6215,10 @@ const PHYSICAL = defModel({
      arriving from the logical view is owed the difference before the detail. */
   panel:["crossView","departure","decisions","substrate",["contract","Wire contract"],
          "budget",["dials","Configuration"],"optimisation","gotchas","scaling","failures",
-         "alternatives","cost","notes","example","relations","serving","appears"],
+         "alternatives","cost","notes","example","relations","serving","writes","appears"],
   sourcePanel:["crossView","departure","servingContract","implementation","substrate",
                "decisions","dials","gotchas","scaling","cost","notes",
-               "planeRelations","serves","appearsWith"],
+               "planeRelations","serves","writtenBy","writes","appearsWith"],
   hover:["runtimePills","gate","purpose","crossView","budget","gotcha"],
 
   baseline:PHYSICAL_BASELINE,
@@ -6198,7 +6327,8 @@ function createPipelineView(model, slice, root){
 /* This level's registries, under the names the renderer knows them by. */
 const {components:S, templates:TPL, relations:REL, reverseRelations:RREL,
        requires:REQUIRES, dataSources:DATA_SOURCES, serving:SERVING_REL,
-       reverseServing:RSERVING, planeRelations:PLANE_REL,
+       reverseServing:RSERVING, writes:WRITES, reverseWrites:RWRITES,
+       planeRelations:PLANE_REL,
        reversePlaneRelations:RPLANE_REL, phases:PHASES, capabilities:CAPS,
        facets:FACETS, runtimes:RUNTIMES, parallelGroups:PARALLEL_GROUPS,
        stageGroups:STAGE_GROUPS, sidebar:SIDEBAR} = model;
@@ -6236,26 +6366,54 @@ function isOff(id){ return slice.off[slice.tpl].has(id); }
 function isOn(id){ return !isOff(id); }
 function lockedFor(id){ return S[id].tier==="core"; }
 
-function sourceIdsForConsumers(componentIds){
-  const consumers = new Set(componentIds);
+/* Two ways a stage can use a store, and three questions that care which.
+   `consumers` are the readers a store's card counts and names — a store is
+   measured by who queries it. `users` adds the stages that write into it,
+   which is what places the store on a row, lights it and highlights it: the
+   lake belongs beside the stage that fills it whether or not anything is
+   reading it yet. Sources that write are placed by writersOf() instead. */
+function sourceConsumers(sourceId){ return SERVING_REL[sourceId] || []; }
+function sourceUsers(sourceId){
+  return sourceConsumers(sourceId).concat((RWRITES[sourceId]||[]).filter(id=>S[id]));
+}
+
+function sourceIdsForUsers(componentIds){
+  const used = new Set(componentIds);
   return Object.keys(DATA_SOURCES).filter(sourceId=>
-    (SERVING_REL[sourceId]||[]).some(componentId=>consumers.has(componentId)));
+    sourceUsers(sourceId).some(componentId=>used.has(componentId)));
 }
 
 function templateConsumers(sourceId){
   const present = new Set(tplStages(slice.tpl));
-  return (SERVING_REL[sourceId]||[]).filter(id=>present.has(id));
+  return sourceConsumers(sourceId).filter(id=>present.has(id));
+}
+
+function templateUsers(sourceId){
+  const present = new Set(tplStages(slice.tpl));
+  return sourceUsers(sourceId).filter(id=>present.has(id));
 }
 
 function activeConsumers(sourceId){
   return templateConsumers(sourceId).filter(isOn);
 }
 
+/* The write path in both directions, whichever registry declares the step.
+   `feeds` carries it between plane nodes and `writes` carries it into a store,
+   and placement, liveness and the store's own card each need to see the whole
+   chain rather than the half their registry knows about. */
+function derivedFrom(sourceId){
+  return Object.values(RPLANE_REL[sourceId]||{}).flat()
+    .concat((RWRITES[sourceId]||[]).filter(id=>DATA_SOURCES[id]));
+}
+function derives(sourceId){
+  return Object.values(PLANE_REL[sourceId]||{}).flat().concat(WRITES[sourceId]||[]);
+}
+
 /* Sources this source is derived from, deepest first — the write path read
    backwards. A plane node no component queries is placed by what it feeds,
    because there is nothing else in the diagram that knows where it belongs. */
 function writersOf(sourceId,seen=new Set()){
-  return Object.values(RPLANE_REL[sourceId]||{}).flat()
+  return derivedFrom(sourceId)
     .filter(from=>sourceShown(from) && !seen.has(from))
     .flatMap(from=>{ seen.add(from); return writersOf(from,seen).concat(from); });
 }
@@ -6267,23 +6425,22 @@ function writersOf(sourceId,seen=new Set()){
 const rowMembers = row => (row.l||[]).concat(row.c||[], row.r||[]);
 
 /* The sources a row draws, in the order they read down the page: the ones its
-   components ask for data, each preceded by whatever writes into it. */
+   components use, each preceded by whatever writes into it. */
 function sourceIdsFor(componentIds){
   const position = new Map(componentIds.map((id,index)=>[id,index]));
-  const firstConsumer = sourceId=>Math.min(...templateConsumers(sourceId)
+  const firstUser = sourceId=>Math.min(...templateUsers(sourceId)
     .filter(id=>position.has(id)).map(id=>position.get(id)));
-  return sourceIdsForConsumers(componentIds).filter(sourceShown)
-    .sort((a,b)=>firstConsumer(a)-firstConsumer(b))
+  return sourceIdsForUsers(componentIds).filter(sourceShown)
+    .sort((a,b)=>firstUser(a)-firstUser(b))
     .flatMap(sourceId=>writersOf(sourceId).concat(sourceId));
 }
 
-/* A source is live when something downstream of it is: a store because a
-   component still queries it, a write-path node because a store it derives
-   is live. */
+/* A source is live while a stage still uses it — reading it or writing into
+   it — and a write-path node while a store it derives is live. */
 function sourceLive(sourceId){
-  const consumers = templateConsumers(sourceId);
-  if(consumers.length) return consumers.some(isOn);
-  return Object.values(PLANE_REL[sourceId]||{}).flat().filter(sourceShown).some(sourceLive);
+  const users = templateUsers(sourceId);
+  if(users.length) return users.some(isOn);
+  return derives(sourceId).filter(sourceShown).some(sourceLive);
 }
 
 function setOff(id,off){
@@ -6630,11 +6787,11 @@ function dataSourceEl(id,logical){
   const plane = model.planes.find(entry=>entry.id===source.plane);
   const consumers = templateConsumers(id);
   /* A store says what it serves; a write-path node has no consumer to name and
-     says what it derives instead. */
-  const derives = Object.values(PLANE_REL[id]||{}).flat().filter(sourceShown);
+     says what it keeps current instead. */
+  const derived = derives(id).filter(sourceShown);
   const relates = consumers.length
     ? {label:"Serves", names:consumers.map(cid=>S[cid].name)}
-    : {label:"Writes", names:derives.map(sid=>DATA_SOURCES[sid].name)};
+    : {label:"Writes", names:derived.map(sid=>DATA_SOURCES[sid].name)};
   const sourceOn = sourceLive(id);
   const el = document.createElement("button");
   el.className = "data-source-node " + source.tier + (plane.serves ? "" : " write-path");
@@ -7374,7 +7531,7 @@ function revealNode(id){
 
 function applyFocus(){
   const hits = new Set(focusMatches());
-  const sourceHits = new Set(sourceIdsForConsumers(Array.from(hits)));
+  const sourceHits = new Set(sourceIdsForUsers(Array.from(hits)));
   // nothing matches: leave the diagram alone rather than dimming everything,
   // which reads as a broken page. The focus panel explains why.
   const dim = slice.focus && hits.size > 0;
@@ -7588,6 +7745,18 @@ const DRAWER_SECTIONS = {
     '<p class="relnote">External logical indexes or stores required to serve this component. They exist whether or not the diagram layer is expanded.</p>'+
     refList(list(RSERVING[id],sourceId=>
       refButton("data-source",sourceId,DATA_SOURCES[sourceId].name)))},
+  /* The reverse pair of the two above. A store's card names its readers under
+     "Serves"; these name the other half of the traffic — who keeps it current,
+     and what a stage keeps current — which no serving list can show. */
+  writes:{title:"Writes to", render:(record,id)=> !(WRITES[id]||[]).length ? "" :
+    '<p class="relnote">Durable state this component writes, off the request path. The store answers other stages; it does not answer this one.</p>'+
+    refList(list(WRITES[id],sourceId=>
+      refButton("data-source",sourceId,DATA_SOURCES[sourceId].name)))},
+  writtenBy:{title:"Written by", render:(record,id)=> !(RWRITES[id]||[]).length ? "" :
+    '<p class="relnote">Everything that keeps this store current. A store with one writer has one order to disagree about.</p>'+
+    refList(list(RWRITES[id],writerId=> DATA_SOURCES[writerId]
+      ? refButton("data-source",writerId,DATA_SOURCES[writerId].name)
+      : refButton("data-goto",writerId,S[writerId].name)))},
   serves:{title:"Serves", render:(record,id)=>{
     const consumers = SERVING_REL[id] || [];
     if(!consumers.length) return "";
@@ -7705,8 +7874,8 @@ function openSourceDrawer(id){
   DRAWER.purpose.textContent = source.purpose;
   setGateNote(null);
 
-  const consumers = SERVING_REL[id] || [];
-  const derives = Object.values(PLANE_REL[id]||{}).flat();
+  const consumers = sourceConsumers(id);
+  const derived = derives(id);
   DRAWER.chips.innerHTML =
     '<span class="chip">Introduced in <b>'+TPL[source.intro].name+'</b></span>'+
     /* A store is measured by who reads it; an ordering authority has no
@@ -7714,7 +7883,7 @@ function openSourceDrawer(id){
     (consumers.length
       ? '<span class="chip">Active consumers <b>'+activeConsumers(id).length+'</b></span>'+
         '<span class="chip">Defined consumers <b>'+consumers.length+'</b></span>'
-      : '<span class="chip">Derives <b>'+derives.length+'</b></span>');
+      : '<span class="chip">Derives <b>'+derived.length+'</b></span>');
 
   DRAWER.body.innerHTML = renderSections(model.sourcePanel,id,source);
   wireDrawerLinks(()=>openSourceDrawer(id));

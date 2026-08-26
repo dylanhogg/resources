@@ -5,22 +5,29 @@ Companion reading: `search-query-pipeline-diagram-tool-architecture.md` (point-i
 25 Aug 2026 — the region table has drifted since plan 006 added the physical level, but the
 **layer model, the validator-wall contract and the recipes are still accurate**).
 
-**Status:** **Not started — no phase has been begun** (as at 26 Aug 2026). The target file
-stands at `f8d8d29` with plan 006 phases 1–4 landed; nothing below has been applied. Update
-this line as each phase lands, in the style of plan 006 (`Phase N done (<sha>, <date>)`).
+**Status:** **Phases 1–2 done** (uncommitted, 26 Aug 2026) — the vocabulary is installed
+(`writes`, `confidence`, `"optional stage"`, `configured`) and candidate generation is split,
+so the spine now reads `engines → union → sufficiency → fuse` at Recommended and Full. The
+fixture was re-emitted, diffed and read at each phase; hops and units did not move. Phases
+3–8 outstanding. Written on top of `f8d8d29` (plan 006 phases 1–4). Update this line as each
+phase lands, in the style of plan 006 (`Phase N done (<sha>, <date>)`).
+
+Where implementing a phase turns up something this plan did not predict, the finding is
+recorded in that phase under **"What Phase N found"** — the later phases are written against
+those, not against the original guess.
 
 ### Phase summary
 
-| Phase | What it does | Fixture | Depends on | Status |
-| --- | --- | --- | --- | --- |
-| **1 — Registry groundwork** | Installs vocabulary only: `writes` relation kind, `updates` restored to one meaning, `confidence` gate kind, an `"optional stage"` config condition, the `configured` marker. No node moves, no edge added. | Re-emit (retags move edges between kinds, count unchanged) | — | Not started |
-| **2 — Split candidate generation** | Splits `px-fuse` into `px-union` + `px-fuse` and puts `px-sufficiency` between them, so the spine reads `engines → union → sufficiency → fuse` as its own card claims. Count-neutral on hops and units; +1 component. | Re-emit — biggest churn | 1 | Not started |
-| **3 — The missing request-path inputs** | The user-visible fix: adds `px-qu → px-bedrock-qu`, gives the encoder band an input, and adds `PX_REL_BY_LEVEL` for level-scoped relations. Two of four orphans; two held. | Re-emit | 2 (order only) | Not started |
-| **4 — Gate reassignment** | `px-bedrock-qu` becomes a `confidence` gate; `px-personal` gains a config gate plus conditional chip. No structural churn, but edge kinds are asserted. | Re-emit | 1.3, 1.4 | Not started |
-| **5 — Coverage notes** | Adds a derived "drawn to N of M" line to the three partial control-plane relations (`px-otel observes`, `px-deadline steers`, `px-appconfig steers`), computed from a scope predicate so it cannot drift. | No change | 1.5 | Not started |
-| **6 — Cross-view fidelity** | Level-filters the REALISES list, records departures for the two retargets, and applies/documents the four proposed logical-side changes (L1 required, L2 applied, L3 documented, L4 deferred). | Logical baseline re-emitted for L2 | 2, 3, 4 | Not started |
-| **7 — Invariants** | Three validators that would have caught this whole class of defect — every request-path stage has an input, a departure is owed both ways, coverage notes must describe something — each throwing when it becomes unnecessary. | No change | everything | Not started |
-| **8 — Verification & documentation** | All three templates × both planes, orphan sweep, correspondence sweep, narrow screens, dark theme, then the architecture doc and `TODO.md`. | No change | 1–7 | Not started |
+| Phase                                   | What it does                                                                                                                                                                                                                   | Fixture                                                     | Depends on     | Status      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- | -------------- | ----------- |
+| **1 — Registry groundwork**             | Installs vocabulary only: `writes` relation kind, `updates` restored to one meaning, `confidence` gate kind, an `"optional stage"` config condition, the `configured` marker. No node moves, no edge added.                    | Re-emitted and read — 8 edges retagged, 158 total unchanged | —              | **Done**    |
+| **2 — Split candidate generation**      | Splits `px-fuse` into `px-union` + `px-fuse` and puts `px-sufficiency` between them, so the spine reads `engines → union → sufficiency → fuse` as its own card claims. Count-neutral on hops and units; +1 component.          | Re-emitted and read — 7 out, 10 in, 158 → 161                | 1              | **Done**    |
+| **3 — The missing request-path inputs** | The user-visible fix: adds `px-qu → px-bedrock-qu`, gives the encoder band an input, and adds `PX_REL_BY_LEVEL` for level-scoped relations. Two of four orphans; two held.                                                     | Re-emit                                                     | 2 (order only) | Not started |
+| **4 — Gate reassignment**               | `px-bedrock-qu` becomes a `confidence` gate; `px-personal` gains a config gate plus conditional chip. No structural churn, but edge kinds are asserted.                                                                        | Re-emit                                                     | 1.3, 1.4       | Not started |
+| **5 — Coverage notes**                  | Adds a derived "drawn to N of M" line to the three partial control-plane relations (`px-otel observes`, `px-deadline steers`, `px-appconfig steers`), computed from a scope predicate so it cannot drift.                      | No change                                                   | 1.5            | Not started |
+| **6 — Cross-view fidelity**             | Level-filters the REALISES list, records departures for the two retargets, and applies/documents the four proposed logical-side changes (L1 required, L2 applied, L3 documented, L4 deferred).                                 | Logical baseline re-emitted for L2                          | 2, 3, 4        | Not started |
+| **7 — Invariants**                      | Three validators that would have caught this whole class of defect — every request-path stage has an input, a departure is owed both ways, coverage notes must describe something — each throwing when it becomes unnecessary. | No change                                                   | everything     | Not started |
+| **8 — Verification & documentation**    | All three templates × both planes, orphan sweep, correspondence sweep, narrow screens, dark theme, then the architecture doc and `TODO.md`.                                                                                    | No change                                                   | 1–7            | Not started |
 
 Two items are **held** pending a decision and are deliberately not scheduled above: H1
 (`px-expand` and the pseudo-relevance-feedback loop) and H2 (`ridesCall` draws nothing).
@@ -59,8 +66,22 @@ The unifying principle for every change below:
   edge ends with `dependencyDiagnostics.emitBaseline("physical")`, a _read_ of the emitted
   fixture, and a paste back into `PHYSICAL_BASELINE`. Emitting without reading defeats the
   fixture — a human confirming every edge once is the whole value.
+- **Re-emitting the physical fixture takes one extra step.** `defModel` validates before it
+  registers a model, so while the old fixture is throwing, `PHYSICAL` never reaches
+  `PIPELINE_MODELS` and `dependencyDiagnostics.emitBaseline("physical")` cannot be called at
+  all. Set `baseline:null` in the `PHYSICAL` spec, reload, emit, paste the fixture in and
+  restore `baseline:PHYSICAL_BASELINE` in the same edit. **Diff the emission against the
+  outgoing fixture rather than re-reading 158 pairs** — flatten both to `level|kind|from|to|label`
+  and list what was added and removed. That is the human confirmation the fixture is for, and
+  it is the only form in which a two-edge change is actually reviewable.
+- **`dependencyDiagnostics.modelValidation` is the _logical_ summary.** The physical one is
+  `PIPELINE_MODELS.physical.validation.relationships`; its `dependencies` key existing at all
+  is proof the fixture matched.
 - **Never assert against the SVG.** Several logical edges collapse into one drawn path at
-  group boundaries. Assert against `Model.dependencies(...)` / the fixture.
+  group boundaries. Assert against `Model.dependencies(...)` / the fixture. When you do want
+  to read the drawn wires — to check an ARIA label or a detail payload — note that they are
+  drawn on a layout pass the freshly-switched tab has not run yet: `[data-edge-kind]` comes
+  back empty until a `resize` or a scroll. Dispatch one and wait before querying.
 - **Derive, do not duplicate.** Where this plan adds a registry, it adds a _predicate_ or a
   _marker_ and computes the number, so the second hand-maintained list that would drift
   never exists. This is the file's existing ethos (`RSERVING`, `REALISED_BY`, `record.hop`,
@@ -115,7 +136,8 @@ purpose — same plane, opposite direction — but `opacity` and the legend labe
 
 Then:
 
-- Move `px-events` out of `PX_SERVING["pxd-s3"]` into a new `PX_WRITES` registry:
+- Move `px-events` out of `PX_SERVING["pxd-s3"]` into a new `PX_WRITES` registry — and see
+  F4 below: this move is what pulls three view-layer helpers with it:
   ```js
   const PX_WRITES = {
     "px-events": ["pxd-s3"],
@@ -227,14 +249,73 @@ The first four are drawn today; the last two are the omissions the sanity check 
 **not** mark `px-appconfig` or `px-experiment` — they mention AppConfig because they _are_
 the control plane, not because they read it.
 
+### What Phase 1 found
+
+**F1 · `writes` must be `abstraction:["physical"]`.** The snippet above omits it. Without it
+the kind is shared vocabulary, and the relation legend — unlike the gate legend — is _not_
+filtered by use: it lists every kind the level may draw. The logical tab would gain a
+phantom "writes — durable state" key for a wire it never draws. The argument is exactly
+`observes`': a write path is a property of a deployment. The logical vocabulary therefore
+stays at nine kinds and the physical goes from ten to eleven, which is what Phase 8's
+documentation note needs to say.
+
+**F2 · There are two `pxi-indexer|updates|*` details, not four.** `pxd-os-index` and
+`pxd-qdrant-collection`. Both retagged verbatim, as planned.
+
+**F3 · One `writes` registry, two kinds of writer.** `px-events` is a component and
+`pxi-indexer` is a source, so the generator admits the writer end by whichever rule owns it
+(`active()` for a stage, `shown()` for a plane node) and the store end always by `shown()`.
+That is why `PX_WRITES` is one registry rather than a component one and a plane one.
+
+**F4 · A registry move is never only a wire change — this is the finding Phases 3 and 5
+should read first.** Three view-layer helpers read `PX_SERVING` and `PXI_REL` directly, for
+_placement and liveness_ rather than for wires, and all three broke silently:
+
+| Helper                  | Read          | What breaks without the fix                                                   |
+| ----------------------- | ------------- | ----------------------------------------------------------------------------- |
+| `writersOf`             | `RPLANE_REL`  | the whole `pxi-source → pxi-log → pxi-indexer` chain vanishes from the canvas |
+| `sourceIdsForConsumers` | `SERVING_REL` | `pxd-s3` slides one row down, off the `px-events` row it belongs beside       |
+| `sourceLive`            | `PLANE_REL`   | a store greys out while something is still writing into it                    |
+| `dataSourceEl` · drawer | `PLANE_REL`   | `pxi-indexer`'s "Writes …" line and the source drawer's "Derives" chip empty  |
+
+Fixed by giving the view two derived notions instead of letting it read registries:
+`sourceUsers` (readers **plus** component writers — what places, lights and highlights a
+store) beside `sourceConsumers` (readers only — what a store's card counts and names), and
+`derives` / `derivedFrom` (the write path in both directions, across both registries).
+`sourceIdsForConsumers` is now `sourceIdsForUsers`. Net visual result: **nothing moved**,
+which was the phase's contract.
+
+**F5 · The gate legend is already usage-filtered, so declaring `confidence` changes nothing
+until Phase 4 assigns it.** `renderGateLegend` drops any condition with no gated stage in the
+active template, so neither view shows the new kind yet and the logical level's owner
+declaration is inert exactly as intended. `gateConditionsFor` does carry it — both models
+now list six conditions across four kinds.
+
+**F6 · The plane counts did not move.** `PHYSICAL_COUNTS` untouched: 5/7/8 nodes and 7/10/16
+edges, and the fixture stayed at 158 pairs. The diff was exactly eight edges — the indexer's
+two writes retagged at all three levels, and `pxd-s3 serves px-events` reversed into
+`px-events writes pxd-s3` at Recommended and Full.
+
+**F7 · Observed, not fixed.** The relation legend lists every kind a level may draw, used or
+not — at physical Core `updates` now has no edge behind it, where before it had the indexer's
+two. This is pre-existing and level-wide (logical Core lists nine keys and draws one kind),
+so it is an editorial call about the legend rather than a defect this phase introduced.
+Noted for Phase 7 to accept or Phase 8 to record.
+
 ### Exit criteria — Phase 1
 
-- Page loads; `dependencyDiagnostics.modelValidation` reports the new kinds in use.
-- Legend shows `writes` alongside `serves`, and the `confidence` gate condition appears in
-  the gate legend.
-- `emitBaseline("physical")` re-read and pasted; `PHYSICAL_COUNTS.planeEdges` re-checked
-  (the `updates` → `writes` retag moves edges between kinds without changing the count; the
-  `px-events` move from `serves` to `writes` likewise).
+- ~~Page loads; `dependencyDiagnostics.modelValidation` reports the new kinds in use.~~
+  Done — `PIPELINE_MODELS.physical.validation.relationships` reports
+  `relationTypes:11 · writeRelations:3 · planeRelations:2 · reverseIndexes:4`.
+- ~~Legend shows `writes` alongside `serves`~~ — done, on the physical tab only (F1), and
+  the three wires carry their ARIA labels and relation details. The `confidence` condition
+  correctly does **not** appear yet (F5).
+- ~~`emitBaseline("physical")` re-read and pasted; `PHYSICAL_COUNTS.planeEdges` re-checked~~
+  — done, and the count was unchanged at every level as predicted (F6).
+- Also verified: the four affected drawers (`px-events` "Writes to", `pxd-s3` and
+  `pxd-os-index` "Written by", `pxi-indexer` "Fed by" + "Writes to"), node placement
+  unchanged at all three levels × both planes, and the narrow-screen chips
+  ("Writes to: …" / "Written by: …") and kind list.
 
 ---
 
@@ -326,14 +407,67 @@ sees the check appear in the gap rather than the spine re-ordering under them.
 Also update the `PX_RELATION_DETAILS` key `"px-rescore-late|feeds|px-fuse"` →
 `"px-rescore-late|feeds|px-union"`.
 
+### What Phase 2 found
+
+**F8 · The retarget table over-predicted the churn.** `steers`, `trains` and the other
+`feeds` did not move at all: `px-appconfig`, `px-experiment` and `px-train` all keep
+`px-fuse` as their target, exactly as the table said they should, so the only registry line
+that changed is `px-rescore-late`. The fixture diff is therefore **7 removed, 10 added, 158 →
+161** — three new spine hops, one per level, and the rescore retarget. Nothing else in the
+diagram noticed the split.
+
+**F9 · The spine rewires itself; the retrieval band's fan-in follows.** Flow edges are
+generated from adjacent template rows, so inserting one row was the whole structural change.
+The parallel group's egress re-aimed itself with no edit — the drawn edge is now
+`parallel group: OpenSearch query, Qdrant query → Candidate union` — and `PX_PARALLEL_GROUPS`
+needed nothing. Same for `PX_BRANCHES`, `PX_REQUIRES` and `PX_PHASES` (phases band by group,
+and `px-union` is already in "Candidate generation").
+
+**F10 · The split is count-neutral on hops and units, but not on `cx`.** As predicted:
+hops 5/8/14 and units 6/15/17 are unmoved, because `px-union` is `runtime:"inproc"` with
+`substrate:{on:[]}`. Operational burden goes 32/70/108 → **34/72/110** with `cx:2`, and the
+bands (`Lean` / `Moderate` / `Heavy`) do not change, so only the number after the band label
+moves. `model.maxCx` is the sum over all components and is the sidebar bar's denominator, so
+it moves with it — the Full bar stays exactly full and the other two shift by under a
+percent.
+
+**F11 · `px-union` takes no `configured` marker, so Phase 5's denominator is unchanged.**
+The join has no dial: `k`, the per-leg top-N and the leg weights are all still `px-fuse`'s,
+and AppConfig still steers `px-fuse`. This is the obvious thing to get wrong — the "drawn to
+N of M" numbers Phase 5 computes are exactly what they were before the split.
+
+**F12 · Phase 6.1's `px-fuse → prune` example survives, and 6.3's note is now true.**
+`px-fuse` still realises `prune` (logical level 2) while sitting at physical Core, so the
+REALISES list still needs the "not yet at this level" marking. What changed is the size of
+the divergence the departure has to excuse: three logical stages became two, and the
+sufficiency check's position now matches the logical `union → sufficiency → prune → fusion`
+exactly. `px-union` realises `union` one-to-one at the same level and owes no departure.
+
+**F13 · `TODO.md` line 7 is now stale, and Phase 8 should retire it.** It asks whether the
+_logical_ sufficiency check should move after pruning and fusion, and gives as its reason
+that the physical view groups "Union, prune and fuse". That grouping no longer exists: this
+phase moved the physical to match the logical order rather than the other way round, so the
+question it poses has been answered from the other end.
+
 ### Exit criteria — Phase 2
 
-- Spine at Recommended and Full reads `engines → union → sufficiency → fuse`, matching both
-  `px-sufficiency`'s dial and the logical `union → sufficiency → prune → fusion`.
-- `px-union` carries the identity gotcha; `px-fuse` carries the degradation gotchas.
-- `hopMetric` and `unitMetric` unchanged at every level; component count +1.
-- Baseline re-emitted, **read**, pasted. Expect churn in all three levels' `flow` lists and
-  in `steers`/`trains`/`feeds` where `px-fuse` appears.
+- ~~Spine at Recommended and Full reads `engines → union → sufficiency → fuse`~~ — done, and
+  verified by node order in the DOM at all three levels. At Core it reads
+  `engines → union → fuse`, the two boxes adjacent as intended.
+- ~~`px-union` carries the identity gotcha; `px-fuse` carries the degradation gotchas.~~
+  Done, along with the matching decision, failure mode and worked example on each. `px-fuse`
+  was renamed "Prune and fuse", its departure rewritten, and its `contract.in`, `purpose`,
+  `substrate.unit` and `caps` brought in line.
+- ~~`hopMetric` and `unitMetric` unchanged at every level; component count +1.~~ Done —
+  5/8/14 hops, 6/15/17 units, 38 → 39 components (F10).
+- ~~Baseline re-emitted, **read**, pasted.~~ Done, and diffed: the churn was smaller than
+  predicted (F8).
+- Also verified: both models validate on reload, the physical drawn edge count at Full went
+  66 → 67, `px-rescore-late feeds px-union` carries its detail payload (its cadence "before
+  fusion rather than after it" is now literally true as drawn), the `px-union` and `px-fuse`
+  drawers render their new sections, `REALISED_BY` reads `union → px-union` and
+  `prune, fusion → px-fuse`, and the narrow-screen chip on `px-union` reads
+  "Flows to Prune and fuse".
 
 ---
 
@@ -341,6 +475,12 @@ Also update the `PX_RELATION_DETAILS` key `"px-rescore-late|feeds|px-fuse"` →
 
 This is the phase that fixes the user-visible complaint. Two of the four orphans found are
 addressed here; two are held (see "Held items").
+
+> **Read Phase 1's F4 first.** `PX_REL_BY_LEVEL` changes which relations exist per level,
+> and the view places, lights and highlights nodes from the relationship registries rather
+> than from the dependency set. Grep every read of the registry being changed before
+> assuming a level-scoped relation is only a wire change — F4 is three helpers that broke
+> silently on a move half this size.
 
 ### 3.1 `px-qu → px-bedrock-qu`
 
@@ -466,7 +606,9 @@ departure written to excuse it — a worse trade than one small registry.
 
 ## Phase 4 — Gate reassignment
 
-Uses the vocabulary installed in Phase 1. **No structural churn — `PX_GATES` changes gate
+Uses the vocabulary installed in Phase 1 — `confidence`/`"classifier uncertain"` and
+`config`/`"optional stage"` are both defined and owned already, so this phase is two lines in
+`PX_GATES` plus the fixture. **No structural churn — `PX_GATES` changes gate
 _kinds_, and edge kinds are part of the asserted inventory, so the baseline still moves.**
 
 ### 4.1 `px-bedrock-qu`
@@ -509,7 +651,11 @@ is known. The two now agree.
 
 - `px-bedrock-qu`'s drawer no longer describes a cascade tier passing candidates through.
 - `px-personal` shows a config gate _and_ a conditional chip.
-- Gate legend lists four conditions across three kinds.
+- Gate legend at Full lists **six conditions across four kinds** — route selected · visual
+  intent · image query · classifier uncertain · optional pass · optional stage. (The plan
+  originally said "four across three", which is the count _before_ this phase: the legend is
+  usage-filtered, so the two conditions Phase 1 declared appear only once this phase assigns
+  them. See Phase 1 F5.)
 - Baseline re-emitted, read, pasted.
 
 ---
@@ -530,6 +676,11 @@ Three relations are partial, and each one's card is contradicted by its wires:
 | `px-appconfig steers` | 4             | every `configured` component (6)        | `px-sufficiency`, `px-recovery` — both name AppConfig in their own records                                                                                                            |
 
 ### The mechanism
+
+`configured:true` is already on the six components Phase 1 named, documented beside
+`defPhys` with the other structural markers. Phase 2's split did **not** add a seventh:
+`px-union` has no dial, so the denominator here is still six (F11). What is left is the
+predicate and the count.
 
 Declare the **scope predicate**, not the count. The count is then computed per active
 template, so it moves as the reader climbs the levels and can never drift.
@@ -621,10 +772,10 @@ one moves the two levels closer.
 | L3  | Leave `personalisation` ungated logically                    | The physical `config` gate is a deployment fact ("do we ship personalisation"), not a retrieval decision. The logical view is right to omit it; Phase 4's `conditional` marker carries the per-request half.                                                        | None — document the asymmetry in `px-personal`'s notes.                                 |
 | L4  | Consider `experiment steers fusion` alongside `fusionpolicy` | Would make the logical view agree with the physical retarget in 6.2 rather than needing a departure to excuse it. **Recommend deferring** — the indirection through the policy component is defensible at the logical level, and a departure is the cheaper record. | Deferred.                                                                               |
 
-Note what Phase 2 does _for free_ here: splitting `px-fuse` **reduces** divergence. The
-physical departure shrinks from three logical stages to two, and the sufficiency check's
+Note what Phase 2 did _for free_ here: splitting `px-fuse` **reduced** divergence. The
+physical departure shrank from three logical stages to two, and the sufficiency check's
 position now matches the logical order exactly. That is the correspondence check paying for
-itself.
+itself. 6.1's `px-fuse → prune` example is unaffected and still needed (F12).
 
 ### Exit criteria — Phase 6
 
@@ -705,7 +856,8 @@ every endpoint is active at that level.
 
 1. **All three templates, both planes.** For each of Core / Recommended / Full, with data
    stores and write path both off, both on, and each alone: page loads, no console error,
-   `dependencyDiagnostics.validation` clean.
+   `PIPELINE_MODELS.physical.validation` clean (`dependencyDiagnostics.validation` is the
+   logical model's — see Working rules).
 2. **Orphan sweep.** Re-run the data-edge orphan analysis over `PHYSICAL_BASELINE`. Expected
    remaining "no data in" at Full: `px-image` (I/O), the control nodes, and the two
    `PX_UNREACHED` entries. Nothing else.
@@ -719,15 +871,22 @@ every endpoint is active at that level.
    `confidence` reuses `--gate-request`) — confirm rather than assume.
 6. **Documentation.**
    - Update `search-query-pipeline-diagram-tool-architecture.md`: the five sources of truth
-     become seven (`PX_WRITES`, `PX_REL_BY_LEVEL`), the relation-kind count moves from nine
-     to ten, and the validator wall gains three entries. The region table needs regenerating
+     become seven (`PX_WRITES`, `PX_REL_BY_LEVEL`), and the validator wall gains three
+     entries. **The doc's "all nine edge kinds" is the _logical_ vocabulary and stays at
+     nine** — `writes` is `abstraction:["physical"]` (Phase 1 F1), so it is the physical
+     count that moves, from ten to eleven. Say which count is which; the current sentence
+     does not. The model summary also gained `writeRelations` and `reverseIndexes` went from
+     three to four. The region table needs regenerating
      for the physical level regardless — it predates plan 006.
    - `TODO.md`: strike _"Review physical architecture 'Query understanding' and 'LLM query
      understanding' components"_ (Phase 3.1/4.1 answers it — they are **complementary**, and
      the classifier is inside `px-qu`). Note that _"What are the 'Write paths'"_ is partly
      answered by the `writes` kind. Leave _"Add link from Text query to Query expansion?"_
      open and cross-reference the held item below — the physical reading says the answer is
-     a loop from the lexical leg, not a link from the query.
+     a loop from the lexical leg, not a link from the query. **Retire line 7** — _"Should
+     logical Result sufficiency check come after Candidate pruning and Fusion?"_ — its whole
+     premise was the physical grouping "Union, prune and fuse", which Phase 2 dissolved by
+     moving the physical to match the logical order rather than the reverse (F13).
 
 ---
 

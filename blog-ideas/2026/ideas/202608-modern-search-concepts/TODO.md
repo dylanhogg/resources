@@ -4,12 +4,20 @@ Note: this list is for humans, not for AI agents.
 
 ## Questions
 
+- Should logical pipeline Result sufficiency check come after Candidate pruning and Fusion? (But stay before expensive reranking). This would match the physical pipeline closer which groups "Union, prune and fuse"
+- Should Candidate union + dedup be separated from fusion in physical diagram, such that sufficiency check is in between?
 - What are the "Write paths" in Physical architecture diagram? How can this be made more clear to the user?
 - Review Query Expansion - what does it feed exactly? Anything missing? Is it really required?
 - Is "Build order" logical or physical or both? Is it helpful? How can it be more helpful and clear?
 
 ## Minor fixes
 
+- Would it be helpful to have dashed process boundaries? e.g. around Union, Sufficiency, Prune and Fuse in the physical pipeline to indicate it can be 1 process? What other process boundaries could be drawn?
+- Update logical pipeline "Candidate union" to "Candidate union, dedupe" to better represent what it does.
+- Remove "Build & run complexity" and "Operational burden" in LHS panel (it's obvious from the pipelines)
+- In the Full logical pipeline, should Personalisation come before Frreshness & temporal component (also to be in line with physical pipeline where all the recommended components are grouped into Final ranking passes)
+- Can Final ranking passes in physical pipeline address Freshness, Deduplication, Diversity, and Business ranking somehow in the component subtitle?
+- Rename "Deduplication: component in logical view to "Near duplicate collapse" to be truer to its function. Update subtitle accordingly to not be the same text.
 - Review physical architecture "Query understanding" and "LLM query understanding" components - are they hooked up correctly? Surely "LLM query understanding" needs input from "Search orchestrator" similar to "Query understanding"? Also, are they alternatives or complementary components at Full surface?
 - Apply the formatting of component hover popup to the RHS info panel so that the same information in both is presented in the same way. Hover popup is the preferred UI.
 - Add link from Text query to Query expansion?
