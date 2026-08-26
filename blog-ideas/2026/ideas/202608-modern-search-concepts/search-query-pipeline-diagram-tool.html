@@ -7353,7 +7353,7 @@ function wirePathMarkup(edge,edgeIndex,d,style,part="primary"){
     ' data-edge-kind="'+edge.kind+'" data-logical-count="'+edge.logical.length+'" role="img" aria-label="'+
     escapeAttribute(relationshipAriaLabel(edge))+'" d="'+d+
     '" style="fill:none;stroke:'+style.color+'" stroke-width="'+style.width+'"'+dash+linecap+
-    ' marker-end="url(#ah-'+style.marker+')" opacity="'+style.opacity+'"/>';
+    ' marker-end="url(#ah-'+model.abstraction+'-'+style.marker+')" opacity="'+style.opacity+'"/>';
 }
 
 /* The fan enters and leaves the dashed boundary once. A rail with a stub per leg
@@ -7611,7 +7611,12 @@ function drawWires(){
     if(!markerColors.has(relation.marker)) markerColors.set(relation.marker,relation.color);
   });
   const defs = '<defs>' + Array.from(markerColors,([marker,color])=>
-    '<marker id="ah-'+marker+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
+    /* Marker fragment identifiers resolve document-wide, not within their
+       owning SVG. Logical and physical views coexist in the DOM, so sharing
+       `ah-flow` made the visible physical paths resolve to the marker inside
+       the hidden logical SVG. A view-qualified id keeps every arrowhead local
+       to the SVG whose paths reference it. */
+    '<marker id="ah-'+model.abstraction+'-'+marker+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'+
     '<path d="M0,0 L8,4 L0,8 z" style="fill:'+color+'"/></marker>').join("") + '</defs>';
 
   let paths = "", labels = [];
@@ -8539,7 +8544,7 @@ function renderRelationLegend(){
   ui("relationLegend").innerHTML = Object.entries(RELATION_TYPES)
     .filter(([kind,relation])=>relation.legend.visible && relationApplies(kind,model.abstraction))
     .map(([kind,relation])=>{
-      const markerId="legend-arrow-"+kind;
+      const markerId="legend-arrow-"+model.abstraction+"-"+kind;
       const dash=relation.dash ? ' stroke-dasharray="'+relation.dash+'"' : "";
       return '<span data-relation-kind="'+kind+'" title="'+escapeAttribute(relation.description)+'">'+
         '<svg class="relation-key" viewBox="0 0 44 10" aria-hidden="true" focusable="false">'+
