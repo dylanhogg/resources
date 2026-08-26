@@ -4,6 +4,7 @@ Note: this list is for humans, not for AI agents.
 
 ## Questions
 
+- In the Full logical pipeline, should Personalisation come before Freshness & temporal component (also to be in line with physical pipeline where all the recommended components are grouped into Final ranking passes)
 - Describe what the predicate compiler is, and is it necessary?
 - Should logical pipeline Result sufficiency check come after Candidate pruning and Fusion? (But stay before expensive reranking). This would match the physical pipeline closer which groups "Union, prune and fuse"
 - Should Candidate union + dedup be separated from fusion in physical diagram, such that sufficiency check is in between?
@@ -13,13 +14,14 @@ Note: this list is for humans, not for AI agents.
 
 ## Minor fixes
 
-- Fix physical line issues with "on miss", they need more space between components to show correctly.
-- Keep the same template option selected when changing from logical to physical pipeline view
-- Would it be helpful to have dashed process boundaries? e.g. around Union, Sufficiency, Prune and Fuse in the physical pipeline to indicate it can be 1 process? What other process boundaries could be drawn?
-- Component hover popup should display on left or right side depending on
+`In the search exploration tool search-query-pipeline-diagram-tool.html physical architecture diagram...`
+
 - Update logical pipeline "Candidate union" to "Candidate union, dedupe" to better represent what it does.
+- In the physical architecture, would it be helpful to have dashed process boundaries? e.g. around Union, Sufficiency, Prune and Fuse in the physical pipeline to indicate it can be 1 process? What other process boundaries could be drawn?
+- Keep the same template option selected when changing from logical to physical pipeline view
+- Component hover popup should display on left or right side depending on
+- Embedding could be on GPU or CPU depending on model selcted.
 - Remove "Build & run complexity" and "Operational burden" in LHS panel (it's obvious from the pipelines)
-- In the Full logical pipeline, should Personalisation come before Frreshness & temporal component (also to be in line with physical pipeline where all the recommended components are grouped into Final ranking passes)
 - Can Final ranking passes in physical pipeline address Freshness, Deduplication, Diversity, and Business ranking somehow in the component subtitle?
 - Rename "Deduplication: component in logical view to "Near duplicate collapse" to be truer to its function. Update subtitle accordingly to not be the same text.
 - Review physical architecture "Query understanding" and "LLM query understanding" components - are they hooked up correctly? Surely "LLM query understanding" needs input from "Search orchestrator" similar to "Query understanding"? Also, are they alternatives or complementary components at Full surface?

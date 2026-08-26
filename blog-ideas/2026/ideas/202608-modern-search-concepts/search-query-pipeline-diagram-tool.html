@@ -7467,10 +7467,14 @@ function recoveryGeometryAroundParallelGroup(sourceRect,targetRect,lane,parallel
   if(!layout || sourceRect.y<layout.bounds.y+layout.bounds.h ||
      targetRect.y+targetRect.h>layout.bounds.y) return null;
 
-  const laneX=layout.bounds.x-34-lane*18;
+  /* The return owns the left gutter from end to end. Starting on the
+     controller's right edge made its first segment hook back across the card
+     before the rest of the loop travelled left; starting on the left and
+     placing the lane clear of every endpoint keeps the source leg natural. */
+  const laneX=Math.min(layout.bounds.x,sourceRect.x,targetRect.x)-34-lane*18;
   const lowerY=layout.bounds.y+layout.bounds.h+22;
   const upperY=layout.bounds.y-22;
-  const sx=sourceRect.x+sourceRect.w, sy=sourceRect.cy;
+  const sx=sourceRect.x, sy=sourceRect.cy;
   const tx=targetRect.x, ty=targetRect.cy;
   return 'M'+sx+','+sy+' C'+laneX+','+sy+' '+laneX+','+lowerY+' '+laneX+','+lowerY+
     ' L'+laneX+','+upperY+' C'+laneX+','+ty+' '+laneX+','+ty+' '+tx+','+ty;
@@ -7491,11 +7495,10 @@ function stackedPassCount(a,b){
 
 /* Out of the column and back again, one lane deeper for every card passed, so
    three misses read as three nested arcs rather than one line drawn through the
-   stack. It leaves on the side facing the spine: an aside sits against the
-   canvas edge, and the gutter towards the centre is the only one wide enough to
-   hold an arc and the label on it at every canvas width. */
-function stackedDetourPath(a,b,passes){
-  const outward = a.cx < canvas.clientWidth/2 ? 1 : -1;
+   stack. Most stacks choose the roomier side automatically; a caller may own a
+   particular gutter when the surrounding diagram needs the traffic separated. */
+function stackedDetourPath(a,b,passes,preferredSide=0){
+  const outward = preferredSide || (a.cx < canvas.clientWidth/2 ? 1 : -1);
   /* Deep enough that the caption riding the arc clears the column it is
      stepping around, and one label-height deeper for each further card. */
   const reach = (50+(passes-1)*26)*outward;
@@ -7666,7 +7669,14 @@ function drawWires(){
       // sharing its column.
       const stacked = Math.abs(a.cx-b.cx) < 8;
       const passes = stacked ? stackedPassCount(a,b) : 0;
-      if(passes){
+      const cacheMiss = stacked && e.kind==="feeds" && e.detail?.label==="on a miss";
+      if(cacheMiss){
+        /* Cache misses stay in the outside-left gutter. They are the only
+           three labelled relationships in this stack, and routing them inward
+           added three more crossings to the diagram's busiest side. Even the
+           adjacent encoder takes the same detour so the set reads as one fan. */
+        d = stackedDetourPath(a,b,Math.max(1,passes),-1);
+      } else if(passes){
         d = stackedDetourPath(a,b,passes);
       } else if(stacked){
         const above = a.cy < b.cy;
