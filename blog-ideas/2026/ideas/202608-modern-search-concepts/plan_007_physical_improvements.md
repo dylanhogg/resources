@@ -5,12 +5,14 @@ Companion reading: `search-query-pipeline-diagram-tool-architecture.md` (point-i
 25 Aug 2026 — the region table has drifted since plan 006 added the physical level, but the
 **layer model, the validator-wall contract and the recipes are still accurate**).
 
-**Status:** **Phases 1–2 done** (uncommitted, 26 Aug 2026) — the vocabulary is installed
-(`writes`, `confidence`, `"optional stage"`, `configured`) and candidate generation is split,
-so the spine now reads `engines → union → sufficiency → fuse` at Recommended and Full. The
-fixture was re-emitted, diffed and read at each phase; hops and units did not move. Phases
-3–8 outstanding. Written on top of `f8d8d29` (plan 006 phases 1–4). Update this line as each
-phase lands, in the style of plan 006 (`Phase N done (<sha>, <date>)`).
+**Status:** **Phases 1–2 done** (`7d093e6`, 26 Aug 2026), **Phase 3 done** (uncommitted,
+26 Aug 2026) — the vocabulary is installed (`writes`, `confidence`, `"optional stage"`,
+`configured`), candidate generation is split so the spine reads
+`engines → union → sufficiency → fuse`, and every request-path stage but the two held items
+now has a visible input. The fixture was re-emitted, diffed and read at each phase; hops,
+units and `cx` did not move in Phase 3. Phases 4–8 outstanding. Written on top of `f8d8d29`
+(plan 006 phases 1–4). Update this line as each phase lands, in the style of plan 006
+(`Phase N done (<sha>, <date>)`).
 
 Where implementing a phase turns up something this plan did not predict, the finding is
 recorded in that phase under **"What Phase N found"** — the later phases are written against
@@ -18,16 +20,16 @@ those, not against the original guess.
 
 ### Phase summary
 
-| Phase                                   | What it does                                                                                                                                                                                                                   | Fixture                                                     | Depends on     | Status      |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- | -------------- | ----------- |
-| **1 — Registry groundwork**             | Installs vocabulary only: `writes` relation kind, `updates` restored to one meaning, `confidence` gate kind, an `"optional stage"` config condition, the `configured` marker. No node moves, no edge added.                    | Re-emitted and read — 8 edges retagged, 158 total unchanged | —              | **Done**    |
-| **2 — Split candidate generation**      | Splits `px-fuse` into `px-union` + `px-fuse` and puts `px-sufficiency` between them, so the spine reads `engines → union → sufficiency → fuse` as its own card claims. Count-neutral on hops and units; +1 component.          | Re-emitted and read — 7 out, 10 in, 158 → 161                | 1              | **Done**    |
-| **3 — The missing request-path inputs** | The user-visible fix: adds `px-qu → px-bedrock-qu`, gives the encoder band an input, and adds `PX_REL_BY_LEVEL` for level-scoped relations. Two of four orphans; two held.                                                     | Re-emit                                                     | 2 (order only) | Not started |
-| **4 — Gate reassignment**               | `px-bedrock-qu` becomes a `confidence` gate; `px-personal` gains a config gate plus conditional chip. No structural churn, but edge kinds are asserted.                                                                        | Re-emit                                                     | 1.3, 1.4       | Not started |
-| **5 — Coverage notes**                  | Adds a derived "drawn to N of M" line to the three partial control-plane relations (`px-otel observes`, `px-deadline steers`, `px-appconfig steers`), computed from a scope predicate so it cannot drift.                      | No change                                                   | 1.5            | Not started |
-| **6 — Cross-view fidelity**             | Level-filters the REALISES list, records departures for the two retargets, and applies/documents the four proposed logical-side changes (L1 required, L2 applied, L3 documented, L4 deferred).                                 | Logical baseline re-emitted for L2                          | 2, 3, 4        | Not started |
-| **7 — Invariants**                      | Three validators that would have caught this whole class of defect — every request-path stage has an input, a departure is owed both ways, coverage notes must describe something — each throwing when it becomes unnecessary. | No change                                                   | everything     | Not started |
-| **8 — Verification & documentation**    | All three templates × both planes, orphan sweep, correspondence sweep, narrow screens, dark theme, then the architecture doc and `TODO.md`.                                                                                    | No change                                                   | 1–7            | Not started |
+| Phase                                   | What it does                                                                                                                                                                                                                   | Fixture                                                        | Depends on     | Status      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- | -------------- | ----------- |
+| **1 — Registry groundwork**             | Installs vocabulary only: `writes` relation kind, `updates` restored to one meaning, `confidence` gate kind, an `"optional stage"` config condition, the `configured` marker. No node moves, no edge added.                    | Re-emitted and read — 8 edges retagged, 158 total unchanged    | —              | **Done**    |
+| **2 — Split candidate generation**      | Splits `px-fuse` into `px-union` + `px-fuse` and puts `px-sufficiency` between them, so the spine reads `engines → union → sufficiency → fuse` as its own card claims. Count-neutral on hops and units; +1 component.          | Re-emitted and read — 7 out, 10 in, 158 → 161                  | 1              | **Done**    |
+| **3 — The missing request-path inputs** | The user-visible fix: adds `px-qu → px-bedrock-qu`, gives the encoder band an input, and adds `PX_REL_BY_LEVEL` for level-scoped relations. Two of four orphans; two held.                                                     | Re-emitted and compared byte-for-byte — 0 out, 4 in, 161 → 165 | 2 (order only) | **Done**    |
+| **4 — Gate reassignment**               | `px-bedrock-qu` becomes a `confidence` gate; `px-personal` gains a config gate plus conditional chip. No structural churn, but edge kinds are asserted.                                                                        | Re-emit                                                        | 1.3, 1.4       | Not started |
+| **5 — Coverage notes**                  | Adds a derived "drawn to N of M" line to the three partial control-plane relations (`px-otel observes`, `px-deadline steers`, `px-appconfig steers`), computed from a scope predicate so it cannot drift.                      | No change                                                      | 1.5            | Not started |
+| **6 — Cross-view fidelity**             | Level-filters the REALISES list, records departures for the two retargets, and applies/documents the four proposed logical-side changes (L1 required, L2 applied, L3 documented, L4 deferred).                                 | Logical baseline re-emitted for L2                             | 2, 3, 4        | Not started |
+| **7 — Invariants**                      | Three validators that would have caught this whole class of defect — every request-path stage has an input, a departure is owed both ways, coverage notes must describe something — each throwing when it becomes unnecessary. | No change                                                      | everything     | Not started |
+| **8 — Verification & documentation**    | All three templates × both planes, orphan sweep, correspondence sweep, narrow screens, dark theme, then the architecture doc and `TODO.md`.                                                                                    | No change                                                      | 1–7            | Not started |
 
 Two items are **held** pending a decision and are deliberately not scheduled above: H1
 (`px-expand` and the pseudo-relevance-feedback loop) and H2 (`ridesCall` draws nothing).
@@ -73,7 +75,11 @@ The unifying principle for every change below:
   restore `baseline:PHYSICAL_BASELINE` in the same edit. **Diff the emission against the
   outgoing fixture rather than re-reading 158 pairs** — flatten both to `level|kind|from|to|label`
   and list what was added and removed. That is the human confirmation the fixture is for, and
-  it is the only form in which a two-edge change is actually reviewable.
+  it is the only form in which a two-edge change is actually reviewable. **Then prove the
+  paste rather than trusting the transcription**: have the page fetch its own source, slice
+  out the `PHYSICAL_BASELINE` literal and compare it character-for-character with
+  `emitBaseline("physical")`. The set-based `assertDependencySet` on reload cannot see a
+  re-ordering, and this can (F17).
 - **`dependencyDiagnostics.modelValidation` is the _logical_ summary.** The physical one is
   `PIPELINE_MODELS.physical.validation.relationships`; its `dependencies` key existing at all
   is proof the fixture matched.
@@ -593,14 +599,102 @@ _Note for the reviewer:_ the alternative was to promote `px-rewrite` to Core, bu
 `rewrite` is level 2 and that would either violate the level-regression invariant or need a
 departure written to excuse it — a worse trade than one small registry.
 
+### What Phase 3 found
+
+**F14 · The registry move cost the view almost nothing — because F4 had already taken the
+registries away from it.** F4 predicted this would be the expensive part and it was not, for
+a reason worth recording rather than for luck: the three helpers F4 fixed read `PX_SERVING`
+and `PXI_REL`, not `PX_REL`. `PX_REL`/`RREL` turned out to have exactly **three** readers —
+the drawer's relation sections and the hover card's two `steers` rows — and all three became
+level-aware by swapping a destructured constant for a two-line accessor:
+
+```js
+const relationsOf = (id) => Model.relations(model, slice.tpl)[id] || {};
+const reverseRelationsOf = (id) =>
+  Model.reverseRelations(model, slice.tpl)[id] || {};
+```
+
+The generalisable form of F4 is therefore not "grep before you move a registry" but **the
+view should not be able to name a registry at all**. Where a lookup can be level-dependent,
+give it a `Model` query that takes the template id, and the question stops being possible to
+get wrong.
+
+**F15 · The base reverse index was deleted, not shadowed.** Keeping `model.reverseRelations`
+beside a per-level one would have left two indexes with the same meaning and different
+truths — the exact bug F4 describes, installed deliberately. So the base is gone:
+`Model.reverseRelations(model,templateId)` is now the only reverse index for components, and
+`validateRelationshipModel` checks it once per level rather than once. Three incidental
+cleanups fell out of the same edit: `reverseRelationIndex()` now serves the component, plane
+and per-level indexes (three hand-rolled loops down to one), `requireKinds()` replaces two
+copies of the kind check, and `expectedReverse()` replaces two copies of the expectation
+builder. The mechanism is **net smaller** than what it replaced, excluding comments.
+
+**F16 · Four edges in, none out.** 161 → 165, and the diff is exactly the intended set:
+
+| Level | Edge                                | Why                                  |
+| ----- | ----------------------------------- | ------------------------------------ |
+| 1     | `feeds px-qu → px-embed-text`       | 3.3 — Core has no rewriter           |
+| 2     | `feeds px-rewrite → px-embed-cache` | 3.2 — the cache-aside lookup's input |
+| 3     | `feeds px-qu → px-bedrock-qu`       | 3.1                                  |
+| 3     | `feeds px-rewrite → px-embed-cache` | 3.2                                  |
+
+Plane counts, hops (5/8/14), units (6/15/17) and `cx` (34/72/110) are all untouched: this
+phase adds wires, not components. Drawn paths at Full go 67 → 69, both additions primary.
+`componentRelations` 52 → 53, `levelRelations` 0 → 3, `annotatedRelations` 11 → 17.
+
+**F17 · The fixture was verified by comparing text, not by transcribing it.** Phase 2's
+hand-transcription plus a Python cross-check was replaced by something both cheaper and
+stronger: splice the four pairs into the outgoing fixture programmatically, then have the
+page fetch its own source, slice out the `PHYSICAL_BASELINE` literal and compare it to
+`emitBaseline("physical")` character-for-character. It returned `identical:true`, which
+`assertDependencySet` alone could not have told us — that assertion is set-based and blind to
+ordering, so a fixture that no longer matches what the generator prints would still pass and
+would produce a spurious diff on the _next_ phase's re-emit. Promoted to a Working rule.
+
+**F18 · Three encoder-miss annotations wanted three different payloads.** The plan's snippet
+proposed one label repeated for `px-embed-text`, `px-embed-image` and `px-embed-sparse`, but
+the image tower is keyed on an image reference rather than on stripped text, and the sparse
+encoder is handed the text it will expand. A one-line `encoderMiss(key)` factory carries the
+shared label and cadence and takes the input per encoder, so the three differ where they
+should and cannot drift where they should not.
+
+**F19 · The level-scoped drawer works, and the unscoped half of the drawer is pre-existing.**
+Confirmed on the page: at Core `px-qu`'s drawer lists **Text embedding** under _Feeds_; at
+Recommended it does not, and `px-embed-cache` shows _Fed by · Per-leg query rewriting_
+instead. But at Core that same drawer also lists **LLM query understanding**, a Full-only
+component — the drawer is deliberately not template-scoped, and only the hover card is (via
+`scoped:true`, whose comment says the drawer "renders these in full"). Level-scoping made
+this visible without causing it. Same family as F7: an editorial call for Phase 8, not a
+defect this phase introduced.
+
+**F20 · Under Phase 7.1's own rule, the unreached set is now exactly the two held items.**
+Sweeping every level for an active component with no inbound `flow | gated | branch | loop |
+feeds`, excluding `io` and `control`, returns **`px-expand` and `px-rescore-late`** and
+nothing else. That is precisely the `PX_UNREACHED` sketch in 7.1, now true rather than
+hoped-for. Two details for whoever writes it:
+
+- The rule must exclude `serves`, as 7.1 already says. With `serves` counted,
+  `px-rescore-late` looks reached — `pxd-qdrant-collection` serves it — and H2's whole point
+  is that a store answering a component is not the same as something feeding it.
+- `px-session` shows up in the raw sweep at Full and is `control:true`, so the marker-based
+  exemption covers it. No id needs listing that 7.1 does not already list.
+
 ### Exit criteria — Phase 3
 
-- At Core: `px-embed-text` has an inbound edge from `px-qu`.
-- At Recommended and Full: `px-embed-cache` has an inbound edge from `px-rewrite`.
-- At Full: `px-bedrock-qu` has an inbound edge from `px-qu` and its drawer shows `Fed by`.
-- The only remaining request-path components with no data input are the two held items and
-  the legitimate I/O and control nodes.
-- Baseline re-emitted, read, pasted.
+- ~~At Core: `px-embed-text` has an inbound edge from `px-qu`.~~ Done, and it carries a
+  detail — _"the normalised string, with no per-leg rewriting yet — Core has no rewriter to
+  strip constraints out of it"_ — which is the sentence that makes the level-scoping legible
+  rather than merely correct.
+- ~~At Recommended and Full: `px-embed-cache` has an inbound edge from `px-rewrite`.~~ Done;
+  a 309px curve down two rows on the aside side, crossing nothing.
+- ~~At Full: `px-bedrock-qu` has an inbound edge from `px-qu` and its drawer shows `Fed by`.~~
+  Done. The drawer's section order is `… Notes · In the worked example · Feeds · Fed by ·
+Appears in`, and the complementary-not-alternative note renders above it.
+- ~~The only remaining request-path components with no data input are the two held items and
+  the legitimate I/O and control nodes.~~ Done — see **F20** for the exact sweep and its one
+  subtlety.
+- ~~Baseline re-emitted, read, pasted.~~ Done, and compared byte-for-byte against a fresh
+  emission (**F17**).
 
 ---
 
@@ -748,6 +842,14 @@ template, mirroring the existing `" · off"` treatment in `relationSection()`. S
 copy: `" · not yet at this level"`. Keep them clickable — following one to the logical view
 is exactly the round trip the section exists for.
 
+> **Phase 3 changed the shape of this.** The drawer now already asks the model what the
+> _current level_ holds, through `relationsOf` / `reverseRelationsOf` (F14). This section is
+> the same question aimed at the other model: `Model.stages(model.crossView.model, tpl)`.
+> Follow that pattern rather than reaching into the other model's registries — and note F19
+> while you are here, because it is this same section's problem one level along: the drawer
+> lists relations to components the current template does not draw, and `crossView` is about
+> to grow the vocabulary (`" · not yet at this level"`) that would fix both.
+
 ### 6.2 Departures for the two retargets
 
 Neither `px-experiment` nor `px-events` carries a departure today, because
@@ -810,6 +912,10 @@ The invariant that catches the entire class of defect this plan fixes.
   and the invariant throws if an id in the register **now has** an inbound edge — so an
   exemption cannot go stale.
 
+**The sweep was run at the end of Phase 3 and returns exactly these two ids** (F20). Write
+the invariant against that result rather than re-deriving it, and keep `serves` out of the
+kind list — with it counted, `px-rescore-late` looks reached and H2's point is lost.
+
 The two held items become declared exemptions rather than silent holes:
 
 ```js
@@ -841,8 +947,12 @@ For each `PX_COVERAGE` entry: every drawn target must be inside the scope predic
 a typo), and the drawn set must be a **strict** subset of the scope at the fullest template.
 If someone later completes the relation, the note becomes a lie and the validator says so.
 
-Also validate `PX_REL_BY_LEVEL`: every key is a real template id, every endpoint exists, and
-every endpoint is active at that level.
+~~Also validate `PX_REL_BY_LEVEL`: every key is a real template id, every endpoint exists,
+and every endpoint is active at that level.~~ **Done in Phase 3**, in
+`validateRelationshipModel`, with a fourth rule the plan did not ask for: a level-scoped
+relation may not restate one `PX_REL` already declares, because the merge would then draw the
+edge twice and only the fixture would notice. The per-level reverse index is checked for
+staleness at every level as well (F15).
 
 ### Exit criteria — Phase 7
 
@@ -866,13 +976,24 @@ every endpoint is active at that level.
 4. **Narrow screens.** Below 700px the tool renders textual dependency chips instead of
    wires (`mobileTransition`, `mobileRecovery`, `renderMobileSelection`). Changes to
    relationship display usually need doing twice — check the `writes` kind, the coverage
-   note and the new `Fed by` sections all appear there.
+   note and the new `Fed by` sections all appear there. Phase 3 added five annotated
+   relations whose chips carry a payload, and `px-bedrock-qu` gained its first `Fed by` of
+   any kind — that is the one to look at first.
 5. **Dark theme.** No new colour tokens are introduced (`writes` reuses `--wire-data`,
    `confidence` reuses `--gate-request`) — confirm rather than assume.
-6. **Documentation.**
+6. **Two editorial calls to accept or fix, both pre-existing and both surfaced by this plan.**
+   F7: the relation legend lists every kind a level _may_ draw, so at physical Core `updates`
+   has no edge behind it. F19: the drawer lists relations to components the current template
+   does not draw, where the hover card scopes them out. Phase 6.1 introduces the copy that
+   would fix F19 if you want it fixed; F7 needs a decision, not code.
+7. **Documentation.**
    - Update `search-query-pipeline-diagram-tool-architecture.md`: the five sources of truth
      become seven (`PX_WRITES`, `PX_REL_BY_LEVEL`), and the validator wall gains three
-     entries. **The doc's "all nine edge kinds" is the _logical_ vocabulary and stays at
+     entries. Also record that **a relation can now be level-scoped**, which is a change to
+     the layer model rather than to a registry: `model.relations` is no longer what any
+     reader consults and `model.reverseRelations` no longer exists — both go through
+     `Model.relations(model, tpl)` / `Model.reverseRelations(model, tpl)` (F14, F15). The
+     model summary gained `levelRelations` alongside `writeRelations`. **The doc's "all nine edge kinds" is the _logical_ vocabulary and stays at
      nine** — `writes` is `abstraction:["physical"]` (Phase 1 F1), so it is the physical
      count that moves, from ten to eleven. Say which count is which; the current sentence
      does not. The model summary also gained `writeRelations` and `reverseIndexes` went from
@@ -883,7 +1004,8 @@ every endpoint is active at that level.
      the classifier is inside `px-qu`). Note that _"What are the 'Write paths'"_ is partly
      answered by the `writes` kind. Leave _"Add link from Text query to Query expansion?"_
      open and cross-reference the held item below — the physical reading says the answer is
-     a loop from the lexical leg, not a link from the query. **Retire line 7** — _"Should
+     a loop from the lexical leg, not a link from the query, and after Phase 3 it is the _only_
+     missing request-path input left. **Retire line 7** — _"Should
      logical Result sufficiency check come after Candidate pruning and Fusion?"_ — its whole
      premise was the physical grouping "Union, prune and fuse", which Phase 2 dissolved by
      moving the physical to match the logical order rather than the reverse (F13).
@@ -893,6 +1015,12 @@ every endpoint is active at that level.
 ## Held items — noted, paused for a decision
 
 ### H1 · `px-expand` and the pseudo-relevance-feedback loop
+
+> **Phase 3 raised this item's standing.** It is now one of only two request-path components
+> with no input, and the other (H2) is a rendering question rather than a missing edge. Every
+> other box on the request path acquired a visible input in Phase 3, so `px-expand` no longer
+> reads as one omission among several — it reads as the exception. Deciding it is cheap now
+> and gets more conspicuous with every phase that does not.
 
 **What is drawn:** one edge, `px-expand → px-os-search`. Nothing feeds `px-expand`.
 

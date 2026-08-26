@@ -1122,6 +1122,13 @@ const Model = {
     return model.relationDetails[[from,kind,to].join("|")] || null;
   },
 
+  /* The relationship registry a level draws from, and its reverse: the
+     level-independent set plus whatever this level adds in front of it. Every
+     reader goes through these two rather than through `model.relations`, so
+     there is one place that knows a relation can be level-scoped. */
+  relations(model,templateId){ return model.relationsAtLevel[templateId]; },
+  reverseRelations(model,templateId){ return model.reverseRelationsAtLevel[templateId]; },
+
   /* Every relationship endpoint the given level draws, independent of geometry.
      `planes` is the set of optional overlays that are switched on; each source
      belongs to one, and a plane declaring `serves:true` is what admits the
@@ -1152,7 +1159,7 @@ const Model = {
       if(active(from) && active(to)) add(from,to,kind,label||"");
     });
 
-    Object.entries(model.relations).forEach(([from,relations])=>{
+    Object.entries(Model.relations(model,templateId)).forEach(([from,relations])=>{
       if(!active(from)) return;
       COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
         if(active(to)) add(from,to,kind);
@@ -1227,23 +1234,61 @@ function validateModel(model){
   });
 }
 
+/* The reverse of a relationship registry, keyed on the target and then on the
+   kind. Three registries have the same shape and want the same index: the
+   components', the plane's, and the per-level merge of the first. */
+function reverseRelationIndex(relations){
+  const index = {};
+  Object.keys(relations).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
+    (relations[from][kind]||[]).forEach(to=>{
+      (index[to] = index[to] || {});
+      (index[to][kind] = index[to][kind] || []).push(from);
+    })));
+  return index;
+}
+
+/* A level's relations are the level-independent ones plus the ones it adds.
+   The merge is per source and per kind, and it returns the base registry
+   itself when a level adds nothing — which is every level of a model that
+   declares no level-scoped relations at all. */
+function mergeRelations(base,added){
+  if(!added) return base;
+  const merged = Object.assign({},base);
+  Object.entries(added).forEach(([from,relations])=>{
+    merged[from] = Object.assign({},merged[from]);
+    Object.entries(relations).forEach(([kind,ids])=>{
+      merged[from][kind] = (merged[from][kind]||[]).concat(ids);
+    });
+  });
+  return merged;
+}
+
 /* Registers a level and derives everything that can be derived, so no model
    reaches a renderer half-built. Validation runs here for the same reason:
    a level that cannot pass its own rules must not become reachable. */
 function defModel(spec){
   const model = Object.assign({planes:[], planeRelations:{}, writes:{}, steps:null,
-                               runtimes:null, crossView:null}, spec);
+                               relationsByLevel:{}, runtimes:null, crossView:null}, spec);
 
   model.gateConditions = gateConditionsFor(model.gateOwner);
   model.gateCondition = Object.freeze(Object.fromEntries(
     model.gateConditions.map(condition=>[condition.label,condition])));
 
-  model.reverseRelations = {};
-  Object.keys(model.relations).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
-    (model.relations[from][kind]||[]).forEach(to=>{
-      (model.reverseRelations[to] = model.reverseRelations[to] || {});
-      (model.reverseRelations[to][kind] = model.reverseRelations[to][kind] || []).push(from);
-    })));
+  /* One merged registry per level, with its reverse, resolved here so no
+     reader has to consult two registries and remember the precedence. Levels
+     that add nothing share the base registry by identity, and the reverse
+     index is built once per distinct registry rather than once per level. */
+  const reverseByRelations = new Map();
+  model.relationsAtLevel = {};
+  model.reverseRelationsAtLevel = {};
+  Object.keys(model.templates).map(Number).forEach(templateId=>{
+    const relations = mergeRelations(model.relations,model.relationsByLevel[templateId]);
+    if(!reverseByRelations.has(relations)){
+      reverseByRelations.set(relations,reverseRelationIndex(relations));
+    }
+    model.relationsAtLevel[templateId] = relations;
+    model.reverseRelationsAtLevel[templateId] = reverseByRelations.get(relations);
+  });
 
   model.reverseServing = {};
   Object.keys(model.serving).forEach(sourceId=> model.serving[sourceId].forEach(componentId=>{
@@ -1257,12 +1302,7 @@ function defModel(spec){
     (model.reverseWrites[sourceId] = model.reverseWrites[sourceId] || []).push(from);
   }));
 
-  model.reversePlaneRelations = {};
-  Object.keys(model.planeRelations).forEach(from=> COMPONENT_RELATION_KINDS.forEach(kind=>
-    (model.planeRelations[from][kind]||[]).forEach(to=>{
-      (model.reversePlaneRelations[to] = model.reversePlaneRelations[to] || {});
-      (model.reversePlaneRelations[to][kind] = model.reversePlaneRelations[to][kind] || []).push(from);
-    })));
+  model.reversePlaneRelations = reverseRelationIndex(model.planeRelations);
 
   /* A source is introduced by the earliest stage that uses it — reading it or
      writing into it — because nothing can be drawn before something reaches
@@ -3116,19 +3156,26 @@ function validateDependencyBaseline(model){
 
 function validateRelationshipModel(model){
   const {components:S, templates:TPL, relations:REL, gates:GATED_EXECUTION,
+         relationsByLevel:REL_BY_LEVEL,
          relationDetails:RELATION_DETAILS, dataSources:DATA_SOURCES,
          serving:SERVING_REL, writes:WRITES, planeRelations:PLANE_REL,
-         reverseRelations:RREL, reverseServing:RSERVING,
+         reverseServing:RSERVING,
          reverseWrites:RWRITES, reversePlaneRelations:RPLANE} = model;
   const tplStages = templateId=>Model.stages(model,templateId);
   const templateIds = Object.keys(TPL).map(Number);
   const usedKinds = new Set(["flow","gated","serves"]);
   const componentRelations = [];
+  const levelRelations = {};
   const servingRelations = [];
   const writeRelations = [];
   const planeRelations = [];
 
   const requireComponent = (id,context)=>assertComponent(model,id,context);
+  const requireKinds = (relations,context)=>Object.keys(relations).forEach(kind=>{
+    if(!COMPONENT_RELATION_KINDS.includes(kind)){
+      throw new Error("Unsupported "+context+" relationship kind: "+kind);
+    }
+  });
   const assertUnique = (relations,context)=>{
     const seen = new Set();
     relations.forEach(({from,to,kind})=>{
@@ -3176,11 +3223,7 @@ function validateRelationshipModel(model){
   });
   Object.entries(REL).forEach(([from,relations])=>{
     requireComponent(from,"REL source");
-    Object.keys(relations).forEach(kind=>{
-      if(!COMPONENT_RELATION_KINDS.includes(kind)){
-        throw new Error("Unsupported component relationship kind: "+kind);
-      }
-    });
+    requireKinds(relations,"component");
     COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
       requireComponent(to,"REL target");
       usedKinds.add(kind);
@@ -3194,6 +3237,35 @@ function validateRelationshipModel(model){
   });
   assertUnique(componentRelations,"component");
 
+  /* Relations a single level adds in front of the ones every level draws.
+     Two rules beyond the usual: both endpoints must be drawn at that level,
+     because a level-scoped relation has no other level to be true at, and it
+     may not restate one the base registry already declares, or the merge
+     would draw the edge twice. */
+  Object.keys(REL_BY_LEVEL).map(Number).forEach(templateId=>{
+    if(!TPL[templateId]) throw new Error("Level-scoped relations for an unknown template: "+templateId);
+    const drawn = new Set(tplStages(templateId));
+    const added = [];
+    Object.entries(REL_BY_LEVEL[templateId]).forEach(([from,relations])=>{
+      requireComponent(from,"level "+templateId+" relationship source");
+      requireKinds(relations,"level "+templateId);
+      COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
+        requireComponent(to,"level "+templateId+" relationship target");
+        const key = kind+"|"+from+"|"+to;
+        if((REL[from]||{})[kind]?.includes(to)){
+          throw new Error("Level-scoped relationship restates a global one: "+key);
+        }
+        if(!drawn.has(from) || !drawn.has(to)){
+          throw new Error("Level-scoped relationship endpoint is absent at level "+templateId+": "+key);
+        }
+        usedKinds.add(kind);
+        added.push({from,to,kind});
+      }));
+    });
+    assertUnique(added,"level "+templateId);
+    levelRelations[templateId] = added;
+  });
+
   /* Relationships between sources: a write path feeding the stores it derives.
      Both endpoints must be sources, or the edge belongs in REL where the
      request path can disable it. */
@@ -3202,11 +3274,7 @@ function validateRelationshipModel(model){
   };
   Object.entries(PLANE_REL).forEach(([from,relations])=>{
     requireSource(from,"plane relationship source");
-    Object.keys(relations).forEach(kind=>{
-      if(!COMPONENT_RELATION_KINDS.includes(kind)){
-        throw new Error("Unsupported plane relationship kind: "+kind);
-      }
-    });
+    requireKinds(relations,"plane");
     COMPONENT_RELATION_KINDS.forEach(kind=>(relations[kind]||[]).forEach(to=>{
       requireSource(to,"plane relationship target");
       usedKinds.add(kind);
@@ -3229,7 +3297,8 @@ function validateRelationshipModel(model){
   });
   assertUnique(writeRelations,"write");
 
-  const drawnKeys = new Set(componentRelations.concat(planeRelations,writeRelations)
+  const drawnKeys = new Set(componentRelations
+    .concat(...Object.values(levelRelations),planeRelations,writeRelations)
     .map(({from,to,kind})=>[from,kind,to].join("|")));
   templateIds.forEach(templateId=>(TPL[templateId].extra||[]).forEach(([from,to,,kind])=>{
     requireComponent(from,"template "+templateId+" extra source");
@@ -3282,16 +3351,17 @@ function validateRelationshipModel(model){
     }
   });
 
-  const expectedRREL = {};
-  componentRelations.forEach(({from,to,kind})=>{
-    (expectedRREL[to] = expectedRREL[to] || {});
-    (expectedRREL[to][kind] = expectedRREL[to][kind] || []).push(from);
-  });
-  const expectedRPLANE = {};
-  planeRelations.forEach(({from,to,kind})=>{
-    (expectedRPLANE[to] = expectedRPLANE[to] || {});
-    (expectedRPLANE[to][kind] = expectedRPLANE[to][kind] || []).push(from);
-  });
+  /* Rebuilt from the relationships this function walked, rather than from the
+     registries the model indexed, so the two derivations have to agree. */
+  const expectedReverse = relations=>{
+    const index = {};
+    relations.forEach(({from,to,kind})=>{
+      (index[to] = index[to] || {});
+      (index[to][kind] = index[to][kind] || []).push(from);
+    });
+    return index;
+  };
+  const expectedRPLANE = expectedReverse(planeRelations);
   const expectedRSERVING = {};
   servingRelations.forEach(({from,to})=>
     (expectedRSERVING[to] = expectedRSERVING[to] || []).push(from));
@@ -3306,7 +3376,12 @@ function validateRelationshipModel(model){
           .map(([kind,ids])=>[kind,[...ids].sort()]))
     ])
   ));
-  if(normalized(RREL)!==normalized(expectedRREL)) throw new Error("RREL is stale");
+  templateIds.forEach(templateId=>{
+    const expected = expectedReverse(componentRelations.concat(levelRelations[templateId]||[]));
+    if(normalized(Model.reverseRelations(model,templateId))!==normalized(expected)){
+      throw new Error("RREL is stale at level "+templateId);
+    }
+  });
   if(normalized(RPLANE)!==normalized(expectedRPLANE)) throw new Error("Reverse plane index is stale");
   if(normalized(RSERVING)!==normalized(expectedRSERVING)) throw new Error("RSERVING is stale");
   if(normalized(RWRITES)!==normalized(expectedRWRITES)) throw new Error("Reverse write index is stale");
@@ -3328,6 +3403,7 @@ function validateRelationshipModel(model){
   return Object.freeze({
     relationTypes:usedKinds.size,
     componentRelations:componentRelations.length,
+    levelRelations:Object.values(levelRelations).reduce((n,added)=>n+added.length,0),
     annotatedRelations:Object.keys(RELATION_DETAILS).length,
     servingRelations:servingRelations.length,
     writeRelations:writeRelations.length,
@@ -4045,6 +4121,7 @@ defPhys({
   alternatives:[{a:"A fine-tuned small model on SageMaker", when:"Volume is high enough that per-token pricing loses to an endpoint you keep warm, and the extraction schema is stable."},
     {a:"No LLM at all", when:"The rules path's error analysis does not show a class of queries it systematically misses. This is the honest default."}],
   caps:["replay","cost","cache","degrade"],
+  notes:["px-qu runs first and always. This is an enhancement layered on its output, not a replacement for it: on a hit it overrides selected extracted fields, and on any failure or timeout the rules output stands unchanged. That is why both components feed the rewriter — the second one only sometimes, and only some of the fields."],
   failures:[{f:"Silent quality regression on a model version change",s:"Extraction changes shape with no deploy and no alert",m:"constraint-extraction agreement against a frozen labelled set"}],
   example:"Would be asked what 'within 2 hours of the city' means — the one facet the rules genuinely cannot resolve — and its answer is cached against that phrase for a long time."
 });
@@ -5633,6 +5710,7 @@ const PX_ROUTED = PX_ENCODERS.concat([
 const PX_REL = {
   "px-waf":         {steers:["px-edge"]},
   "px-image":       {feeds:["px-embed-image"], steers:["px-router"]},
+  "px-qu":          {feeds:["px-bedrock-qu"]},
   "px-bedrock-qu":  {feeds:["px-rewrite","px-predicate"]},
   "px-session":     {steers:["px-qu","px-rewrite","px-router","px-personal"]},
   "px-expand":      {feeds:["px-os-search"]},
@@ -5651,6 +5729,18 @@ const PX_REL = {
   "px-events":      {updates:["px-personal"], feeds:["px-lake"]},
   "px-lake":        {feeds:["px-train"]},
   "px-train":       {trains:["px-crossenc","px-ltr","px-fuse"]}
+};
+
+/* Relations whose source moves as a level inserts a stage in front of it.
+   The encoder band is fed by the rewriter once one exists, and by query
+   understanding before that; declaring both in PX_REL would draw both wires
+   at every level where both are active. The source is named per template
+   instead and merged over PX_REL when the level's relations are resolved, so
+   the wires, the drawers and the hover card all follow from one merge. */
+const PX_REL_BY_LEVEL = {
+  1:{"px-qu":      {feeds:["px-embed-text"]}},
+  2:{"px-rewrite": {feeds:["px-embed-cache"]}},
+  3:{"px-rewrite": {feeds:["px-embed-cache"]}}
 };
 
 /* The write path up to the indexer. These endpoints are stores rather than
@@ -5681,15 +5771,51 @@ const PX_SERVING = {
   "pxd-s3":                ["px-lake","px-train"]
 };
 
+/* Cache-aside, stated once for three encoders. The lookup is the first thing
+   that happens, so the wire from the cache to an encoder is the miss path
+   rather than the only path — and the hit path is a wire this diagram
+   deliberately does not draw, three more crossings of the busiest band to say
+   what px-embed-cache's departure already says in words. Each encoder is
+   keyed on its own input, which is the part a shared label would lose. */
+const encoderMiss = key=>Object.freeze({
+  label:"on a miss",
+  payload:key+", and the encoder version that keyed the lookup",
+  cadence:"only when the lookup misses — on a hit the encoder is skipped and the vector goes straight to the engine"
+});
+
 /* Relationships whose payload the reader cannot infer from the cards. The
    logical level annotates its feedback plane for this reason; here the write
-   path and the two ordering departures need it for the same one. */
+   path, the two ordering departures and every input to the encoding band need
+   it for the same one. */
 const PX_RELATION_DETAILS = Object.freeze({
+  /* The enhancement's own input. It is a second opinion on the first
+     component's uncertain output, not a second source of query text. */
+  "px-qu|feeds|px-bedrock-qu":Object.freeze({
+    label:"low-confidence extraction",
+    payload:"the normalised query and the classifier's own uncertain output",
+    cadence:"only where confidence falls below the floor"
+  }),
+  /* The encoder band's input, under both names it has. What the encoders are
+     given is not the query the reader typed, and the difference is the whole
+     reason the cache in front of them is worth having. */
+  "px-qu|feeds|px-embed-text":Object.freeze({
+    label:"normalised query",
+    payload:"the normalised string, with no per-leg rewriting yet — Core has no rewriter to strip constraints out of it",
+    cadence:"per request, before the two engine calls"
+  }),
+  "px-rewrite|feeds|px-embed-cache":Object.freeze({
+    label:"vector text",
+    payload:"the constraint-stripped string, which is the cache key as well as the encoder's input",
+    cadence:"per request — the lookup happens before any encoder is called"
+  }),
   "px-rescore-late|feeds|px-union":Object.freeze({
     label:"rescored Qdrant ranks",
     payload:"the dense candidate list already reordered by MaxSim, inside the retrieval call",
     cadence:"per request, before fusion rather than after it"
   }),
+  "px-embed-cache|feeds|px-embed-text":  encoderMiss("the constraint-stripped query text"),
+  "px-embed-cache|feeds|px-embed-image": encoderMiss("the image reference"),
+  "px-embed-cache|feeds|px-embed-sparse":encoderMiss("the query text the model will expand"),
   "px-recovery|loop|px-predicate":Object.freeze({
     label:"recompiled predicate",
     payload:"the relaxed constraint set, recompiled into both engine dialects",
@@ -5904,6 +6030,7 @@ const PHYSICAL_BASELINE = {
       ["px-hydrate","px-assemble"]
     ],
     feeds:[
+      ["px-qu","px-embed-text"],
       ["px-embed-text","px-qdrant-search"],
       ["pxi-source","pxi-log"],
       ["pxi-log","pxi-indexer"]
@@ -5965,6 +6092,7 @@ const PHYSICAL_BASELINE = {
       ["px-experiment","px-assemble"],
       ["px-assemble","px-events"],
       ["px-events","px-lake"],
+      ["px-rewrite","px-embed-cache"],
       ["pxi-source","pxi-log"],
       ["pxi-log","pxi-indexer"]
     ],
@@ -6051,6 +6179,7 @@ const PHYSICAL_BASELINE = {
     ],
     feeds:[
       ["px-image","px-embed-image"],
+      ["px-qu","px-bedrock-qu"],
       ["px-bedrock-qu","px-rewrite"],
       ["px-bedrock-qu","px-predicate"],
       ["px-expand","px-os-search"],
@@ -6065,6 +6194,7 @@ const PHYSICAL_BASELINE = {
       ["px-assemble","px-events"],
       ["px-events","px-lake"],
       ["px-lake","px-train"],
+      ["px-rewrite","px-embed-cache"],
       ["pxi-source","pxi-log"],
       ["pxi-log","pxi-indexer"]
     ],
@@ -6186,7 +6316,8 @@ const PHYSICAL = defModel({
   label:"Physical architecture",
 
   components:PX,           templates:PX_TPL,
-  relations:PX_REL,        relationDetails:PX_RELATION_DETAILS,
+  relations:PX_REL,        relationsByLevel:PX_REL_BY_LEVEL,
+  relationDetails:PX_RELATION_DETAILS,
   gates:PX_GATES,          requires:PX_REQUIRES,
   gateOwner:PX_GATE_OWNER,
   dataSources:PXD,         serving:PX_SERVING,   writes:PX_WRITES,
@@ -6325,7 +6456,7 @@ const finePointer = () => window.matchMedia("(hover: hover) and (pointer: fine)"
 function createPipelineView(model, slice, root){
 
 /* This level's registries, under the names the renderer knows them by. */
-const {components:S, templates:TPL, relations:REL, reverseRelations:RREL,
+const {components:S, templates:TPL,
        requires:REQUIRES, dataSources:DATA_SOURCES, serving:SERVING_REL,
        reverseServing:RSERVING, writes:WRITES, reverseWrites:RWRITES,
        planeRelations:PLANE_REL,
@@ -6348,6 +6479,11 @@ rowsEl.id = model.id+"-rows";
 const tplStages      = templateId=> Model.stages(model,templateId);
 const executionGate  = (id,templateId)=> Model.gate(model,id,templateId);
 const relationDetail = (from,kind,to)=> Model.relationDetail(model,from,kind,to);
+/* A relation may belong to one level only — the encoder band is fed by the
+   rewriter once one exists and by query understanding before that — so the
+   view asks the current level rather than reading the registry. */
+const relationsOf        = id=> Model.relations(model,slice.tpl)[id] || {};
+const reverseRelationsOf = id=> Model.reverseRelations(model,slice.tpl)[id] || {};
 
 /* Every relationship endpoint the current composition draws. */
 const currentDependencies = ()=>
@@ -7737,7 +7873,7 @@ const DRAWER_SECTIONS = {
   /* The two below carry their own headings, because one relationship kind is
      one section and a component has as many as it has. */
   relations:{expand:true, render:(record,id)=>
-    relationSections(id, REL[id]||{}, RREL[id]||{})},
+    relationSections(id, relationsOf(id), reverseRelationsOf(id))},
   planeRelations:{expand:true, render:(record,id)=>
     relationSections(id, PLANE_REL[id]||{}, RPLANE_REL[id]||{})},
 
@@ -7912,8 +8048,8 @@ let hoverTimer = null, hoverId = null;
    `scoped`, which drops components the current template does not draw. */
 const HOVER_RELATIONS = Object.freeze([
   {label:"Served by",             pick:id=>RSERVING[id],      name:x=>DATA_SOURCES[x]?.name},
-  {label:RELATION_TYPES.steers.rev, pick:id=>RREL[id]?.steers, name:x=>S[x]?.name, scoped:true},
-  {label:RELATION_TYPES.steers.fwd, pick:id=>REL[id]?.steers,  name:x=>S[x]?.name, scoped:true}
+  {label:RELATION_TYPES.steers.rev, pick:id=>reverseRelationsOf(id).steers, name:x=>S[x]?.name, scoped:true},
+  {label:RELATION_TYPES.steers.fwd, pick:id=>relationsOf(id).steers,        name:x=>S[x]?.name, scoped:true}
 ]);
 const HOVER_RELATION_LIMIT = 7;   // routing steers twelve stages; the drawer lists them all
 

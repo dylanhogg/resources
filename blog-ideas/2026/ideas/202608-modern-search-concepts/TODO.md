@@ -12,6 +12,8 @@ Note: this list is for humans, not for AI agents.
 
 ## Minor fixes
 
+- Fix physical line issues with "on miss", they need more space between components to show correctly.
+- Keep the same template option selected when changing from logical to physical pipeline view
 - Would it be helpful to have dashed process boundaries? e.g. around Union, Sufficiency, Prune and Fuse in the physical pipeline to indicate it can be 1 process? What other process boundaries could be drawn?
 - Update logical pipeline "Candidate union" to "Candidate union, dedupe" to better represent what it does.
 - Remove "Build & run complexity" and "Operational burden" in LHS panel (it's obvious from the pipelines)
@@ -27,6 +29,8 @@ Note: this list is for humans, not for AI agents.
 - (?) Hover over (or click?) a line pops up a tooltip with the line label, source and target node labels, and short description of the relationship.
 - (?) Separate html from datasructures
 - (?) Split Full view into say Extended and Full so there are 4 levels: Core, Recommended, Extended, Full.
+
+- Ensure this rationale for where the Sufficiency component is within the pipelines is included (hover and RHS info panel): For a architecture diagram, I would consider sufficiency before fusion the simpler and more conventional default if its primary purpose is constraint relaxation and zero/low-result recovery. Put it after fusion only if you explicitly want quality-aware sufficiency. i.e. After union, before fusion -> Do we have enough candidates? After lightweight fusion -> Do we have enough plausible/relevant candidates?
 
 ## Features
 
