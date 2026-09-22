@@ -15,7 +15,7 @@
 | **Domain framing** | Domain-general findings, real-estate image search as the running concrete example.                                                                                                                                                                                                              |
 | **Open weights**   | Jina CLIP v2 only. It is the one open-weight model with a genuine published per-dimension text→image ablation.                                                                                                                                                                                  |
 | **Length**         | ~1,400-1,800 words. 9 sections. Four tables (Nova §3, Jina §4, evidence gap §6, storage §8).                                                                                                                                                                                                     |
-| **Voice**          | Australian English. Confident where Nova/Jina data is strong, explicit that the Gemini/Cohere recommendation is inference.                                                                                                                                                                      |
+| **Voice**          | Per the `writing-tone` skill: Australian English, peer-to-peer, warm and direct. Confident where the Nova/Jina data is strong; first-person and open where it isn't ("my current read is", "the hypothesis I'd test"). Define MRL, NDCG@5 and R@K on first use. See Voice notes below.            |
 
 **Title candidates** (recognisable topic + unresolved tension):
 
@@ -24,6 +24,21 @@
 3. _3072 vs 768: what the published multimodal ablations actually show_
 
 Leaning (1) as the headline, (2) as the subtitle.
+
+## Voice notes
+
+The outline was first drafted against a general technical-blog formula; `writing-tone` is the house voice and wins where they differ. Most of it carries over unchanged — Australian English, sound human, surface alternatives with the why, no salesy framing, sparing em-dashes. Three things do change:
+
+**Register shifts warmer and more first-person.** The reader is a peer thinking it through with me, not an audience being taught. So "my current read is 768-1024" rather than "the evidence supports 768-1024", and the §8 operating regions land as an invitation to disagree rather than a verdict. This suits the material: half the post is about evidence that doesn't exist yet, and hedged framing is honest there rather than weak.
+
+**Define the jargon.** MRL, NDCG@5, R@K, ViDoRe and DOCCI all need a first-use gloss. This has a knock-on effect: §3 currently says Nova's smaller vectors are "MRL prefixes" two sections before §5 explains MRL. Fix by giving §3 a one-clause gloss ("prefixes of the full 3072-d vector, trained so the front of the vector carries the most signal") and letting §5 do the proper explanation.
+
+**Where the conclusion sits: §8, decided.** This was the one real conflict — the blog formula withholds the explanation to build demand, while `writing-tone` says lead with the point. Resolved in favour of the original structure: §1 opens on the tension, §2 poses the question, and the headline conclusion lands in §8 after the evidence has earned it.
+
+That puts more weight on §1 and §2 to be honest rather than teasing. Two guardrails for the drafting pass:
+
+- §2 should say plainly that the evidence is incomplete for Gemini and Cohere. Naming the gap early is not the same as giving away the conclusion, and it respects the reader's time.
+- No withholding as suspense. Each of §3-§7 states its own finding as it goes. The reader is never waiting on a reveal; §8 synthesises findings they already have rather than finally explaining the trick.
 
 ---
 
