@@ -104,6 +104,10 @@ Local: skills/third-party/trailofbits/\*
 Source: https://github.com/adithya-s-k/manim_skill
 Local: skills/third-party/manim_skill
 
+### Archify interactive system maps
+
+https://github.com/tt-a1i/archify
+
 ## External links
 
 https://github.com/anthropics/skills
@@ -111,6 +115,10 @@ https://github.com/anthropics/skills
 https://github.com/openai/skills
 
 https://github.com/google/skills
+
+https://github.com/aws/agent-toolkit-for-aws
+
+https://github.com/aws/agent-toolkit-for-aws/tree/main/skills/core-skills/aws-ai-ml
 
 https://github.com/huggingface/skills
 
