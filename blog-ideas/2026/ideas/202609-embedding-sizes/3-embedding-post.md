@@ -1,10 +1,8 @@
-# Does 3072 dimensions actually buy you better image search?
+_Embedding model dimensions for image search: what the published evidence shows, and where it is missing._
 
-_Embedding dimensions for image search: what the published evidence shows, and where it is missing._
+## 1\. Two common assumptions about embedding size
 
-## 1. Two common assumptions about embedding size
-
-Most of us bring two assumptions to choosing an embedding size. Both are wrong, and the reasons they are wrong point to a better way to choose.
+Many of us bring two assumptions to choosing an embedding size. Both are wrong, and the reasons they are wrong point to a better way to choose.
 
 The first assumption: more dimensions means a richer vector. Twice the coordinates should mean twice the room for visual detail, so 3072 dimensions must hold more of a photograph than 768 does.
 
@@ -14,22 +12,22 @@ The first assumption has a measurable cost. Take the example I will return to th
 
 If the assumption holds, that extra storage buys better search results. If it does not, the storage buys nothing.
 
-## 2. The question
+## 2\. The question
 
 > When the _same model_ is served at 3072, 1024 and 256 dimensions, what happens to text→image retrieval quality? And does the published evidence cover the models you are most likely to deploy?
 
-The first question has a good answer, from two independent labs. The second does not: for **Gemini Embedding 2 and Cohere Embed 4 — probably the two models on your shortlist — nobody has published the per-dimension curve for image retrieval.** I could not find one at all. That gap is half of what this post is about, so I want to state it up front rather than save it for the end.
+The first question has a good answer, from two independent labs. The second does not: for **Gemini Embedding 2 and Cohere Embed 4 — likely two models on your shortlist — nobody has published the per-dimension curve for image retrieval.** I could not find one at all. That gap is half of what this post is about, so I want to state it up front rather than save it for the end.
 
-## 3. The one commercial ablation that answers the question: Amazon Nova MME
+## 3\. The one commercial ablation that answers the question: Amazon Nova MME
 
 Amazon Nova Multimodal Embeddings is the only major commercial multimodal model I found with a published per-dimension table for text→image retrieval. The architecture, training and benchmarks are held constant; only the vector length changes. Amazon states that the shorter vectors are prefixes of the full 3072-d representation, trained so the front of the vector carries the most signal. Section 5 explains why that works.
 
 | Nova MME dims | TextCaps | MSCOCO | ViDoRe v2 | float32/vector |
-| ------------: | -------: | -----: | --------: | -------------: |
-|          3072 |     88.9 |   76.7 |      58.7 |         12 KiB |
-|          1024 |     87.9 |   75.6 |      57.7 |          4 KiB |
-|           384 |     85.6 |   72.9 |      53.4 |        1.5 KiB |
-|           256 |     83.1 |   70.6 |      50.2 |          1 KiB |
+| ------------- | -------- | ------ | --------- | -------------- |
+| 3072          | 88.9     | 76.7   | 58.7      | 12 KiB         |
+| 1024          | 87.9     | 75.6   | 57.7      | 4 KiB          |
+| 384           | 85.6     | 72.9   | 53.4      | 1.5 KiB        |
+| 256           | 83.1     | 70.6   | 50.2      | 1 KiB          |
 
 Three results stand out.
 
@@ -43,24 +41,24 @@ The three benchmarks do not degrade at the same rate. ViDoRe (Visual Document Re
 
 One note on metrics if you plan to reproduce any of this: the image-retrieval columns are average Recall@1/5/10 (R@K is the share of queries where the correct image appears in the top K), and ViDoRe is NDCG@5, a graded ranking score over the top five results. Do not compare these figures against benchmarks that quote Recall@1 alone.
 
-## 4. Open-weight corroboration: Jina CLIP v2
+## 4\. Open-weight corroboration: Jina CLIP v2
 
 One vendor's ablation of its own model is not a pattern. Jina CLIP v2 serves as a control: the weights are open, text→image Recall@5 is published at six lengths, and you can rerun the evaluation yourself.
 
 | Dims | CLIP Benchmark | Crossmodal-3600 | XTD10 |
-| ---: | -------------: | --------------: | ----: |
-| 1024 |          79.10 |           81.43 | 84.87 |
-|  768 |          79.12 |           82.35 | 84.85 |
-|  512 |          78.93 |           82.31 | 84.60 |
-|  256 |          78.32 |           81.75 | 84.32 |
-|  128 |          75.90 |           78.17 | 81.80 |
-|   64 |          70.51 |           72.52 | 77.85 |
+| ---- | -------------- | --------------- | ----- |
+| 1024 | 79.10          | 81.43           | 84.87 |
+| 768  | 79.12          | 82.35           | 84.85 |
+| 512  | 78.93          | 82.31           | 84.60 |
+| 256  | 78.32          | 81.75           | 84.32 |
+| 128  | 75.90          | 78.17           | 81.80 |
+| 64   | 70.51          | 72.52           | 77.85 |
 
 **768 dimensions is not worse than 1024 here, and on Crossmodal-3600 it is nearly a point better.** Even 256 stays within about one point of full width on all three tests. Quality drops sharply at 128 (3-4 points below full width) and 64 (7-9 points).
 
 This is the same curve shape as Nova's, at a different scale, from a different lab, on different benchmarks. Two independent sources agreeing is the main argument of this post.
 
-## 5. Why the curve has this shape
+## 5\. Why the curve has this shape
 
 Both models are trained with **Matryoshka Representation Learning (MRL)**. The training objective is applied not only to the full vector but to nested prefixes of it, so the first 256 coordinates are optimised to work as an embedding on their own, the first 768 likewise, and so on. This means that **the dimensions of an MRL-trained model are not equally informative independent coordinates.** Truncating is not compressing a flat 3072-d space; it is taking a prefix of a representation designed to survive truncation.
 
@@ -68,7 +66,7 @@ This also explains why the cross-model assumption in section 1 fails. Gemini Emb
 
 One reproducibility trap: taking a prefix changes the vector's norm. If you compare an unnormalised truncation against a normalised full vector, you will manufacture a dimensionality effect that is not there. Gemini's API re-normalises automatically when you request a non-default size. If you truncate by hand, L2-normalise before any cosine comparison.
 
-## 6. The gap: the two models you are probably evaluating
+## 6\. The gap: the two models you are probably evaluating
 
 The missing evidence below is, I think, the most useful thing this post has to say.
 
@@ -87,7 +85,7 @@ Google has **not** published any 3072 vs 1536 vs 768 text→image table. The dim
 
 One external datapoint exists, and it needs careful handling. Amazon's Nova report benchmarked Embed 4 through the public Bedrock API and scored it **22.9 on MSCOCO against Nova's 76.7**. Three caveats come with that number: Amazon is a direct competitor, the figures are not Cohere self-reported, and the Embed 4 output dimension used is not stated. I read it as a reason to benchmark Cohere yourself, not as evidence about Cohere's dimension curve, which it says nothing about.
 
-## 7. Input resolution probably matters more than dimension
+## 7\. Input resolution probably matters more than dimension
 
 I have spent a thousand words on dimension count. The published evidence points to input resolution as the larger effect.
 
@@ -103,36 +101,36 @@ Check what your API does here: Cohere documents that Embed v4 downsamples images
 
 One failure mode is unaffected by either setting: an embedding can correctly identify an image as a kitchen and still rank it top for _"white kitchen, black island"_ when it is a black kitchen with a white island. Attribute binding is what COCO-style benchmarks underexpose.
 
-## 8. The corrected mental model
+## 8\. The corrected mental model
 
 Pulling the findings together:
 
-1. **Choose the model family first, then the dimension.** Reversing the order risks picking a weaker model because it exposes more coordinates.
-2. **Within an MRL model, 3-4x compression plausibly costs about a point.** Nova and Jina agree on this from different labs and at different scales.
-3. **The cliff is real, and it sits well below the headline width.** Nova breaks at 256, Jina at 128.
-4. **Fine-grained visual retrieval degrades faster than object-centric retrieval.** ViDoRe falls fastest in Nova's table, and I would treat property photography as nearer that end.
-5. **Resolution before dimension.** It is the larger measured effect in the published evidence.
-6. **Dimension and numeric precision are separate axes.** Cohere exposes int8 and binary output; those compound with width rather than substituting for it, and conflating the two will confuse your results. It is a real axis, but it needs its own post.
+1.  **Choose the model family first, then the dimension.** Reversing the order risks picking a weaker model because it exposes more coordinates.
+2.  **Within an MRL model, 3-4x compression plausibly costs about a point.** Nova and Jina agree on this from different labs and at different scales.
+3.  **The cliff is real, and it sits well below the headline width.** Nova breaks at 256, Jina at 128.
+4.  **Fine-grained visual retrieval degrades faster than object-centric retrieval.** ViDoRe falls fastest in Nova's table, and I would treat property photography as nearer that end.
+5.  **Resolution before dimension.** It is the larger measured effect in the published evidence.
+6.  **Dimension and numeric precision are separate axes.** Cohere exposes int8 and binary output; those compound with width rather than substituting for it, and conflating the two will confuse your results. It is a real axis, but it needs its own post.
 
 My current view on the operating regions — a hypothesis to test on your own corpus, not a set of guaranteed scores: 3072→1536 is rarely justifiable on quality alone; 1536/1024→768/512 is usually the attractive region; 384/256 is viable when memory-constrained but increasingly lossy on complex imagery; 128/64 is too aggressive without a reranker behind it.
 
 That returns us to the 92 GB:
 
 | Dims | Bytes/vector | Raw vectors @ 10M | vs 3072 |
-| ---: | -----------: | ----------------: | ------: |
-| 3072 |       12 KiB |         122.88 GB |    100% |
-| 1536 |        6 KiB |          61.44 GB |     50% |
-| 1024 |        4 KiB |          40.96 GB |     33% |
-|  768 |        3 KiB |          30.72 GB |     25% |
-|  512 |        2 KiB |          20.48 GB |     17% |
-|  384 |      1.5 KiB |          15.36 GB |   12.5% |
-|  256 |        1 KiB |          10.24 GB |    8.3% |
+| ---- | ------------ | ----------------- | ------- |
+| 3072 | 12 KiB       | 122.88 GB         | 100%    |
+| 1536 | 6 KiB        | 61.44 GB          | 50%     |
+| 1024 | 4 KiB        | 40.96 GB          | 33%     |
+| 768  | 3 KiB        | 30.72 GB          | 25%     |
+| 512  | 2 KiB        | 20.48 GB          | 17%     |
+| 384  | 1.5 KiB      | 15.36 GB          | 12.5%   |
+| 256  | 1 KiB        | 10.24 GB          | 8.3%    |
 
 Those figures are arithmetic on raw float32 payload only. A real ANN index also carries graph or product-quantisation structures, IDs and metadata, and latency has to be measured in your target vector database: dimension is a first-order effect on distance computation and memory traffic, but traversal, cache behaviour and I/O can dominate.
 
 The conclusion the table supports: **Gemini at 768 instead of 3072 dimensions saves roughly 92 GB of raw vectors on a 10M-photo catalogue, at one of Google's own recommended MRL sizes.** That is why a sub-point quality loss deserves this much attention.
 
-## 9. Limits of this analysis
+## 9\. Limits of this analysis
 
 Four limits I want on the record.
 
@@ -142,3 +140,48 @@ Four limits I want on the record.
 - Cliff location is model-specific. You will have to find your own, and a few hundred well-judged domain queries will tell you more than another general benchmark will.
 
 That reverses the question we started with. The useful question was never how many dimensions a model has. It is how far down that model's own curve you can go before your queries degrade.
+
+## Appendix A: Primary sources
+
+These are where the numbers in this post come from. I have noted which sections lean on each one so you can check the claims against the original.
+
+1.  **Amazon Nova Multimodal Embeddings technical report.** Amazon. [cdn.amazon.science](https://cdn.amazon.science/ba/f2/d0af272848748a24ba6ba45af3a7/nova-mme-technical-report-14.pdf)
+
+    Per-dimension text→image ablation at 3072 / 1024 / 384 / 256 (section 3), the prefix-truncation design (section 3), and the Cohere Embed 4 comparison run through Bedrock (section 6).
+
+2.  **jina-clip-v2: Multilingual Multimodal Embeddings for Text and Images.** Jina AI. [arXiv:2412.08802](https://arxiv.org/html/2412.08802v2)
+
+    Recall@5 across six MRL lengths (section 4) and the image-resolution ablation on ViDoRe (section 7).
+
+3.  **Gemini Embedding 2: A Native Multimodal Embedding Model from Gemini.** Google. [arXiv:2605.27295](https://arxiv.org/abs/2605.27295)
+
+    Native multimodal architecture, MRL training at 768- and 1536-d prefixes, and absolute text→image Recall@1 on DOCCI, TextCaps and MSCOCO (section 6).
+
+4.  **Embeddings, Gemini API documentation.** Google AI for Developers. [ai.google.dev](https://ai.google.dev/gemini-api/docs/embeddings)
+
+    Supported range and recommended sizes (section 6), automatic re-normalisation at non-default sizes (section 5), and the Gemini Embedding 001 MTEB dimension table (section 6).
+
+5.  **Introduction to Embeddings at Cohere.** Cohere documentation. [docs.cohere.com](https://docs.cohere.com/docs/embeddings)
+
+    Embed 4 dimension options (section 6), the image downsampling threshold (section 7), and int8 / binary output types (section 8).
+
+6.  **Embed: Secure AI Retrieval.** Cohere product page. [cohere.com/embed](https://cohere.com/embed)
+
+    Embed 4's multimodal positioning and fused image-and-text vectors (section 6).
+
+## Appendix B: Background technique and benchmarks
+
+Useful if you want the original definition of a method or benchmark mentioned above. None of the post's figures come directly from these.
+
+- **Matryoshka Representation Learning.** Kusupati et al., 2022. [arXiv:2205.13147](https://arxiv.org/abs/2205.13147). The training method behind truncatable embeddings (section 5).
+- **ColPali: Efficient Document Retrieval with Vision Language Models.** Faysse et al., 2024. [arXiv:2407.01449](https://arxiv.org/abs/2407.01449). Introduces the ViDoRe benchmark (sections 3 and 7).
+- **TextCaps: a Dataset for Image Captioning with Reading Comprehension.** Sidorov et al., 2020. [arXiv:2003.12462](https://arxiv.org/abs/2003.12462) (sections 3 and 6).
+- **Microsoft COCO: Common Objects in Context.** Lin et al., 2014. [arXiv:1405.0312](https://arxiv.org/abs/1405.0312) (sections 3 and 6).
+- **DOCCI: Descriptions of Connected and Contrasting Images.** Onoe et al., 2024. [arXiv:2404.19753](https://arxiv.org/abs/2404.19753) (section 6).
+- **Crossmodal-3600: A Massively Multilingual Multimodal Evaluation Dataset.** Thapliyal et al., 2022. [arXiv:2205.12522](https://arxiv.org/abs/2205.12522) (section 4).
+- **Towards Zero-shot Cross-lingual Image Retrieval.** Aggarwal and Kale, 2020. [arXiv:2012.05107](https://arxiv.org/abs/2012.05107). Introduces XTD10 (section 4).
+- **MTEB: Massive Text Embedding Benchmark.** Muennighoff et al., 2022. [arXiv:2210.07316](https://arxiv.org/abs/2210.07316) (section 6).
+
+---
+
+Published to: https://infocruncher.hashnode.dev/does-3072-dimensions-actually-buy-you-better-image-search
