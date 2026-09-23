@@ -1,8 +1,6 @@
 # Lecture summary: Trends in AI by Jeff Dean
 
-https://www.youtube.com/watch?v=UTTeXZrpMR0
-
-https://chatgpt.com/c/6a7a7c0a-244c-83ec-939d-cb4888f2475f
+Jeff Dean, Chief Scientist for Google Research and Google DeepMind presents his talk "[Important Trends in AI: How Did We Get Here, What Can We Do Now, and Where are We Headed?](https://www.youtube.com/watch?v=UTTeXZrpMR0)" as part of the Princeton CS Distinguished Colloquia series on February 10, 2026.
 
 ## Summary
 
@@ -52,8 +50,6 @@ The talk moves from Dean's early neural-network work through distributed trainin
 12. **Speculative decoding addresses the sequential bottleneck of autoregressive generation.**
     A cheap draft model proposes several tokens, while the large target model checks them in parallel. Importantly, Dean stresses that this requires no architecture change or retraining and preserves the target model's output distribution while improving utilisation.
 
----
-
 ## Gemini: the synthesis of these ideas
 
 Dean describes Gemini as an attempt beginning in **February 2023** to consolidate previously separate Google language and multimodal efforts into one major project. The design goal was **multimodality from the beginning**: text, images, audio and video, with newer systems also exposed to things such as LiDAR and robotic-control data.
@@ -70,8 +66,6 @@ Google's desired model progression is also notable:
 
 The idea is that frontier-level capability should repeatedly migrate into a much cheaper model tier, making yesterday's expensive capabilities economical for mainstream applications.
 
----
-
 ## Capabilities he highlights
 
 The talk uses several examples to illustrate how rapidly the nature of model capability is changing:
@@ -80,8 +74,6 @@ The talk uses several examples to illustrate how rapidly the nature of model cap
 - **Generative UI/software:** a model can take source material and dynamically construct an interactive visual explanation or complete website. Dean expects this to mean **far more software gets created**, including by people unable to program conventionally.
 - **Visual reasoning:** image-generation models can reason in "pixel space", generating intermediate visual states of a physical problem rather than reasoning solely through language.
 - **World models:** he treats world modelling as closely related to multimodal understanding. Gemini-derived systems can generate persistent interactive worlds, which can in turn produce unusual simulated scenarios for systems such as autonomous vehicles.
-
----
 
 # Most important forward-looking ideas
 
@@ -134,8 +126,6 @@ His final answer is particularly relevant for researchers without thousands of a
 An idea slightly below the baseline at tiny scale but improving faster may be much more important than an idea that narrowly beats the baseline at one small scale.
 
 That is essentially an argument for **researching scaling behaviour rather than leaderboard points**.
-
----
 
 ## His overall view of AI risk and impact
 
