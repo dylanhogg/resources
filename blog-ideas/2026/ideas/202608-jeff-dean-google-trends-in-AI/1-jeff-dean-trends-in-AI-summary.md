@@ -8,7 +8,9 @@ This is a broad technical/history lecture by **Jeff Dean**, described in the int
 
 The talk moves from Dean's early neural-network work through distributed training, word embeddings, seq2seq, TPUs, Transformers, sparse/MoE models, Pathways, inference-time reasoning, distillation, reinforcement learning and speculative decoding, before explaining how these pieces come together in Gemini and where he thinks AI research is heading.
 
-### Key points
+The talk in one sentence: Modern AI is best understood as a co-evolving stack—models, algorithms, data, distributed systems and specialised hardware—and the next phase shifts much of the emphasis from merely training bigger models toward efficient inference, long-term retrieval/memory, multimodal world models, reasoning, and coordinated populations of AI agents.
+
+## Key points
 
 1. **Scale remains important, but scale alone is the wrong explanation for recent AI progress.**
    Dean argues that increasing compute/data/model size has produced fairly continuous gains for roughly 13–14 years, but architectural and algorithmic improvements have been equally important. His example is that a 20× scaling improvement combined with a 50× algorithmic improvement can yield something closer to a 1,000× overall improvement.
@@ -137,6 +139,36 @@ Dean is relatively optimistic about catastrophic AI safety concerns, saying he b
 
 He expects major effects across **employment, education, healthcare, misinformation/media, governance/national security, entertainment and AI-for-science**, and sees widespread access to previously scarce expertise as one of the major benefits.
 
-## The talk in one sentence
+## Appendix: Further reading
 
-**Modern AI is best understood as a co-evolving stack—models, algorithms, data, distributed systems and specialised hardware—and the next phase shifts much of the emphasis from merely training bigger models toward efficient inference, long-term retrieval/memory, multimodal world models, reasoning, and coordinated populations of AI agents.**
+**Overview**
+
+- **[A Golden Decade of Deep Learning: Computing Systems & Applications](https://www.amacad.org/publication/daedalus/golden-decade-deep-learning-computing-systems-applications)** (Jeff Dean, _Daedalus_, 2022) — Dean's own written account of much of the same history: scale, hardware, and the applications they unlocked.
+
+**Early foundations: distributed training and representation learning**
+
+- **[Large Scale Distributed Deep Networks](https://papers.nips.cc/paper/2012/hash/6aca97005c68f1206823815f66102863-Abstract.html)** (Dean et al., NeurIPS 2012) — the DistBelief paper: asynchronous model replicas and parameter servers for training much larger networks.
+- **[Building High-level Features Using Large Scale Unsupervised Learning](https://arxiv.org/abs/1112.6209)** (Le et al., 2012) — the YouTube-frames "cat neuron" experiment and its ImageNet-22K result.
+- **[Efficient Estimation of Word Representations in Vector Space](https://arxiv.org/abs/1301.3781)** (Mikolov et al., 2013) — word2vec, where semantic relationships emerge geometrically in embedding space.
+- **[Sequence to Sequence Learning with Neural Networks](https://arxiv.org/abs/1409.3215)** (Sutskever, Vinyals & Le, 2014) — the LSTM encoder-decoder approach that Transformers later superseded.
+
+**Hardware and systems**
+
+- **[In-Datacenter Performance Analysis of a Tensor Processing Unit](https://arxiv.org/abs/1704.04760)** (Jouppi et al., 2017) — the TPUv1 paper, source of the speed and energy-efficiency comparisons against CPUs/GPUs.
+- **[Ironwood: The first Google TPU for the age of inference](https://blog.google/products/google-cloud/ironwood-tpu-age-of-inference/)** (Google, 2025) — the latest TPU generation Dean cites, and its inference-first framing.
+- **[Pathways: Asynchronous Distributed Dataflow for ML](https://arxiv.org/abs/2203.12533)** (Barham et al., 2022) — the system for presenting thousands of accelerators as one computer.
+
+**Architectures and efficiency techniques**
+
+- **[Attention Is All You Need](https://arxiv.org/abs/1706.03762)** (Vaswani et al., 2017) — the original Transformer paper, replacing recurrence with attention.
+- **[Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer](https://arxiv.org/abs/1701.06538)** (Shazeer et al., 2017) — the sparse MoE layer with learned routing that underpins the sparse-model scaling story.
+- **[Distilling the Knowledge in a Neural Network](https://arxiv.org/abs/1503.02531)** (Hinton, Vinyals & Dean, 2015) — the distillation technique Dean describes for moving Pro-scale capability into Flash-scale models.
+- **[Fast Inference from Transformers via Speculative Decoding](https://arxiv.org/abs/2211.17192)** (Leviathan, Kalman & Matias, 2022) — draft-and-verify decoding that speeds up generation without changing the output distribution.
+
+**Reasoning and Gemini**
+
+- **[Chain-of-Thought Prompting Elicits Reasoning in Large Language Models](https://arxiv.org/abs/2201.11903)** (Wei et al., 2022) — the paper behind treating intermediate reasoning tokens as extra inference-time compute.
+- **[Gemini: A Family of Highly Capable Multimodal Models](https://arxiv.org/abs/2312.11805)** (Gemini Team, 2023) — the technical report for the natively multimodal model that pulls these ideas together.
+- **[Gemini Deep Think achieves gold-medal standard at the IMO](https://deepmind.google/discover/blog/advanced-version-of-gemini-with-deep-think-officially-achieves-gold-medal-standard-at-the-international-mathematical-olympiad/)** (Google DeepMind, 2025) — the IMO result Dean highlights, reached by a general model with a large thinking budget.
+
+Published: 2026-08-08 to https://infocruncher.hashnode.dev/lecture-summary-trends-in-ai-by-jeff-dean
