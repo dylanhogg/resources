@@ -1,6 +1,6 @@
 # Why AI automated maths early, and how mathematicians are reacting
 
-_How mathematicians responded to OpenAI's October 2026 maths release, and what their responses suggest about the order in which AI automates different kinds of work._
+_How mathematicians responded to OpenAI's October 2026 [maths release](https://github.com/openai/math), and what their responses suggest about the order in which AI automates different kinds of work._
 
 ## 1\. Why AI automated maths early
 
@@ -52,13 +52,13 @@ Shortly after the release, the blog Proofs and Prompts collected [more than 100 
 
 Milanfar applies his idea to whole fields. The reactions suggest that it is more accurate when applied to individual tasks within a field. The table below is my rough breakdown of mathematical research, and the entropy ratings are my own judgement.
 
-| Task                                            | My entropy rating | Status after this release          |
-| ----------------------------------------------- | ----------------- | ---------------------------------- |
-| Checking a formal proof                         | Very low          | Already automated by Lean          |
-| Finding a proof of a well-posed conjecture      | Low               | Substantially automated            |
-| Writing a clear, well-attributed exposition     | Medium            | Weak in the released papers        |
-| Deciding which questions are worth asking       | High              | Still done by people               |
-| Building shared intuition and training students | High              | Still done by people, under strain |
+| Task                                            | Entropy rating | Status after this release          |
+| ----------------------------------------------- | -------------- | ---------------------------------- |
+| Checking a formal proof                         | Very low       | Already automated by Lean          |
+| Finding a proof of a well-posed conjecture      | Low            | Substantially automated            |
+| Writing a clear, well-attributed exposition     | Medium         | Weak in the released papers        |
+| Deciding which questions are worth asking       | High           | Still done by people               |
+| Building shared intuition and training students | High           | Still done by people, under strain |
 
 The release automated most of the work in the first two rows of the table. Almost all of the mathematicians' concerns relate to the last three rows. Those tasks have no automatic verifier, so AI will probably automate them more slowly. The release also made those tasks harder, because mathematicians now have hundreds of new results to read, explain and connect to existing work.
 
@@ -79,4 +79,6 @@ This points to an effect that Milanfar's ranking does not describe. When AI quic
 - How should PhD programmes and funding bodies adapt when a lab can publish a claimed solution to an open problem without warning?
 - Will the hard sciences follow the same pattern when the verifier is a laboratory experiment instead of a proof checker?
 
-I would like to hear from mathematicians who have worked through some of the papers, and from ML practitioners who disagree with the task-level framing.
+---
+
+Published as https://infocruncher.hashnode.dev/why-ai-automated-maths-early
