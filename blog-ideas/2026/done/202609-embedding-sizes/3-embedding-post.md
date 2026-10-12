@@ -184,4 +184,4 @@ Useful if you want the original definition of a method or benchmark mentioned ab
 
 ---
 
-Published to: https://infocruncher.hashnode.dev/does-3072-dimensions-actually-buy-you-better-image-search
+Published to: https://infocruncher.hashnode.dev/embedding-model-dimensions-for-image-search-what-the-published-evidence-shows
