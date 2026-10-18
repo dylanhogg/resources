@@ -1,0 +1,983 @@
+# Enjoy the 34 papers in this Arxiv Libro
+
+16. 2507.19407 / Khodadad / 1. 2610.19738 / Martinez / ProtModernBERT: Compute-Efficient Protein Language... (-1v / -1c / 0r / 12p)
+2. 2610.06715 / Litvak / Domain adaptation of Russian ModernBERT for long l... (-1v / -1c / 0r / 17p)
+3. 2609.07798 / Yu / Climate-ModernBERT: Revisiting Corpus Composition... (-1v / -1c / 0r / 16p)
+4. 2608.03855 / Segura / Bi-semantic Chemical Embedder for Joint Representa... (-1v / -1c / 0r / 19p)
+5. 2606.28538 / Stammba. / Legal Domain Adaptation of Modern BERT Models (-1v / -1c / 0r / 7p)
+6. 2606.01504 / Kothari / Semantic Retrieval for Product Search in E-Commerc... (-1v / -1c / 0r / 9p)
+7. 2602.17654 / Xi / Mine and Refine: Optimizing Graded Relevance in E-... (-1v / -1c / 0r / 9p)
+8. 2601.11565 / Ueareew. / Compass-Embedding v4: Robust Contrastive Learning... (-1v / -1c / 0r / 24p)
+9. 2601.11124 / Liang / Learn Before Represent: Bridging Generative and Co... (-1v / -1c / 0r / 10p)
+10. 2512.21021 / Rusli / Towards Better Search with Domain-Aware Text Embed... (-1v / -1c / 0r / 5p)
+11. 2512.08088 / Brenner / Adaptation of Embedding Models to Financial Filing... (-1v / -1c / 0r / 10p)
+12. 2511.10930 / Young / CardioEmbed: Domain-Specialized Text Embeddings fo... (-1v / -1c / 0r / 16p)
+13. 2511.09854 / Sun / TermGPT: Multi-Level Contrastive Fine-Tuning for T... (-1v / -1c / 0r / 13p)
+14. 2510.04631 / Zhukova / Contrastive Learning Using Graph Embeddings for Do... (-1v / -1c / 0r / 13p)
+15. 2509.14926 / Yousefi. / Patent Language Model Pretraining with ModernBERT (-1v / -1c / 0r / 16p)
+Towards Domain Specification of Embedding Models i... (-1v / -1c / 0r / 14p)
+17. 2507.08865 / Team / Spatial ModernBERT: Spatial-Aware Transformer for... (-1v / -1c / 0r / 11p)
+18. 2506.10896 / Sounack / BioClinical ModernBERT: A State-of-the-Art Long-Co... (-1v / -1c / 0r / 13p)
+19. 2506.05176 / Zhang / Qwen3 Embedding: Advancing Text Embedding and Rera... (-1v / -1c / 0r / 14p)
+20. 2505.16896 / Chen / Structure-Aligned Protein Language Model (-1v / -1c / 0r / 28p)
+21. 2504.03964 / Lee / Clinical ModernBERT: An efficient and long context... (-1v / -1c / 0r / 19p)
+22. 2407.15831 / Moreira / NV-Retriever: Improving text embedding models with... (-1v / -1c / 0r / 11p)
+23. 2311.16075 / Remy / BioLORD-2023: Semantic Textual Representations Fus... (-1v / -1c / 0r / 41p)
+24. 2307.00589 / Jin / MedCPT: Contrastive Pre-trained Transformers with... (-1v / -1c / 0r / 31p)
+25. 2306.15006 / Zhou / DNABERT-2: Efficient Foundation Model and Benchmar... (-1v / -1c / 0r / 23p)
+26. 2304.11370 / Li / SAILER: Structure-aware Pre-trained Language Model... (-1v / -1c / 0r / 10p)
+27. 2211.13308 / Singh / SciRepEval: A Multi-Format Benchmark for Scientifi... (-1v / -1c / 0r / 19p)
+28. 2209.11755 / Dai / Promptagator: Few-shot Dense Retrieval From 8 Exam... (-1v / -1c / 0r / 21p)
+29. 2205.13147 / Kusupati / Matryoshka Representation Learning (-1v / -1c / 0r / 35p)
+30. 2202.06671 / Ostendo. / Neighborhood Contrastive Learning for Scientific D... (-1v / -1c / 0r / 19p)
+31. 2202.05144 / Bonifac. / InPars: Data Augmentation for Information Retrieva... (-1v / -1c / 0r / 15p)
+32. 2112.07577 / Wang / GPL: Generative Pseudo Labeling for Unsupervised D... (-1v / -1c / 0r / 16p)
+33. 2104.06979 / Wang / TSDAE: Using Transformer-based Sequential Denoisin... (-1v / -1c / 0r / 18p)
+34. 2004.10964 / Gururan. / Don't Stop Pretraining: Adapt Language Models to D... (-1v / -1c / 0r / 19p)34. 2004.10964 / Gururan. / Don't Stop Pretraining: Adapt Language Models to D... (-1v / -1c / 0r / 19p)
+
+1. ProtModernBERT: Compute-Efficient Protein Language Modeling
+Alberto Martinez, Natalia Flechas Manrique, Llorenc Espinosa-Portales, Luc Andrea
+LLM summary: The study demonstrates that modernizing encoder-only transformer architectures,
+specifically through the new ProtModernBERT model, significantly reduces training costs while
+maintaining competitive performance on protein-related tasks compared to existing models like ProtBert
+and Amplify. Their analysis reveals that architectural improvements contribute more to performance than
+sheer parameter count in resource-constrained environments, highlighting the importance of modern
+design choices for efficient protein language modeling.
+Large protein language models provide a powerful framework for learning sequence-function
+relationships and guiding experimental design. However, architectural improvements are underexplored,
+especially in low-compute regimes of relevance for resource-constrained research laboratories. We show
+that the training cost for encoder-only transformer architectures can be reduced by leveraging modern
+architectural refinements, offering an encouraging performance / compute-efficiency trade-off. We
+introduce ProtModernBERT, a modernized BERT-style model pre-trained on amino acid sequences, and
+compare it with ProtBert, Amplify, and ESM2 across a set of supervised structural tasks -encompassing
+secondary structure prediction, disorder prediction, and subcellular localization- and ProteinGym's
+zero-shot functional benchmark. We find that ProtModernBERT matches or closely tracks the
+performance of Amplify-120M and ProtBert with up to 80-90\% reduction in pre-training FLOPs, and
+narrows the gap to ESM2 when controlling for pre-training. Our analysis using a cluster-based validation
+protocol for hyperparameter selection and randomly initialized models disentangles the contributions of
+architecture and data, showing that modern components provide stronger inductive biases that are more
+consequential than parameter count in low-compute regimes.
+http://arxiv.org/abs/2610.19738v1
+Published: 2026, category: cs.LG
+Comment: 12 pages, 5 figures
+Pages: 12
+
+
+2. Domain adaptation of Russian ModernBERT for long legal documents
+I. Litvak, D. Gvozdetsky, F. Lashkin, V. Kirova, S. Lagutin, V. Volf, T. Maksiyan, A. Kostin, R. Leva, I.
+Kiselev
+LLM summary: The study assesses whether continued pretraining of a Russian ModernBERT encoder on
+legislative documents (creating RuModernBERT-ruLaw) enhances its performance on legal text, finding
+that the adapted model achieves lower masked-token prediction loss on court decision segments
+compared to the original. However, in legal-entity extraction, both models yield nearly identical and very
+high F1 scores, likely due to strong overlap between training and test data, thus providing limited
+evidence for generalization to unseen data or improvements in practical legal tasks.
+We investigate whether continued pretraining on Russian legislative documents improves a Russian
+ModernBERT encoder on legal text. The adapted model, RuModernBERT-ruLaw, was trained on a
+corpus reported to contain 304,382 legislative documents and 194,425,905 corpus tokens. Corpus token
+counts are distinguished from positions produced by the model tokenizer. We compare the original and
+adapted encoders on a fixed external collection of 1,031 court-decision segments. Both models receive
+the same hidden positions in each of five masking realizations. At maximum input lengths of 512, 2,048,
+and 8,192 tokens, mean masked-token cross-entropy decreases by 0.10942, 0.07052, and 0.06604
+natural-log units, respectively. The reported 95% intervals summarize sensitivity to masking on this fixed
+collection; they do not quantify uncertainty across document collections. A second evaluation addresses
+legal-entity extraction. The original and adapted models achieve entity-level F1 scores of 0.99852 and
+0.99820. However, 99.95% of test spans have the same normalized surface form and class in the training
+split. This evaluation therefore provides limited evidence about transfer to previously unseen forms. The
+paper explains the masking objective, overlapping windows, averaging rules, and exact entity-boundary
+scoring using editable diagrams and clearly marked illustrative examples. The comparison supports
+lower masked-token prediction loss for the studied pair of models and collection. It does not isolate the
+contribution of distant context or establish practical legal utility.
+http://arxiv.org/abs/2610.06715v1
+Published: 2026, category: cs.CL
+Comment: 17 pages, 11 figures, 4 tables
+Pages: 17
+
+
+3. Climate-ModernBERT: Revisiting Corpus Composition for Domain-Adaptive
+Continued Pretraining
+Yongan Yu, Shantam Raj, Jingwei Ni, Ario Saeid Vaghefi, Dominik Stammbach, Markus Leippold
+LLM summary: This study presents Climate-ModernBERT, a set of climate-adapted language models
+created by continued pretraining of ModernBERT-Base on diverse climate-related corpora. Results show
+that merging parameters from independently trained models outperforms joint training and that academic
+texts provide the most effective adaptation, with the best model achieving a notable 2.8-point F1
+improvement over the baseline.
+Natural Language Processing (NLP) in the climate domain requires models to process heterogeneous text
+sources, including scientific literature, policy disclosures, and synthetic reports. However, how to
+effectively combine diverse domain corpora during continued pretraining (CPT) remains underexplored.
+We introduce Climate-ModernBERT, a family of climate-adapted encoder models obtained through
+continued pretraining of ModernBERT-Base on three climate corpora: academic climate text,
+climate-filtered web data, and synthetic climate documents. We systematically compare joint continued
+pretraining on corpus mixtures with parameter-space merging of independently specialized checkpoints.
+Across nine climate NLP benchmarks, our best model achieves 76.3 average F_1, improving
+significantly over a vanilla ModernBERT baseline by 2.8 points. Within the climate NLP setting, the
+results show that academic climate corpora provide the strongest adaptation signal among the evaluated
+sources, while parameter-space merging improves over joint multi-source training and better preserves
+complementary information from heterogeneous climate corpora. We release all Climate-ModernBERT
+variants and training checkpoints to support future research in climate NLP and domain-adaptive
+pretraining.
+http://arxiv.org/abs/2609.07798v1
+Published: 2026, category: cs.CL
+Pages: 16
+
+
+4. Bi-semantic Chemical Embedder for Joint Representation Learning of SMILES
+and Natural Language
+David Ming Segura, Jeremy Goumaz, Joshua W. Sin, Bojana Rankovic, Philippe Schwaller
+LLM summary: Transformer models have advanced chemistry by applying text-based molecular
+representations like SMILES, but adapting them for chemistry often causes loss of general language
+understanding. CheMatE, a chemistry-oriented embedding model built on a ModernBERT backbone,
+jointly learns molecular structure and scientific language through sequential masked language modeling
+and contrastive learning, resulting in bi-semantic representations that outperform or match specialized
+and general language models across chemistry and scientific language tasks.
+Transformer models have revolutionized natural language processing (NLP), and text-based molecular
+representations like SMILES have successfully extended these architectures to chemistry. However,
+domain-adaptive pre-training often causes models to overfit to chemical syntax, catastrophically
+forgetting their foundational semantic capabilities. To address this challenge, we introduce CheMatE, a
+chemistry-oriented embedding model that jointly captures molecular structure and domain-specific
+natural language within the same representation space. Built on a ModernBERT backbone, CheMatE
+learns bi-semantic representations through a two-stage training procedure: continued masked language
+modeling (MLM) followed by a Matryoshka contrastive learning stage via Multiple Negative Ranking
+Loss (MNRL). First, we train the model using MLM on a novel, large-scale corpus of
+SMILES-annotated, long-context scientific documents that were constructed and curated from FineWeb
+and ChemPile (comprising 10.4B and 11.5B tokens, respectively). Subsequently, the model undergoes
+contrastive learning using a synthetic dataset of SMILES-text pairs algorithmically derived from our
+original training corpus. This design exposes the model to SMILES-enriched scientific literature,
+enabling bi-semantic understanding. We evaluate CheMatE across a range of downstream tasks covering
+molecular property prediction and scientific language understanding. Our results demonstrate that
+coupling our custom-curated datasets with this sequential training strategy yields robust, highly
+transferable representations. By effectively unifying structural and contextual signals within a single
+text-based framework, CheMatE achieves competitive performance across both specialized chemistry
+models and general-purpose language model baselines.
+http://arxiv.org/abs/2608.03855v2
+Published: 2026, category: cs.LG
+Pages: 19
+
+
+5. Legal Domain Adaptation of Modern BERT Models
+Dominik Stammbach, Peter Henderson
+LLM summary: The study explores domain adaptation of ModernBERT models for the legal domain by
+further pre-training them on US court opinions, leading to significant improvements over the base
+ModernBERT on legal tasks. While further pre-training outperforms from-scratch training, the resulting
+models process long sequences and provide useful embeddings for legal applications, with all
+checkpoints made publicly available.
+We investigate domain adaptation of modern BERT models in the legal domain. We further pre-train
+ModernBERT on all US court opinions using the masked language modeling objective. Although
+ModernBERT has been trained on roughly 500x more data than original BERT, we still find that this
+model benefits from further pre-training and domain adaptation in the legal domain: we report significant
+improvements compared to vanilla ModernBERT on all datasets connected to US court opinions. We
+find gains similar to those reported in early work on domain adaptation of BERT-like models. However,
+from scratch pre-training does not match the performance of further pre-training an existing
+ModernBERT checkpoint in our experiments. The resulting models are capable of processing sequences
+up to 8,192 tokens, and can be used to compute meaningful embeddings of legal passages, or could
+quickly rerank hundreds of legal passages for a given search query. We release all model checkpoints
+publicly.
+http://arxiv.org/abs/2606.28538v1
+Published: 2026, category: cs.CL
+Comment: To appear in Proceedings of the 21st International Conference on Artificial Intelligence and Law (IC
+Pages: 7
+
+
+6. Semantic Retrieval for Product Search in E-Commerce
+Nikhil Kothari, Saksham Samdani, Ritam Mallick, Praveen Gupta, Ankit Vijay, Surender Kumar
+LLM summary: The authors introduce a Siamese large language model dual-encoder for semantic
+retrieval in e-commerce, employing a two-stage training process: initial contrastive learning with margin
+masking to handle near-duplicate products, followed by Relative Odds Alignment for Retrieval (ROAR)
+to optimize ranking among products with graded relevance. This system improves retrieval accuracy and
+product ranking-validated both statistically and in real-world A/B tests-by leveraging both substitute
+query-product pairs and graded annotation data across diverse queries and business sectors.
+Semantic retrieval in e-commerce must handle short, noisy, and colloquial queries over large product
+catalogs with fine-grained attribute distinctions. We present a Siamese LLM dual-encoder trained
+through a two-stage pipeline: contrastive learning with a false-negative margin mask to prevent
+penalization of near-duplicate products, followed by Relative Odds Alignment for Retrieval (ROAR), a
+preference optimization objective that extends Bradley-Terry to variable-sized graded relevance groups
+via consecutive odds-ratio margins. The training corpus mirrors this progression - substitute
+query-product pairs provide coarse semantic supervision in Stage 1 and graded relevance annotations
+drive fine-grained ranking in Stage 2. The resulting system accurately retrieves exact matches while
+correctly ordering substitutes and complementary products, with gains confirmed across query-frequency
+strata and business verticals, and statistical significance validated through live A/B deployment at scale.
+http://arxiv.org/abs/2606.01504v1
+Published: 2026, category: cs.IR
+Pages: 9
+
+
+7. Mine and Refine: Optimizing Graded Relevance in E-commerce Semantic Search
+Retrieval
+Jiaqi Xi, Raghav Saboo, Luming Chen, Johny Rufus, Aditya Dodda, Ved Sampath, Kenny Chi, Elyse
+Winer, Akshad Viswanathan, Martin Wang, Sudeep Das
+LLM summary: Embedding-based retrieval for large-scale e-commerce search is challenged by nuanced
+relevance signals, false negatives during hard sample mining, and unstable similarity scores across
+relevance levels. The proposed Mine and Refine framework combines label-aware contrastive learning
+with a lightweight LLM-driven labeling process and two-stage training to significantly improve retrieval
+quality and business outcomes in production search systems.
+Embedding-based retrieval (EBR) for large-scale e-commerce search faces three intertwined challenges:
+graded (non-binary) relevance where engagement signals are noisy and intent-varying while business
+relevance guidelines admit acceptable-but-not-exact matches, false negatives in hard sample mining, and
+unstable similarity score separability across relevance levels, the last of which complicates hybrid search
+score fusion and downstream ranking. We propose Mine and Refine, a two-stage contrastive training
+framework that addresses all three. A lightweight LLM, fine-tuned with engagement-driven audit, serves
+as a guideline-aligned scalable labeler throughout training. Stage 1 establishes a robust global embedding
+space via label-aware supervised contrastive learning; Stage 2 mines hard samples, re-annotates them
+with the LLM labeler to mitigate spurious negatives, and refines the model through a multi-level
+extension of circle loss that enforces margin-controlled separation across relevance levels. Deployed in
+production e-commerce search across multiple product verticals, the approach delivers statistically
+significant lifts in user engagement and gross order value, and substantially improves retrieval and
+end-to-end relevance metrics.
+http://arxiv.org/abs/2602.17654v2
+Published: 2026, category: cs.IR
+doi: 10.1145/3799682.3840139
+Pages: 9
+
+
+8. Compass-Embedding v4: Robust Contrastive Learning for Multilingual
+E-commerce Embeddings
+Pakorn Ueareeworakul, Shuman Liu, Jinghao Feng, Ling Hu, Zhantang Shi, Chengqi Sun, Liang Yao,
+Panyi Ouyang, Haibo Zhang, Anxiang Zeng
+LLM summary: Compass-Embedding v4 is a new multilingual embedding framework optimized for
+Southeast Asian e-commerce, addressing challenges such as systematic false negatives in training, data
+scarcity for low-resource languages, and production efficiency. Using techniques like Class-Aware
+Masking, diversified training data generation, and optimization for high-throughput inference,
+Compass-Embedding v4 achieves state-of-the-art results in domain-specific tasks for Southeast Asian
+languages, outperforming general-purpose models while remaining competitive in high-resource
+languages.
+As global e-commerce rapidly expands into emerging markets, the lack of high-quality semantic
+representations for low-resource languages has become a decisive bottleneck for retrieval,
+recommendation, and search systems. In this work, we present Compass-Embedding v4, a
+high-efficiency multilingual embedding framework specifically optimized for Southeast Asian (SEA)
+e-commerce scenarios, where data scarcity, noisy supervision, and strict production constraints jointly
+challenge representation learning. Compass-Embedding v4 addresses three core challenges. First,
+large-batch contrastive training under mixed task supervision introduces systematic false negatives that
+degrade semantic alignment. We propose Class-Aware Masking (CAM), a lightweight modification to
+the InfoNCE objective that suppresses invalid in-batch negatives and improves semantic discrimination
+without altering training efficiency. Second, low-resource SEA languages suffer from limited and uneven
+data coverage. We construct a diversified training corpus through context-grounded synthetic data
+generation, cross-lingual translation, and structured e-commerce data construction, enabling robust
+multilingual and domain-specific learning. Third, production deployment requires high-throughput
+inference while preserving embedding quality. We combine robustness-driven large-batch training with
+spherical model merging to mitigate catastrophic forgetting, and optimize inference via vLLM and FP8
+quantization. Extensive evaluations across multilingual benchmarks and proprietary e-commerce tasks
+show that Compass-Embedding v4 achieves state-of-the-art performance on major SEA languages,
+significantly outperforming general-purpose embedding models in domain-specific retrieval and
+classification, while maintaining competitive performance on high-resource languages.
+http://arxiv.org/abs/2601.11565v1
+Published: 2025, category: cs.CL
+Pages: 24
+
+
+9. Learn Before Represent: Bridging Generative and Contrastive Learning for
+Domain-Specific LLM Embeddings
+Xiaoyu Liang, Yuchen Peng, Jiale Luo, Wenhao Wang, Haoji Hu, Xincheng Zhou
+LLM summary: Large Language Models (LLMs) adapted with contrastive learning methods struggle in
+specialized fields like chemistry and law due to insufficient domain-specific knowledge, as current
+approaches prioritize semantic alignment over knowledge acquisition. To address this, the authors
+propose Learn Before Represent (LBR), a two-stage framework that first injects domain knowledge into
+LLMs before refining representations with contrastive learning, resulting in significant performance
+improvements across various vertical domains.
+Large Language Models (LLMs) adapted via contrastive learning excel in general representation learning
+but struggle in vertical domains like chemistry and law, primarily due to a lack of domain-specific
+knowledge. This work identifies a core bottleneck: the prevailing ``LLM+CL'' paradigm focuses on
+semantic alignment but cannot perform knowledge acquisition, leading to failures on specialized
+terminology. To bridge this gap, we propose Learn Before Represent (LBR), a novel two-stage
+framework. LBR first injects domain knowledge via an Information Bottleneck-Constrained Generative
+Learning stage, preserving the LLM's causal attention to maximize knowledge acquisition while
+compressing semantics. It then performs Generative-Refined Contrastive Learning on the compressed
+representations for alignment. This approach maintains architectural consistency and resolves the
+objective conflict between generative and contrastive learning. Extensive experiments on medical,
+chemistry, and code retrieval tasks show that LBR significantly outperforms strong baselines. Our work
+establishes a new paradigm for building accurate and robust representations in vertical domains.
+http://arxiv.org/abs/2601.11124v1
+Published: 2026, category: cs.IR
+Comment: 10 pages, 3 figures
+Pages: 10
+
+
+10. Towards Better Search with Domain-Aware Text Embeddings for C2C
+Marketplaces
+Andre Rusli, Miao Cao, Shoma Ishimoto, Sho Akiyama, Max Frenzel
+LLM summary: This paper presents a domain-aware Japanese text-embedding approach to improve
+search quality in Mercari's C2C marketplace, addressing challenges like noisy listings and ambiguous
+queries. By fine-tuning on purchase data and implementing Matryoshka Representation Learning for
+compact embeddings, the method demonstrates substantial offline and online gains in search relevance
+and marketplace performance, outperforming generic encoders and supporting better user experiences at
+scale.
+Consumer-to-consumer (C2C) marketplaces pose distinct retrieval challenges: short, ambiguous queries;
+noisy, user-generated listings; and strict production constraints. This paper reports our experiment to
+build a domain-aware Japanese text-embedding approach to improve the quality of search at Mercari,
+Japan's largest C2C marketplace. We experimented with fine-tuning on purchase-driven query-title pairs,
+using role-specific prefixes to model query-item asymmetry. To meet production constraints, we apply
+Matryoshka Representation Learning to obtain compact, truncation-robust embeddings. Offline
+evaluation on historical search logs shows consistent gains over a strong generic encoder, with
+particularly large improvements when replacing PCA compression with Matryoshka truncation. A
+manual assessment further highlights better handling of proper nouns, marketplace-specific semantics,
+and term-importance alignment. Additionally, an initial online A/B test demonstrates statistically
+significant improvements in revenue per user and search-flow efficiency, with transaction frequency
+maintained. Results show that domain-aware embeddings improve relevance and efficiency at scale and
+form a practical foundation for richer LLM-era search experiences.
+http://arxiv.org/abs/2512.21021v1
+Published: 2025, category: cs.IR
+Comment: 5 pages, AAAI 2026 Workshop on New Frontiers in Information Retrieval
+Pages: 5
+
+
+11. Adaptation of Embedding Models to Financial Filings via LLM Distillation
+Eliot Brenner, Dominic Seyler, Manjunath Hegde, Andrei Simion, Koustuv Dasgupta, Bing Xiang
+LLM summary: This paper presents a scalable pipeline that improves specialized information retrieval in
+domains like finance by iteratively training retrieval embedding models (bi-encoders) using unlabeled
+data and LLM-judged relevance, achieving substantial gains in retrieval metrics over existing methods.
+The approach differs from prior synthetic query generation by interleaving hard example mining and
+retraining between student and teacher models, offering a cost-effective alternative to human-annotated
+data for domain adaptation.
+Despite advances in generative large language models (LLMs), practical application of specialized
+conversational AI agents remains constrained by computation costs, latency requirements, and the need
+for precise domain-specific relevance measures. While existing embedding models address the first two
+constraints, they underperform on information retrieval in specialized domains like finance. This paper
+introduces a scalable pipeline that trains specialized models from an unlabeled corpus using a general
+purpose retrieval embedding model as foundation. Our method yields an average of 27.7% improvement
+in MRR$\texttt{@}$5, 44.6% improvement in mean DCG$\texttt{@}$5 across 14 financial filing types
+measured over 21,800 query-document pairs, and improved NDCG on 3 of 4 document classes in
+FinanceBench. We adapt retrieval embeddings (bi-encoder) for RAG, not LLM generators, using
+LLM-judged relevance to distill domain knowledge into a compact retriever. There are prior works
+which pair synthetically generated queries with real passages to directly fine-tune the retrieval model.
+Our pipeline differs from these by introducing interaction between student and teacher models that
+interleaves retrieval-based mining of hard positive/negative examples from the unlabeled corpus with
+iterative retraining of the student model's weights using these examples. Each retrieval iteration uses the
+refined student model to mine the corpus for progressively harder training examples for the subsequent
+training iteration. The methodology provides a cost-effective solution to bridging the gap between
+general-purpose models and specialized domains without requiring labor-intensive human annotation.
+http://arxiv.org/abs/2512.08088v1
+Published: 2025, category: cs.CL
+Comment: In proceedings of LLM-Finance 2025 : The 2nd IEEE International Workshop on Large Language M
+Pages: 10
+
+
+12. CardioEmbed: Domain-Specialized Text Embeddings for Clinical Cardiology
+Richard J. Young, Alice M. Matthews
+LLM summary: Existing biomedical text embedding models-primarily trained on PubMed research-are
+less effective for clinical cardiology tasks, which require procedural knowledge and terminology from
+comprehensive textbooks. By training CardioEmbed, a Qwen3-Embedding-8B based model, on curated
+cardiology textbook data using contrastive learning, the study achieved a 99.60% semantic retrieval
+accuracy in cardiology, outperforming the previous state-of-the-art by 15.94 percentage points and
+demonstrating strong results on related biomedical benchmarks.
+Biomedical text embeddings have primarily been developed using research literature from PubMed, yet
+clinical cardiology practice relies heavily on procedural knowledge and specialized terminology found in
+comprehensive textbooks rather than research abstracts. This research practice gap limits the
+effectiveness of existing embedding models for clinical applications incardiology. This study trained
+CardioEmbed, a domain-specialized embedding model based on Qwen3-Embedding-8B, using
+contrastive learning on a curated corpus of seven comprehensive cardiology textbooks totaling
+approximately 150,000 sentences after deduplication. The model employs InfoNCE loss with in-batch
+negatives and achieves 99.60% retrieval accuracy on cardiac-specific semantic retrieval tasks, a +15.94
+percentage point improvement over MedTE, the current state-of-the-art medical embedding model. On
+MTEB medical benchmarks, the model obtained BIOSSES 0.77 Spearman and SciFact 0.61 NDCG@10,
+indicating competitive performance on related biomedical domains. Domain-specialized training on
+comprehensive clinical textbooks yields near-perfect cardiology retrieval (99.60% Acc@1), improving
+over MedTE by +15.94 percentage points.
+http://arxiv.org/abs/2511.10930v1
+Published: 2025, category: cs.CL
+Comment: 14 pages, 6 figures
+Pages: 16
+
+
+13. TermGPT: Multi-Level Contrastive Fine-Tuning for Terminology Adaptation in
+Legal and Financial Domain
+Yidan Sun, Mengying Zhu, Feiyue Chen, Yangyang Wu, Xiaolei Dan, Mengyuan Yang, Xiaolin Zheng,
+Shenglin Ben
+LLM summary: Large language models often struggle to distinguish domain-specific terminology due to
+the isotropy problem in their embedding spaces, which impacts performance in fields like law and
+finance where precise semantic distinctions are crucial. To address this, the authors introduce TermGPT,
+a multi-level contrastive fine-tuning framework that improves terminology representation and
+discrimination by leveraging a sentence graph and new contrastive learning methods, demonstrated to
+outperform existing models on a newly created financial terminology dataset.
+Large language models (LLMs) have demonstrated impressive performance in text generation tasks;
+however, their embedding spaces often suffer from the isotropy problem, resulting in poor discrimination
+of domain-specific terminology, particularly in legal and financial contexts. This weakness in
+terminology-level representation can severely hinder downstream tasks such as legal judgment prediction
+or financial risk analysis, where subtle semantic distinctions are critical. To address this problem, we
+propose TermGPT, a multi-level contrastive fine-tuning framework designed for terminology adaptation.
+We first construct a sentence graph to capture semantic and structural relations, and generate
+semantically consistent yet discriminative positive and negative samples based on contextual and
+topological cues. We then devise a multi-level contrastive learning approach at both the sentence and
+token levels, enhancing global contextual understanding and fine-grained terminology discrimination. To
+support robust evaluation, we construct the first financial terminology dataset derived from official
+regulatory documents. Experiments show that TermGPT outperforms existing baselines in term
+discrimination tasks within the finance and legal domains.
+http://arxiv.org/abs/2511.09854v2
+Published: 2025, category: cs.CL
+Comment: 13 pages, 4 figures, AAAI'26
+Pages: 13
+
+
+14. Contrastive Learning Using Graph Embeddings for Domain Adaptation of
+Language Models in the Process Industry
+Anastasia Zhukova, Jonas Luhrs, Christian E. Lobmuller, Bela Gipp
+LLM summary: This paper investigates the application of SciNCL, a graph-aware contrastive learning
+method, to text log data from the process industry by leveraging knowledge graphs for domain-specific
+enhancements in language models. Results show that models fine-tuned with graph embedding-derived
+triplets significantly outperform a leading text encoder on a proprietary benchmark, achieving up to
+14.3% higher scores with three times fewer parameters.
+Recent trends in NLP utilize knowledge graphs (KGs) to enhance pretrained language models by
+incorporating additional knowledge from the graph structures to learn domain-specific terminology or
+relationships between documents that might otherwise be overlooked. This paper explores how SciNCL,
+a graph-aware neighborhood contrastive learning methodology originally designed for scientific
+publications, can be applied to the process industry domain, where text logs contain crucial information
+about daily operations and are often structured as sparse KGs. Our experiments demonstrate that
+language models fine-tuned with triplets derived from graph embeddings (GE) outperform a
+state-of-the-art mE5-large text encoder by 9.8-14.3% (5.45-7.96p) on the proprietary process industry
+text embedding benchmark (PITEB) while having 3 times fewer parameters.
+http://arxiv.org/abs/2510.04631v2
+Published: 2025, category: cs.CL
+Comment: accepted to EMNLP 2025 (industry track)
+Pages: 13
+
+
+15. Patent Language Model Pretraining with ModernBERT
+Amirhossein Yousefiramandi, Ciaran Cooney
+LLM summary: This work presents three domain-specific masked language models for patents,
+pretrained using the ModernBERT architecture and a large curated patent corpus, incorporating
+architectural enhancements like FlashAttention and rotary embeddings. The models consistently
+outperform general-purpose baselines and match or exceed specialized models like PatentBERT on
+several patent classification tasks, while offering significantly faster inference for time-sensitive
+applications, highlighting the value of domain-specific pretraining and optimized architectures in patent
+NLP.
+Transformer-based language models such as BERT have become foundational in NLP, yet their
+performance degrades in specialized domains like patents, which contain long, technical, and legally
+structured text. Prior approaches to patent NLP have primarily relied on fine-tuning general-purpose
+models or domain-adapted variants pretrained with limited data. In this work, we pretrain 3
+domain-specific masked language models for patents, using the ModernBERT architecture and a curated
+corpus of over 60 million patent records. Our approach incorporates architectural optimizations,
+including FlashAttention, rotary embeddings, and GLU feed-forward layers. We evaluate our models on
+four downstream patent classification tasks. Our model, ModernBERT-base-PT, consistently
+outperforms the general-purpose ModernBERT baseline on three out of four datasets and achieves
+competitive performance with a baseline PatentBERT. Additional experiments with
+ModernBERT-base-VX and Mosaic-BERT-large demonstrate that scaling the model size and
+customizing the tokenizer further enhance performance on selected tasks. Notably, all ModernBERT
+variants retain substantially faster inference over - 3x that of PatentBERT - underscoring their suitability
+for time-sensitive applications. These results underscore the benefits of domain-specific pretraining and
+architectural improvements for patent-focused NLP tasks.
+http://arxiv.org/abs/2509.14926v3
+Published: 2025, category: cs.CL
+Comment: 7 pages, 5 figures, 4 tables
+Pages: 16
+
+
+16. Towards Domain Specification of Embedding Models in Medicine
+Mohammad Khodadad, Ali Shiraee Kasmaee, Mahdi Astaraki, Hamidreza Mahyar
+LLM summary: Medical text embedding models are crucial for various healthcare applications but are
+often limited by narrow training data and inadequate evaluation benchmarks, leading to poor
+generalization in real-world scenarios. To address these issues, the authors introduce MEDTE-a GTE
+model fine-tuned with diverse medical corpora and a comprehensive benchmark suite of 51
+tasks-demonstrating improved robustness and superior performance over existing models.
+Medical text embedding models are foundational to a wide array of healthcare applications, ranging from
+clinical decision support and biomedical information retrieval to medical question answering, yet they
+remain hampered by two critical shortcomings. First, most models are trained on a narrow slice of
+medical and biological data, beside not being up to date in terms of methodology, making them ill suited
+to capture the diversity of terminology and semantics encountered in practice. Second, existing
+evaluations are often inadequate: even widely used benchmarks fail to generalize across the full spectrum
+of real world medical tasks. To address these gaps, we leverage MEDTE, a GTE model extensively
+fine-tuned on diverse medical corpora through self-supervised contrastive learning across multiple data
+sources, to deliver robust medical text embeddings. Alongside this model, we propose a comprehensive
+benchmark suite of 51 tasks spanning classification, clustering, pair classification, and retrieval modeled
+on the Massive Text Embedding Benchmark (MTEB) but tailored to the nuances of medical text. Our
+results demonstrate that this combined approach not only establishes a robust evaluation framework but
+also yields embeddings that consistently outperform state of the art alternatives in different tasks.
+http://arxiv.org/abs/2507.19407v2
+Published: 2025, category: cs.CL
+Pages: 14
+
+
+17. Spatial ModernBERT: Spatial-Aware Transformer for Table and Key-Value
+Extraction in Financial Documents at Scale
+Javis AI Team, Amrendra Singh, Maulik Shah, Dharshan Sampath
+LLM summary: This work presents Spatial ModernBERT, a transformer-based model with spatial
+embeddings designed to accurately extract tables and key-value pairs from complex financial documents
+by classifying each token with multiple heads (label, column, and row). Pretrained on PubTables-1M and
+fine-tuned on financial datasets, Spatial ModernBERT uses post-processing and spatial cues to achieve
+highly accurate extraction performance for business workflows like auditing and automated invoice
+processing.
+Extracting tables and key-value pairs from financial documents is essential for business workflows such
+as auditing, data analytics, and automated invoice processing. In this work, we introduce Spatial
+ModernBERT-a transformer-based model augmented with spatial embeddings-to accurately detect and
+extract tabular data and key-value fields from complex financial documents. We cast the extraction task
+as token classification across three heads: (1) Label Head, classifying each token as a label (e.g., PO
+Number, PO Date, Item Description, Quantity, Base Cost, MRP, etc.); (2) Column Head, predicting
+column indices; (3) Row Head, distinguishing the start of item rows and header rows. The model is
+pretrained on the PubTables-1M dataset, then fine-tuned on a financial document dataset, achieving
+robust performance through cross-entropy loss on each classification head. We propose a post-processing
+method to merge tokens using B-I-IB tagging, reconstruct the tabular layout, and extract key-value pairs.
+Empirical evaluation shows that Spatial ModernBERT effectively leverages both textual and spatial cues,
+facilitating highly accurate table and key-value extraction in real-world financial documents.
+http://arxiv.org/abs/2507.08865v1
+Published: 2025, category: cs.CL
+Pages: 11
+
+
+18. BioClinical ModernBERT: A State-of-the-Art Long-Context Encoder for
+Biomedical and Clinical NLP
+Thomas Sounack, Joshua Davis, Brigitte Durieux, Antoine Chaffin, Tom J. Pollard, Eric Lehman,
+Alistair E. W. Johnson, Matthew McDermott, Tristan Naumann, Charlotta Lindvall
+LLM summary: BioClinical ModernBERT is a new domain-adapted encoder model for biomedical and
+clinical NLP, building on ModernBERT with improved long-context processing, speed, and
+performance, and trained on an extensive corpus of over 53.5 billion tokens from diverse sources. It
+surpasses prior clinical encoders on several downstream tasks, and both base and large versions, as well
+as training checkpoints, are being released to facilitate further research.
+Encoder-based transformer models are central to biomedical and clinical Natural Language Processing
+(NLP), as their bidirectional self-attention makes them well-suited for efficiently extracting structured
+information from unstructured text through discriminative tasks. However, encoders have seen slower
+development compared to decoder models, leading to limited domain adaptation in biomedical and
+clinical settings. We introduce BioClinical ModernBERT, a domain-adapted encoder that builds on the
+recent ModernBERT release, incorporating long-context processing and substantial improvements in
+speed and performance for biomedical and clinical NLP. BioClinical ModernBERT is developed through
+continued pretraining on the largest biomedical and clinical corpus to date, with over 53.5 billion tokens,
+and addresses a key limitation of prior clinical encoders by leveraging 20 datasets from diverse
+institutions, domains, and geographic regions, rather than relying on data from a single source. It
+outperforms existing biomedical and clinical encoders on four downstream tasks spanning a broad range
+of use cases. We release both base (150M parameters) and large (396M parameters) versions of
+BioClinical ModernBERT, along with training checkpoints to support further research.
+http://arxiv.org/abs/2506.10896v1
+Published: 2025, category: cs.CL
+Pages: 13
+
+
+19. Qwen3 Embedding: Advancing Text Embedding and Reranking Through
+Foundation Models
+Yanzhao Zhang, Mingxin Li, Dingkun Long, Xin Zhang, Huan Lin, Baosong Yang, Pengjun Xie, An
+Yang, Dayiheng Liu, Junyang Lin, Fei Huang, Jingren Zhou
+LLM summary: The Qwen3 Embedding series significantly advances text embedding and reranking by
+leveraging robust multilingual capabilities and a multi-stage training pipeline based on Qwen3
+foundation models, incorporating both unsupervised and supervised methods along with effective model
+merging. Offering models of various sizes to suit different deployment needs, Qwen3 Embedding
+achieves state-of-the-art performance on multiple benchmarks, excels in multilingual and retrieval tasks,
+and is released under the Apache 2.0 license to support open research.
+In this work, we introduce the Qwen3 Embedding series, a significant advancement over its predecessor,
+the GTE-Qwen series, in text embedding and reranking capabilities, built upon the Qwen3 foundation
+models. Leveraging the Qwen3 LLMs' robust capabilities in multilingual text understanding and
+generation, our innovative multi-stage training pipeline combines large-scale unsupervised pre-training
+with supervised fine-tuning on high-quality datasets. Effective model merging strategies further ensure
+the robustness and adaptability of the Qwen3 Embedding series. During the training process, the Qwen3
+LLMs serve not only as backbone models but also play a crucial role in synthesizing high-quality, rich,
+and diverse training data across multiple domains and languages, thus enhancing the training pipeline.
+The Qwen3 Embedding series offers a spectrum of model sizes (0.6B, 4B, 8B) for both embedding and
+reranking tasks, addressing diverse deployment scenarios where users can optimize for either efficiency
+or effectiveness. Empirical evaluations demonstrate that the Qwen3 Embedding series achieves
+state-of-the-art results across diverse benchmarks. Notably, it excels on the multilingual evaluation
+benchmark MTEB for text embedding, as well as in various retrieval tasks, including code retrieval,
+cross-lingual retrieval and multilingual retrieval. To facilitate reproducibility and promote
+community-driven research and development, the Qwen3 Embedding models are publicly available
+under the Apache 2.0 license.
+http://arxiv.org/abs/2506.05176v3
+Published: 2025, category: cs.CL
+Pages: 14
+
+
+20. Structure-Aligned Protein Language Model
+Can Chen, David Heurtel-Depeiges, Robert M. Vernon, Christopher James Langmead, Yoshua Bengio,
+Quentin Fournier
+LLM summary: The authors present a method to enrich protein language models (pLMs) with structural
+knowledge by aligning their representations with those from pre-trained protein graph neural networks
+(pGNNs) using dual latent-level and physical-level tasks, supplemented by a residue loss selection
+module for learning from high-quality structural data. This lightweight post-training approach yields
+consistent and significant performance gains across various downstream tasks and model scales,
+including improved fitness prediction and contact prediction accuracy.
+Protein language models (pLMs) pre-trained on vast protein sequence databases excel at various
+downstream tasks but often lack the structural knowledge essential for some biological applications. To
+address this, we introduce a method to enrich pLMs with structural knowledge by leveraging pre-trained
+protein graph neural networks (pGNNs). First, a latent-level contrastive learning task aligns residue
+representations from pLMs with those from pGNNs across multiple proteins, injecting inter-protein
+structural information. Additionally, a physical-level task integrates intra-protein information by training
+pLMs to predict structure tokens. Together, the proposed dual-task framework effectively incorporates
+both inter- and intra-protein structural knowledge into pLMs. Given the variability in the quality of
+protein structures in PDB, we further introduce a residue loss selection module that uses a small model
+trained on high-quality structures to select reliable yet challenging residue losses for the pLM to learn.
+Applying our structure alignment method as a simple, lightweight post-training step to the state-of-the-art
+ESM2 and AMPLIFY yields notable performance gains. These improvements are consistent across a
+wide range of tasks, including substantial gains in deep mutational scanning (DMS) fitness prediction
+and a 59% increase in P@L for ESM2 650M contact prediction on CASP16. Furthermore, we
+demonstrate that these performance gains are robust, scaling with model sizes from 8M to 650M and
+extending to different downstream tasks.
+http://arxiv.org/abs/2505.16896v2
+Published: 2025, category: cs.LG
+Comment: 28 pages, 16 figures, 9 tables
+Pages: 28
+
+
+21. Clinical ModernBERT: An efficient and long context encoder for biomedical text
+Simon A. Lee, Anthony Wu, Jeffrey N. Chiang
+LLM summary: Clinical ModernBERT is a transformer-based encoder pretrained on extensive
+biomedical literature, clinical notes, and medical ontologies, building upon ModernBERT's advanced
+features like rotary positional embeddings, Flash Attention, and extended context length. It excels at
+generating semantically rich representations for long-context biomedical tasks, as demonstrated by
+analyses of its pretrained weights and strong performance on diverse clinical NLP benchmarks.
+We introduce Clinical ModernBERT, a transformer based encoder pretrained on large scale biomedical
+literature, clinical notes, and medical ontologies, incorporating PubMed abstracts, MIMIC IV clinical
+data, and medical codes with their textual descriptions. Building on ModernBERT the current state of the
+art natural language text encoder featuring architectural upgrades such as rotary positional embeddings
+(RoPE), Flash Attention, and extended context length up to 8,192 tokens our model adapts these
+innovations specifically for biomedical and clinical domains. Clinical ModernBERT excels at producing
+semantically rich representations tailored for long context tasks. We validate this both by analyzing its
+pretrained weights and through empirical evaluation on a comprehensive suite of clinical NLP
+benchmarks.
+http://arxiv.org/abs/2504.03964v1
+Published: 2025, category: cs.CL
+Comment: Manuscript writeup corresponding to the Clinical ModernBERT pre-trained encoder (https://hugging
+Pages: 19
+
+
+22. NV-Retriever: Improving text embedding models with effective hard-negative
+mining
+Gabriel de Souza P. Moreira, Radek Osmulski, Mengyao Xu, Ronay Ak, Benedikt Schifferer, Even
+Oldridge
+LLM summary: This paper introduces positive-aware mining methods for text embedding models, which
+leverage the positive relevance score to effectively remove false negatives during hard-negative
+selection, resulting in faster training and more accurate retrieval. The proposed methods, validated by
+ablation studies and large-scale experiments, enabled the NV-Retriever-v1 model to achieve a top score
+of 60.9 on the MTEB Retrieval (BEIR) benchmark, ranking first as of July 2024.
+Text embedding models have been popular for information retrieval applications such as semantic search
+and Question-Answering systems based on Retrieval-Augmented Generation (RAG). Those models are
+typically Transformer models that are fine-tuned with contrastive learning objectives. One of the
+challenging aspects of fine-tuning embedding models is the selection of high quality hard-negative
+passages for contrastive learning. In this paper we introduce a family of positive-aware mining methods
+that use the positive relevance score as an anchor for effective false negative removal, leading to faster
+training and more accurate retrieval models. We provide an ablation study on hard-negative mining
+methods over their configurations, exploring different teacher and base models. We further demonstrate
+the efficacy of our proposed mining methods at scale with the NV-Retriever-v1 model, which scores 60.9
+on MTEB Retrieval (BEIR) benchmark and placed 1st when it was published to the MTEB Retrieval on
+July, 2024.
+http://arxiv.org/abs/2407.15831v2
+Published: 2024, updated: 2025, category: cs.IR
+Pages: 11
+
+
+23. BioLORD-2023: Semantic Textual Representations Fusing LLM and Clinical
+Knowledge Graph Insights
+Francois Remy, Kris Demuynck, Thomas Demeester
+LLM summary: This study introduces a new approach that combines Large Language Models with
+biomedical knowledge graphs, proposing advanced training phases to achieve high-fidelity
+representations of biomedical concepts and sentences. The resulting state-of-the-art English and
+multilingual models significantly outperform previous methods across various biomedical benchmarks,
+enabling broader clinical and bioinformatics applications globally.
+In this study, we investigate the potential of Large Language Models to complement biomedical
+knowledge graphs in the training of semantic models for the biomedical and clinical domains. Drawing
+on the wealth of the UMLS knowledge graph and harnessing cutting-edge Large Language Models, we
+propose a new state-of-the-art approach for obtaining high-fidelity representations of biomedical
+concepts and sentences, consisting of three steps: an improved contrastive learning phase, a novel
+self-distillation phase, and a weight averaging phase. Through rigorous evaluations via the extensive
+BioLORD testing suite and diverse downstream tasks, we demonstrate consistent and substantial
+performance improvements over the previous state of the art (e.g. +2pts on MedSTS, +2.5pts on
+MedNLI-S, +6.1pts on EHR-Rel-B). Besides our new state-of-the-art biomedical model for English, we
+also distill and release a multilingual model compatible with 50+ languages and finetuned on 7 European
+languages. Many clinical pipelines can benefit from our latest models. Our new multilingual model
+enables a range of languages to benefit from our advancements in biomedical semantic representation
+learning, opening a new avenue for bioinformatics researchers around the world. As a result, we hope to
+see BioLORD-2023 becoming a precious tool for future biomedical applications.
+http://arxiv.org/abs/2311.16075v1
+Published: 2023, category: cs.CL
+Comment: Preprint of upcoming journal article
+Pages: 41
+
+
+24. MedCPT: Contrastive Pre-trained Transformers with Large-scale PubMed Search
+Logs for Zero-shot Biomedical Information Retrieval
+Qiao Jin, Won Kim, Qingyu Chen, Donald C. Comeau, Lana Yeganova, W. John Wilbur, Zhiyong Lu
+LLM summary: MedCPT is a novel Contrastively Pre-trained Transformer model designed for zero-shot
+semantic information retrieval in biomedicine, trained using 255 million user click logs from PubMed. It
+achieves state-of-the-art performance across six biomedical IR tasks, outperforming larger models and
+providing superior biomedical article and sentence representations for semantic evaluations.
+Information retrieval (IR) is essential in biomedical knowledge acquisition and clinical decision support.
+While recent progress has shown that language model encoders perform better semantic retrieval,
+training such models requires abundant query-article annotations that are difficult to obtain in
+biomedicine. As a result, most biomedical IR systems only conduct lexical matching. In response, we
+introduce MedCPT, a first-of-its-kind Contrastively Pre-trained Transformer model for zero-shot
+semantic IR in biomedicine. To train MedCPT, we collected an unprecedented scale of 255 million user
+click logs from PubMed. With such data, we use contrastive learning to train a pair of closely-integrated
+retriever and re-ranker. Experimental results show that MedCPT sets new state-of-the-art performance on
+six biomedical IR tasks, outperforming various baselines including much larger models such as
+GPT-3-sized cpt-text-XL. In addition, MedCPT also generates better biomedical article and sentence
+representations for semantic evaluations. As such, MedCPT can be readily applied to various real-world
+biomedical IR tasks.
+http://arxiv.org/abs/2307.00589v2
+Published: 2023, category: cs.IR
+doi: 10.1093/bioinformatics/btad651
+Comment: The MedCPT code and API are available at https://github.com/ncbi/MedCPT
+Pages: 31
+
+
+25. DNABERT-2: Efficient Foundation Model and Benchmark For Multi-Species
+Genome
+Zhihan Zhou, Yanrong Ji, Weijian Li, Pratik Dutta, Ramana Davuluri, Han Liu
+LLM summary: The text critiques the inefficiency of traditional k-mer tokenization in genome
+foundational models and proposes replacing it with Byte Pair Encoding (BPE), which offers improved
+computational efficiency and model performance. The authors introduce DNABERT-2, a model
+leveraging BPE and new strategies to optimize genome analysis, and present the Genome Understanding
+Evaluation (GUE) benchmark to standardize evaluation, demonstrating DNABERT-2 achieves
+state-of-the-art results with significantly reduced computational resources.
+Decoding the linguistic intricacies of the genome is a crucial problem in biology, and pre-trained
+foundational models such as DNABERT and Nucleotide Transformer have made significant strides in
+this area. Existing works have largely hinged on k-mer, fixed-length permutations of A, T, C, and G, as
+the token of the genome language due to its simplicity. However, we argue that the computation and
+sample inefficiencies introduced by k-mer tokenization are primary obstacles in developing large genome
+foundational models. We provide conceptual and empirical insights into genome tokenization, building
+on which we propose to replace k-mer tokenization with Byte Pair Encoding (BPE), a statistics-based
+data compression algorithm that constructs tokens by iteratively merging the most frequent co-occurring
+genome segment in the corpus. We demonstrate that BPE not only overcomes the limitations of k-mer
+tokenization but also benefits from the computational efficiency of non-overlapping tokenization. Based
+on these insights, we introduce DNABERT-2, a refined genome foundation model that adapts an efficient
+tokenizer and employs multiple strategies to overcome input length constraints, reduce time and memory
+expenditure, and enhance model capability. Furthermore, we identify the absence of a comprehensive
+and standardized benchmark for genome understanding as another significant impediment to fair
+comparative analysis. In response, we propose the Genome Understanding Evaluation (GUE), a
+comprehensive multi-species genome classification dataset that amalgamates $36$ distinct datasets
+across $9$ tasks, with input lengths ranging from $70$ to $10000$. Through comprehensive experiments
+on the GUE benchmark, we demonstrate that DNABERT-2 achieves comparable performance to the
+state-of-the-art model with $21 \times$ fewer parameters and approximately $92 \times$ less GPU time
+in pre-training.
+http://arxiv.org/abs/2306.15006v2
+Published: 2023, updated: 2024, category: q-bio.GN
+Comment: Accepted by ICLR 2024
+Pages: 23
+
+
+26. SAILER: Structure-aware Pre-trained Language Model for Legal Case Retrieval
+Haitao Li, Qingyao Ai, Jia Chen, Qian Dong, Yueyue Wu, Yiqun Liu, Chong Chen, Qi Tian
+LLM summary: Legal case retrieval is challenging due to the complexity, length, and legal sensitivity of
+case documents, and existing pre-trained language models struggle to effectively capture these aspects.
+To address these issues, the paper proposes SAILER, a structure-aware pre-trained language model that
+leverages structural and legal element information with a novel encoder-decoder architecture, achieving
+superior performance in legal case retrieval compared to previous methods.
+Legal case retrieval, which aims to find relevant cases for a query case, plays a core role in the intelligent
+legal system. Despite the success that pre-training has achieved in ad-hoc retrieval tasks, effective
+pre-training strategies for legal case retrieval remain to be explored. Compared with general documents,
+legal case documents are typically long text sequences with intrinsic logical structures. However, most
+existing language models have difficulty understanding the long-distance dependencies between different
+structures. Moreover, in contrast to the general retrieval, the relevance in the legal domain is sensitive to
+key legal elements. Even subtle differences in key legal elements can significantly affect the judgement
+of relevance. However, existing pre-trained language models designed for general purposes have not
+been equipped to handle legal elements. To address these issues, in this paper, we propose SAILER, a
+new Structure-Aware pre-traIned language model for LEgal case Retrieval. It is highlighted in the
+following three aspects: (1) SAILER fully utilizes the structural information contained in legal case
+documents and pays more attention to key legal elements, similar to how legal experts browse legal case
+documents. (2) SAILER employs an asymmetric encoder-decoder architecture to integrate several
+different pre-training objectives. In this way, rich semantic information across tasks is encoded into
+dense vectors. (3) SAILER has powerful discriminative ability, even without any legal annotation data. It
+can distinguish legal cases with different charges accurately. Extensive experiments over publicly
+available legal benchmarks demonstrate that our approach can significantly outperform previous
+state-of-the-art methods in legal case retrieval.
+http://arxiv.org/abs/2304.11370v1
+Published: 2023, category: cs.IR
+Comment: 10 pages, accepted by SIGIR 2023
+Pages: 10
+
+
+27. SciRepEval: A Multi-Format Benchmark for Scientific Document
+Representations
+Amanpreet Singh, Mike D'Arcy, Arman Cohan, Doug Downey, Sergey Feldman
+LLM summary: The authors introduce SciRepEval, a comprehensive new benchmark with 24 tasks to
+better evaluate scientific document representations across classification, regression, ranking, and search
+formats. They show that current top models struggle to generalize across formats, but propose a
+multi-embedding approach-released as SPECTER2-that outperforms single-embedding baselines by over
+2 points.
+Learned representations of scientific documents can serve as valuable input features for downstream
+tasks without further fine-tuning. However, existing benchmarks for evaluating these representations fail
+to capture the diversity of relevant tasks. In response, we introduce SciRepEval, the first comprehensive
+benchmark for training and evaluating scientific document representations. It includes 24 challenging
+and realistic tasks, 8 of which are new, across four formats: classification, regression, ranking and search.
+We then use this benchmark to study and improve the generalization ability of scientific document
+representation models. We show how state-of-the-art models like SPECTER and SciNCL struggle to
+generalize across the task formats, and that simple multi-task training fails to improve them. However, a
+new approach that learns multiple embeddings per document, each tailored to a different format, can
+improve performance. We experiment with task-format-specific control codes and adapters and find they
+outperform the existing single-embedding state-of-the-art by over 2 points absolute. We release the
+resulting family of multi-format models, called SPECTER2, for the community to use and build on.
+http://arxiv.org/abs/2211.13308v4
+Published: 2022, updated: 2023, category: cs.CL
+Comment: 19 pages, 2 figures, 11 tables. Accepted in EMNLP 2023 Main Conference
+Pages: 19
+
+
+28. Promptagator: Few-shot Dense Retrieval From 8 Examples
+Zhuyun Dai, Vincent Y. Zhao, Ji Ma, Yi Luan, Jianmo Ni, Jing Lu, Anton Bakalov, Kelvin Guu, Keith B.
+Hall, Ming-Wei Chang
+LLM summary: Recent research in information retrieval often assumes that models trained on
+well-annotated tasks can generalize to other retrieval tasks, overlooking the diversity and specificity of
+each task. This paper introduces Promptagator, a method that uses large language models for few-shot
+query generation to build task-specific retrievers based on only a few examples, demonstrating that this
+approach can outperform existing heavily engineered models even with minimal supervision.
+Much recent research on information retrieval has focused on how to transfer from one task (typically
+with abundant supervised data) to various other tasks where supervision is limited, with the implicit
+assumption that it is possible to generalize from one task to all the rest. However, this overlooks the fact
+that there are many diverse and unique retrieval tasks, each targeting different search intents, queries, and
+search domains. In this paper, we suggest to work on Few-shot Dense Retrieval, a setting where each
+task comes with a short description and a few examples. To amplify the power of a few examples, we
+propose Prompt-base Query Generation for Retriever (Promptagator), which leverages large language
+models (LLM) as a few-shot query generator, and creates task-specific retrievers based on the generated
+data. Powered by LLM's generalization ability, Promptagator makes it possible to create task-specific
+end-to-end retrievers solely based on a few examples {without} using Natural Questions or MS MARCO
+to train %question generators or dual encoders. Surprisingly, LLM prompting with no more than 8
+examples allows dual encoders to outperform heavily engineered models trained on MS MARCO like
+ColBERT v2 by more than 1.2 nDCG on average on 11 retrieval sets. Further training standard-size
+re-rankers using the same generated data yields another 5.0 point nDCG improvement. Our studies
+determine that query generation can be far more effective than previously observed, especially when a
+small amount of task-specific knowledge is given.
+http://arxiv.org/abs/2209.11755v1
+Published: 2022, category: cs.CL
+Pages: 21
+
+
+29. Matryoshka Representation Learning
+Aditya Kusupati, Gantavya Bhatt, Aniket Rege, Matthew Wallingford, Aditya Sinha, Vivek Ramanujan,
+William Howard-Snyder, Kaifeng Chen, Sham Kakade, Prateek Jain, Ali Farhadi
+LLM summary: Matryoshka Representation Learning (MRL) is a flexible method for learning
+representations that can adapt to the varying computational requirements of multiple downstream tasks
+by encoding information at different granularities within a single embedding. MRL minimally changes
+existing pipelines, offers significant improvements in embedding size, speed, and accuracy across vision
+and language modalities, and is available as open-source code.
+Learned representations are a central component in modern ML systems, serving a multitude of
+downstream tasks. When training such representations, it is often the case that computational and
+statistical constraints for each downstream task are unknown. In this context rigid, fixed capacity
+representations can be either over or under-accommodating to the task at hand. This leads us to ask: can
+we design a flexible representation that can adapt to multiple downstream tasks with varying
+computational resources? Our main contribution is Matryoshka Representation Learning (MRL) which
+encodes information at different granularities and allows a single embedding to adapt to the
+computational constraints of downstream tasks. MRL minimally modifies existing representation
+learning pipelines and imposes no additional cost during inference and deployment. MRL learns
+coarse-to-fine representations that are at least as accurate and rich as independently trained
+low-dimensional representations. The flexibility within the learned Matryoshka Representations offer: (a)
+up to 14x smaller embedding size for ImageNet-1K classification at the same level of accuracy; (b) up to
+14x real-world speed-ups for large-scale retrieval on ImageNet-1K and 4K; and (c) up to 2% accuracy
+improvements for long-tail few-shot classification, all while being as robust as the original
+representations. Finally, we show that MRL extends seamlessly to web-scale datasets (ImageNet, JFT)
+across various modalities -- vision (ViT, ResNet), vision + language (ALIGN) and language (BERT).
+MRL code and pretrained models are open-sourced at https://github.com/RAIVNLab/MRL.
+http://arxiv.org/abs/2205.13147v4
+Published: 2022, updated: 2024, category: cs.LG
+Comment: Edited related work to include intrinsic dimensionality works
+Pages: 35
+
+
+30. Neighborhood Contrastive Learning for Scientific Document Representations
+with Citation Embeddings
+Malte Ostendorff, Nils Rethmeier, Isabelle Augenstein, Bela Gipp, Georg Rehm
+LLM summary: The authors propose SciNCL, a method that improves scientific document
+representations by using controlled nearest neighbor sampling over citation graph embeddings for
+contrastive learning, rather than relying on discrete citation relations. This approach enables learning of
+continuous similarity, better sampling of negatives and positives, and leads to state-of-the-art results and
+superior sample efficiency compared to existing methods, even outperforming in-domain pretrained
+baselines when applied to general-domain language models.
+Learning scientific document representations can be substantially improved through contrastive learning
+objectives, where the challenge lies in creating positive and negative training samples that encode the
+desired similarity semantics. Prior work relies on discrete citation relations to generate contrast samples.
+However, discrete citations enforce a hard cut-off to similarity. This is counter-intuitive to
+similarity-based learning, and ignores that scientific papers can be very similar despite lacking a direct
+citation - a core problem of finding related research. Instead, we use controlled nearest neighbor
+sampling over citation graph embeddings for contrastive learning. This control allows us to learn
+continuous similarity, to sample hard-to-learn negatives and positives, and also to avoid collisions
+between negative and positive samples by controlling the sampling margin between them. The resulting
+method SciNCL outperforms the state-of-the-art on the SciDocs benchmark. Furthermore, we
+demonstrate that it can train (or tune) models sample-efficiently, and that it can be combined with recent
+training-efficient methods. Perhaps surprisingly, even training a general-domain language model this
+way outperforms baselines pretrained in-domain.
+http://arxiv.org/abs/2202.06671v2
+Published: 2022, category: cs.CL
+Comment: Accepted to EMNLP 2022
+Pages: 19
+
+
+31. InPars: Data Augmentation for Information Retrieval using Large Language
+Models
+Luiz Bonifacio, Hugo Abonizio, Marzieh Fadaee, Rodrigo Nogueira
+LLM summary: Recent advances in information retrieval (IR) have been driven by large pretrained
+transformer models and the MS MARCO dataset, but domain-specific data is often needed for optimal
+performance. This work leverages few-shot prompting of language models to generate synthetic IR
+datasets, enabling models to outperform strong baselines and achieve superior zero-shot transfer, with
+resources available online.
+The information retrieval community has recently witnessed a revolution due to large pretrained
+transformer models. Another key ingredient for this revolution was the MS MARCO dataset, whose scale
+and diversity has enabled zero-shot transfer learning to various tasks. However, not all IR tasks and
+domains can benefit from one single dataset equally. Extensive research in various NLP tasks has shown
+that using domain-specific training data, as opposed to a general-purpose one, improves the performance
+of neural models. In this work, we harness the few-shot capabilities of large pretrained language models
+as synthetic data generators for IR tasks. We show that models finetuned solely on our unsupervised
+dataset outperform strong baselines such as BM25 as well as recently proposed self-supervised dense
+retrieval methods. Furthermore, retrievers finetuned on both supervised and our synthetic data achieve
+better zero-shot transfer than models finetuned only on supervised data. Code, models, and data are
+available at https://github.com/zetaalphavector/inpars .
+http://arxiv.org/abs/2202.05144v1
+Published: 2022, category: cs.CL
+Pages: 15
+
+
+32. GPL: Generative Pseudo Labeling for Unsupervised Domain Adaptation of
+Dense Retrieval
+Kexin Wang, Nandan Thakur, Nils Reimers, Iryna Gurevych
+LLM summary: Dense retrieval methods greatly improve search performance but require extensive
+training data and struggle with domain shifts, limiting their application. This paper introduces Generative
+Pseudo Labeling (GPL), an unsupervised domain adaptation method that outperforms prior dense
+retrieval approaches on specialized datasets with less unlabeled data and increased training robustness,
+and further achieves gains when combined with TSDAE pre-training.
+Dense retrieval approaches can overcome the lexical gap and lead to significantly improved search
+results. However, they require large amounts of training data which is not available for most domains. As
+shown in previous work (Thakur et al., 2021b), the performance of dense retrievers severely degrades
+under a domain shift. This limits the usage of dense retrieval approaches to only a few domains with
+large training datasets. In this paper, we propose the novel unsupervised domain adaptation method
+Generative Pseudo Labeling (GPL), which combines a query generator with pseudo labeling from a
+cross-encoder. On six representative domain-specialized datasets, we find the proposed GPL can
+outperform an out-of-the-box state-of-the-art dense retrieval approach by up to 9.3 points nDCG@10.
+GPL requires less (unlabeled) data from the target domain and is more robust in its training than previous
+methods. We further investigate the role of six recent pre-training methods in the scenario of domain
+adaptation for retrieval tasks, where only three could yield improved results. The best approach, TSDAE
+(Wang et al., 2021) can be combined with GPL, yielding another average improvement of 1.4 points
+nDCG@10 across the six tasks. The code and the models are available at
+https://github.com/UKPLab/gpl.
+http://arxiv.org/abs/2112.07577v3
+Published: 2021, updated: 2022, category: cs.CL
+Comment: Accepted at NAACL 2022
+Pages: 16
+
+
+33. TSDAE: Using Transformer-based Sequential Denoising Auto-Encoder for
+Unsupervised Sentence Embedding Learning
+Kexin Wang, Nils Reimers, Iryna Gurevych
+LLM summary: This work introduces TSDAE, a new unsupervised method for learning sentence
+embeddings using pre-trained Transformers and a Sequential Denoising Auto-Encoder, which surpasses
+previous unsupervised techniques and achieves up to 93.1% of the performance of supervised
+approaches. Unlike prior research that mainly assessed on Semantic Textual Similarity tasks, the authors
+evaluate TSDAE and other recent methods across four diverse datasets, demonstrating robust domain
+adaptation and superior pre-training performance.
+Learning sentence embeddings often requires a large amount of labeled data. However, for most tasks
+and domains, labeled data is seldom available and creating it is expensive. In this work, we present a new
+state-of-the-art unsupervised method based on pre-trained Transformers and Sequential Denoising
+Auto-Encoder (TSDAE) which outperforms previous approaches by up to 6.4 points. It can achieve up to
+93.1% of the performance of in-domain supervised approaches. Further, we show that TSDAE is a strong
+domain adaptation and pre-training method for sentence embeddings, significantly outperforming other
+approaches like Masked Language Model. A crucial shortcoming of previous studies is the narrow
+evaluation: Most work mainly evaluates on the single task of Semantic Textual Similarity (STS), which
+does not require any domain knowledge. It is unclear if these proposed methods generalize to other
+domains and tasks. We fill this gap and evaluate TSDAE and other recent approaches on four different
+datasets from heterogeneous domains.
+http://arxiv.org/abs/2104.06979v3
+Published: 2021, category: cs.CL
+Comment: Accepted at EMNLP 2021 Findings
+Pages: 18
+
+
+34. Don't Stop Pretraining: Adapt Language Models to Domains and Tasks
+Suchin Gururangan, Ana Marasovic, Swabha Swayamdipta, Kyle Lo, Iz Beltagy, Doug Downey, Noah A.
+Smith
+LLM summary: This study demonstrates that, beyond broadly pretrained language models, further
+adapting models to the specific domain (domain-adaptive pretraining) and to the target task's unlabeled
+data (task-adaptive pretraining) consistently improves performance across various domains and
+classification tasks. Additionally, using simple data selection strategies to augment task-specific data
+provides an effective alternative when domain-adaptive pretraining is not feasible, with multi-phase
+adaptive pretraining yielding substantial performance gains overall.
+Language models pretrained on text from a wide variety of sources form the foundation of today's NLP.
+In light of the success of these broad-coverage models, we investigate whether it is still helpful to tailor a
+pretrained model to the domain of a target task. We present a study across four domains (biomedical and
+computer science publications, news, and reviews) and eight classification tasks, showing that a second
+phase of pretraining in-domain (domain-adaptive pretraining) leads to performance gains, under both
+high- and low-resource settings. Moreover, adapting to the task's unlabeled data (task-adaptive
+pretraining) improves performance even after domain-adaptive pretraining. Finally, we show that
+adapting to a task corpus augmented using simple data selection strategies is an effective alternative,
+especially when resources for domain-adaptive pretraining might be unavailable. Overall, we
+consistently find that multi-phase adaptive pretraining offers large gains in task performance.
+http://arxiv.org/abs/2004.10964v3
+Published: 2020, category: cs.CL
+Comment: ACL 2020
+Pages: 19
